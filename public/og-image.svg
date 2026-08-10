@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Print Prep Lab</title>
+  <desc id="desc">Know if your image is ready to print</desc>
+  <rect width="1200" height="630" fill="#f2f0e8"/>
+  <g stroke="#d9d5ca" stroke-width="1" opacity="0.9">
+    <path d="M0 90h1200M0 180h1200M0 270h1200M0 360h1200M0 450h1200M0 540h1200"/>
+    <path d="M90 0v630M180 0v630M270 0v630M360 0v630M450 0v630M540 0v630M630 0v630M720 0v630M810 0v630M900 0v630M990 0v630M1080 0v630"/>
+  </g>
+  <rect x="56" y="48" width="1088" height="534" rx="12" fill="#fffdf7" stroke="#1a2d38" stroke-width="3"/>
+  <path d="M88 80h42M88 80v42M1112 80h-42M1112 80v42M88 550h42M88 550v-42M1112 550h-42M1112 550v-42" fill="none" stroke="#17a8b7" stroke-width="5"/>
+  <g transform="translate(106 112)">
+    <rect width="236" height="38" rx="19" fill="#17a8b7"/>
+    <text x="118" y="26" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" letter-spacing="2" fill="#ffffff">PRINT PREP LAB</text>
+    <text y="113" font-family="Georgia, 'Times New Roman', serif" font-size="66" font-weight="700" fill="#142a36">Know if your image</text>
+    <text y="187" font-family="Georgia, 'Times New Roman', serif" font-size="66" font-style="italic" fill="#142a36">is ready to print.</text>
+    <text y="248" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#51616a">Pixels · PPI · print size · crop · bleed</text>
+    <g transform="translate(0 298)">
+      <rect width="208" height="76" rx="8" fill="#142a36"/>
+      <text x="24" y="30" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5" fill="#91dce4">QUALITY TARGET</text>
+      <text x="24" y="59" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#ffffff">300 PPI</text>
+      <path d="M239 38h178" stroke="#17a8b7" stroke-width="3"/>
+      <path d="m407 28 12 10-12 10" fill="none" stroke="#17a8b7" stroke-width="3"/>
+      <text x="449" y="46" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" letter-spacing="1.4" fill="#142a36">PIXELS → PAPER</text>
+    </g>
+  </g>
+  <g transform="translate(845 122)">
+    <rect x="26" y="28" width="210" height="298" fill="#d9d5ca" opacity="0.7"/>
+    <rect width="210" height="298" fill="#ffffff" stroke="#142a36" stroke-width="4"/>
+    <rect x="17" y="17" width="176" height="264" fill="#e9f7f8" stroke="#17a8b7" stroke-width="2" stroke-dasharray="9 7"/>
+    <rect x="34" y="34" width="142" height="230" fill="none" stroke="#142a36" stroke-width="2" stroke-dasharray="5 7"/>
+    <circle cx="105" cy="142" r="53" fill="#17a8b7" opacity="0.18"/>
+    <path d="m68 177 29-39 20 25 24-36 32 50z" fill="#17a8b7"/>
+    <circle cx="78" cy="102" r="14" fill="#f1a447"/>
+    <g transform="translate(-16 352)">
+      <path d="M0 0h242" stroke="#142a36" stroke-width="2"/>
+      <path d="M0-8v16M242-8v16" stroke="#142a36" stroke-width="2"/>
+      <text x="121" y="30" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#142a36">2480 × 3508 px</text>
+      <text x="121" y="55" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#51616a">A4 at 300 PPI</text>
+    </g>
+  </g>
+</svg>
