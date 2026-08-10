@@ -3,8 +3,7 @@ name: Import Print Prep Lab source
 on:
   push:
     paths:
-      - ".github/import/print-prep-lab-source.zip"
-  workflow_dispatch:
+      - ".github/import/READY"
 
 permissions:
   contents: write
@@ -16,19 +15,24 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Expand verified source archive
+      - name: Reassemble and verify source archive
+        run: |
+          cat .github/import/chunks/part-* > /tmp/print-prep-lab.b64
+          base64 --decode /tmp/print-prep-lab.b64 > /tmp/print-prep-lab-source.zip
+          echo "0ea26a368d9b3747b034323d633ba84d9e2fc0df636de44da815b40d2344fe92  /tmp/print-prep-lab-source.zip" | sha256sum -c -
+          unzip -t /tmp/print-prep-lab-source.zip
+
+      - name: Expand verified source
         run: |
           rm -f .bootstrap
-          unzip -o .github/import/print-prep-lab-source.zip -d .
+          unzip -o /tmp/print-prep-lab-source.zip -d .
+          rm -rf .github/import
+          rm -f .github/workflows/import-source.yml
 
       - name: Commit imported source
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          if git diff --cached --quiet; then
-            echo "No source changes to commit."
-            exit 0
-          fi
-          git commit -m "Import Print Prep Lab source"
+          git commit -m "Import verified Print Prep Lab source"
           git push
