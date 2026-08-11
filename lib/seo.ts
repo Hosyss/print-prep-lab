@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const SITE_NAME = "Print Prep Lab";
-export const SITE_URL = "https://print-prep-lab.hosys.chatgpt.site";
+export const SITE_URL = "https://printpreplab.pages.dev";
 export const SITE_DESCRIPTION =
   "Free browser-based tools for checking image print size, effective PPI, paper dimensions, cropping, bleed and safe areas before printing.";
 export const SOCIAL_IMAGE_PATH = "/og-image.png";
-export const SITE_UPDATED_AT = "2026-08-09";
+export const SITE_UPDATED_AT = "2026-08-11";
 
 export const socialImage = {
   url: SOCIAL_IMAGE_PATH,
