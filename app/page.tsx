@@ -61,7 +61,7 @@ export default function Home() {
     <section className="section paper-section">
       <div className="shell">
         <div className="section-kicker">Popular references</div>
-        <div className="section-heading compact"><h2>Start with the size<br />you need.</h2><Link href="/sizes#size-index">View every size →</Link></div>
+        <div className="section-heading compact"><h2>Start with the size<br />you need.</h2><Link href="/sizes#size-index" aria-label="View every print size" style={{ alignSelf: "stretch", minWidth: "220px", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", cursor: "pointer" }}>View every size →</Link></div>
         <div className="size-grid">{popularSizes.map((size) => <Link href={size.href} className="size-card" key={size.name}><span className="paper-shape"><i>{size.name}</i></span><div><h3>{size.name}</h3><p>{size.measure}</p><strong>{size.pixels}</strong><small>at 300 PPI</small></div><b>↗</b></Link>)}</div>
       </div>
     </section>
