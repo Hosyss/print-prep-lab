@@ -5,7 +5,7 @@ export const SITE_URL = "https://printpreplab.pages.dev";
 export const SITE_DESCRIPTION =
   "Free browser-based tools for checking image print size, effective PPI, paper dimensions, cropping, bleed and safe areas before printing.";
 export const SOCIAL_IMAGE_PATH = "/og-image.png";
-export const SITE_UPDATED_AT = "2026-08-11";
+export const SITE_UPDATED_AT = "2026-08-12";
 
 export const socialImage = {
   url: SOCIAL_IMAGE_PATH,
@@ -21,19 +21,20 @@ type PageMetadataInput = {
 };
 
 export function pageMetadata({ title, description, path }: PageMetadataInput): Metadata {
-  const canonical = path === "/" ? "/" : path.replace(/\/$/, "");
+  const canonicalPath = path === "/" ? "/" : path.replace(/\/$/, "");
+  const canonicalUrl = new URL(canonicalPath, SITE_URL).toString();
 
   return {
     title,
     description,
-    alternates: { canonical },
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       type: "website",
       locale: "en_US",
       siteName: SITE_NAME,
       title,
       description,
-      url: canonical,
+      url: canonicalUrl,
       images: [socialImage],
     },
     twitter: {
