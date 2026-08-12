@@ -19,6 +19,9 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+const CANONICAL_ORIGIN = "https://printpreplab.pages.dev";
+const LEGACY_HOSTS = new Set(["print-prep-lab.hosys.chatgpt.site"]);
+
 const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": [
     "default-src 'self'",
@@ -55,6 +58,21 @@ function withSecurityHeaders(response: Response, request: Request): Response {
   });
 }
 
+function legacyRedirect(url: URL): Response | null {
+  if (!LEGACY_HOSTS.has(url.hostname)) return null;
+
+  const destination = new URL(url.pathname, CANONICAL_ORIGIN);
+  destination.search = url.search;
+
+  return new Response(null, {
+    status: 301,
+    headers: {
+      Location: destination.toString(),
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
+}
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
 // To route SVGs through the optimizer (with security headers), set
@@ -64,6 +82,8 @@ function withSecurityHeaders(response: Response, request: Request): Response {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const redirectResponse = legacyRedirect(url);
+    if (redirectResponse) return redirectResponse;
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
