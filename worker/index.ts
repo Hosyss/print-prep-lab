@@ -48,9 +48,20 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 function withSecurityHeaders(response: Response, request: Request): Response {
   // Keep the HTTP-only local development runtime compatible with Vite HMR.
-  if (new URL(request.url).protocol !== "https:") return response;
+  const requestUrl = new URL(request.url);
+  if (requestUrl.protocol !== "https:") return response;
+
   const headers = new Headers(response.headers);
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (response.ok && contentType.includes("text/html")) {
+    const canonicalUrl = new URL(requestUrl.pathname, CANONICAL_ORIGIN).toString();
+    const canonicalLink = `<${canonicalUrl}>; rel="canonical"`;
+    const existingLink = headers.get("Link");
+    headers.set("Link", existingLink ? `${existingLink}, ${canonicalLink}` : canonicalLink);
+  }
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -63,11 +74,13 @@ function legacyRedirect(url: URL): Response | null {
 
   const destination = new URL(url.pathname, CANONICAL_ORIGIN);
   destination.search = url.search;
+  const canonicalDestination = new URL(url.pathname, CANONICAL_ORIGIN);
 
   return new Response(null, {
     status: 301,
     headers: {
       Location: destination.toString(),
+      Link: `<${canonicalDestination.toString()}>; rel="canonical"`,
       "Cache-Control": "public, max-age=3600",
     },
   });
