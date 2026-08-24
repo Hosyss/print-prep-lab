@@ -21,6 +21,8 @@ interface ExecutionContext {
 
 const CANONICAL_ORIGIN = "https://printpreplab.pages.dev";
 const LEGACY_HOSTS = new Set(["print-prep-lab.hosys.chatgpt.site"]);
+const GOOGLE_VERIFICATION_PATH = "/google6d67c58ff3b5201c.html";
+const GOOGLE_VERIFICATION_BODY = "google-site-verification: google6d67c58ff3b5201c.html";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": [
@@ -98,6 +100,16 @@ const worker = {
     const url = new URL(request.url);
     const redirectResponse = legacyRedirect(url);
     if (redirectResponse) return redirectResponse;
+
+    if (url.pathname === GOOGLE_VERIFICATION_PATH) {
+      return withSecurityHeaders(new Response(GOOGLE_VERIFICATION_BODY, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "public, max-age=3600",
+        },
+      }), request);
+    }
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];

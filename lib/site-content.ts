@@ -437,7 +437,7 @@ const CORE_GUIDE_PAGES: GuidePage[] = [
     related: ["print-resolution-guide", "how-large-can-i-print-my-image", "aspect-ratio-cropping-print"],
     primaryCta: { label: "Calculate effective PPI", href: "/tools/dpi-ppi-calculator" },
     sources: [
-      { label: "Adobe Photoshop — Image size and resolution", href: "https://helpx.adobe.com/photoshop/using/image-size-resolution.html" },
+      { label: "Adobe — Resolution specifications for printing images", href: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/resolution-specs-for-printing-images.html" },
       { label: "Print Prep Lab calculation methodology", href: "/methodology" },
     ],
   },
@@ -481,7 +481,7 @@ const CORE_GUIDE_PAGES: GuidePage[] = [
     related: ["print-resolution-guide", "aspect-ratio-cropping-print", "dpi-vs-ppi"],
     primaryCta: { label: "Check your image now", href: "/tools/print-readiness-checker" },
     sources: [
-      { label: "Adobe Photoshop — Image size and resolution", href: "https://helpx.adobe.com/photoshop/using/image-size-resolution.html" },
+      { label: "Adobe — Resolution specifications for printing images", href: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/resolution-specs-for-printing-images.html" },
       { label: "Print Prep Lab calculation methodology", href: "/methodology" },
     ],
   },
@@ -524,7 +524,6 @@ const CORE_GUIDE_PAGES: GuidePage[] = [
     related: ["how-large-can-i-print-my-image", "dpi-vs-ppi", "aspect-ratio-cropping-print"],
     primaryCta: { label: "Convert pixels to print size", href: "/tools/pixels-to-print-size" },
     sources: [
-      { label: "Adobe Photoshop — Image size and resolution", href: "https://helpx.adobe.com/photoshop/using/image-size-resolution.html" },
       { label: "Adobe — Resolution specifications for printing images", href: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/resolution-specs-for-printing-images.html" },
     ],
   },

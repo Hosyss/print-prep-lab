@@ -45,7 +45,7 @@ export const ADDITIONAL_GUIDES: GuidePage[] = [
     related: ["how-large-can-i-print-my-image", "bleed-trim-safe-area", "print-resolution-guide"],
     primaryCta: { label: "Run the print readiness check", href: "/tools/print-readiness-checker" },
     sources: [
-      { label: "Adobe Photoshop — Image size and resolution", href: "https://helpx.adobe.com/photoshop/using/image-size-resolution.html" },
+      { label: "Adobe — Resolution specifications for printing images", href: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/resolution-specs-for-printing-images.html" },
       { label: "Print Prep Lab calculation methodology", href: "/methodology" },
       { label: "Print Prep Lab sources and reference policy", href: "/sources" },
     ],
@@ -91,7 +91,6 @@ export const ADDITIONAL_GUIDES: GuidePage[] = [
     related: ["print-resolution-guide", "how-large-can-i-print-my-image", "print-file-preflight-checklist"],
     primaryCta: { label: "Calculate maximum print size", href: "/tools/pixels-to-print-size" },
     sources: [
-      { label: "Adobe Photoshop — Image size and resolution", href: "https://helpx.adobe.com/photoshop/using/image-size-resolution.html" },
       { label: "Adobe — Resolution specifications for printing images", href: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/resolution-specs-for-printing-images.html" },
       { label: "Print Prep Lab calculation methodology", href: "/methodology" },
     ],

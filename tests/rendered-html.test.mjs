@@ -115,6 +115,11 @@ test("serves a clean robots file, a complete sitemap and an authorized ads.txt",
   const googleVerification = (await readFile(new URL("../public/google6d67c58ff3b5201c.html", import.meta.url), "utf8")).trim();
   assert.equal(googleVerification, "google-site-verification: google6d67c58ff3b5201c.html");
 
+  const googleVerificationResponse = await requestPath(worker, "/google6d67c58ff3b5201c.html");
+  assert.equal(googleVerificationResponse.status, 200);
+  assert.match(googleVerificationResponse.headers.get("content-type") ?? "", /^text\/plain\b/i);
+  assert.equal((await googleVerificationResponse.text()).trim(), googleVerification);
+
   const indexNowResponse = await requestPath(worker, "/516c1331b746fbca4fb273e523b64e3e.txt");
   assert.equal(indexNowResponse.status, 200);
   assert.equal((await indexNowResponse.text()).trim(), "516c1331b746fbca4fb273e523b64e3e");
@@ -218,6 +223,8 @@ test("audits every sitemap page for indexability, distinct metadata and valid in
   for (const path of EXPECTED_PATHS) {
     const html = await renderPath(worker, path);
     assert.doesNotMatch(html, developmentPreviewMeta, `${path} exposes preview metadata`);
+    assert.doesNotMatch(html, /helpx\.adobe\.com\/photoshop\/using\/image-size-resolution\.html/i, `${path} links to Adobe's retired resolution page`);
+    assert.doesNotMatch(html, /helpx\.adobe\.com\/indesign\/using\/printers-marks-bleeds\.html/i, `${path} links to Adobe's retired bleed page`);
     assert.doesNotMatch(html, /<meta[^>]+content="noindex/i, `${path} must be indexable`);
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have exactly one H1`);
 
