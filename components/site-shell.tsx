@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PrivacySettingsButton } from "@/components/analytics-consent";
 
 export function SiteHeader() {
   return (
@@ -34,10 +35,10 @@ export function SiteFooter() {
         <div className="footer-links">
           <div><strong>Explore</strong><Link href="/tools">Tools</Link><Link href="/sizes">Print sizes</Link><Link href="/guides">Guides</Link></div>
           <div><strong>Trust</strong><Link href="/methodology">Methodology</Link><Link href="/sources">Sources</Link><Link href="/privacy">Privacy</Link></div>
-          <div><strong>Company</strong><Link href="/about">About</Link><Link href="/contact">Contact</Link><Link href="/terms">Terms</Link></div>
+          <div><strong>Company</strong><Link href="/about">About</Link><Link href="/editorial-policy">Editorial policy</Link><Link href="/contact">Contact</Link><Link href="/terms">Terms</Link></div>
         </div>
       </div>
-      <div className="shell footer-bottom"><span>© 2026 Print Prep Lab</span><span>Your image stays on your device.</span></div>
+      <div className="shell footer-bottom"><span>© 2026 Print Prep Lab</span><span>Your image stays on your device.</span><PrivacySettingsButton /></div>
     </footer>
   );
 }

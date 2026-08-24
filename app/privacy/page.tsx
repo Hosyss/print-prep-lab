@@ -16,7 +16,7 @@ export default function PrivacyPage() {
       </div>
 
       <PageHero
-        eyebrow="Last updated August 11, 2026"
+        eyebrow="Last updated August 24, 2026"
         title="Privacy Policy"
         description="How Print Prep Lab handles images, calculator inputs, analytics, cookies and advertising services."
       />
@@ -42,6 +42,9 @@ export default function PrivacyPage() {
             <p>
               Pixel counts, physical sizes, PPI, orientation, bleed and safe-margin values are used in the browser session to calculate results. No confidential information is required to use the calculators.
             </p>
+            <p>
+              The site stores an analytics consent preference in local browser storage so it can remember whether Microsoft Clarity may load. The current tools do not create user accounts, save projects or maintain a server-side image library.
+            </p>
           </div>
         </section>
 
@@ -50,10 +53,10 @@ export default function PrivacyPage() {
           <div>
             <h2>Analytics and diagnostics</h2>
             <p>
-              Print Prep Lab may use analytics and diagnostic services, including Microsoft Clarity, to understand page usage, navigation, technical problems and interaction patterns. These services may process browser, device, approximate location and interaction data according to their own privacy terms and applicable consent requirements.
+              Print Prep Lab uses Microsoft Clarity only after a visitor allows analytics through the on-page privacy choice. Clarity may process browser, device, approximate location and masked interaction data according to Microsoft&apos;s privacy terms.
             </p>
             <p>
-              Analytics data is used to improve the site, identify broken interactions and understand which tools are useful to visitors.
+              Analytics data is used to identify broken interactions and understand which tools and explanations are useful. Selected image previews and calculator text fields are not intentionally sent to Clarity, and sensitive page content is configured to be masked where the service supports it.
             </p>
           </div>
         </section>
@@ -63,7 +66,7 @@ export default function PrivacyPage() {
           <div>
             <h2>Google AdSense and advertising cookies</h2>
             <p>
-              Print Prep Lab may use Google AdSense to display advertising. Third-party vendors, including Google, may use cookies to serve ads based on a visitor&apos;s prior visits to this website or other websites.
+              Print Prep Lab uses the Google AdSense site code for publisher verification and may use it to display advertising after approval. Third-party vendors, including Google, may use cookies or similar technologies to serve and measure ads based on a visitor&apos;s activity on this website or other websites.
             </p>
             <p>
               Google&apos;s use of advertising cookies enables Google and its partners to serve ads based on visits to Print Prep Lab and/or other sites on the Internet. Visitors can manage or opt out of personalized advertising through Google Ads Settings.
@@ -71,6 +74,11 @@ export default function PrivacyPage() {
             <p>
               <a href="https://adssettings.google.com/" target="_blank" rel="noreferrer" className="text-link">
                 Manage Google ad settings →
+              </a>
+            </p>
+            <p>
+              <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noreferrer" className="text-link">
+                How Google uses information from partner sites →
               </a>
             </p>
           </div>
@@ -81,7 +89,7 @@ export default function PrivacyPage() {
           <div>
             <h2>Consent where required</h2>
             <p>
-              Where applicable law or Google policy requires consent for cookies, local storage or personalized advertising, the site will use an appropriate consent mechanism before those purposes are enabled.
+              Where applicable law or Google policy requires consent for advertising cookies, local storage or personalized advertising, the site will use the relevant Google consent controls or another compliant consent mechanism before those purposes are enabled.
             </p>
             <p>
               Visitors in regions with additional privacy requirements may be shown consent or privacy controls provided through Google or another compliant consent management platform.
@@ -92,12 +100,12 @@ export default function PrivacyPage() {
         <section>
           <span>06</span>
           <div>
-            <h2>Third-party services</h2>
+            <h2>Hosting, security and request logs</h2>
             <p>
-              Advertising, analytics, security and hosting providers operate under their own privacy policies. Print Prep Lab does not sell uploaded images or calculator inputs, and the image-analysis tool is designed to keep selected image files on the visitor&apos;s device.
+              Cloudflare hosts and secures the site. Like most web hosts, it may process request information such as IP address, browser, requested URL, timestamps and security signals to deliver pages, prevent abuse and diagnose failures under its own privacy terms.
             </p>
             <p>
-              For more information about Google&apos;s data practices, see Google&apos;s Privacy &amp; Terms pages. For Microsoft Clarity, see Microsoft&apos;s privacy documentation.
+              Advertising, analytics, security and hosting providers operate under their own privacy policies. Print Prep Lab does not sell selected images or calculator inputs, and the image-analysis tools are designed to keep selected image files on the visitor&apos;s device.
             </p>
           </div>
         </section>
@@ -105,9 +113,29 @@ export default function PrivacyPage() {
         <section>
           <span>07</span>
           <div>
+            <h2>External links</h2>
+            <p>
+              Guides link to standards bodies, software documentation and the public project tracker. Following an external link sends a request to that provider, whose privacy policy governs its site. Print Prep Lab does not control external content or retention.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <span>08</span>
+          <div>
+            <h2>Your choices</h2>
+            <p>
+              Use the Analytics choices link in the footer to allow, decline or withdraw Clarity consent. Browser settings can clear local storage and manage cookies. Google ad-personalization controls are available through the links above and through any consent message shown for the visitor&apos;s region.
+            </p>
+          </div>
+        </section>
+
+        <section>
+          <span>09</span>
+          <div>
             <h2>Contact and policy updates</h2>
             <p>
-              Privacy or site questions can be reported through the Contact page. This policy may be updated when site features, analytics, advertising providers or legal requirements change.
+              Privacy or site questions can be sent through the public channel described on the Contact page; do not place private information in a public issue. This policy may be updated when site features, analytics, advertising providers or legal requirements change. Material revisions receive a new last-updated date.
             </p>
           </div>
         </section>

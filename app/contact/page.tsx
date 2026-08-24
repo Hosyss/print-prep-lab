@@ -30,7 +30,7 @@ export default function ContactPage() {
           <div>
             <h2>How to contact us</h2>
             <p>
-              Print Prep Lab accepts calculation bug reports, missing-size requests and site feedback through the project&apos;s public GitHub Issues tracker.
+              Print Prep Lab is published and maintained by Hossam Eldeen. Calculation bug reports, missing-size requests, source corrections and site feedback are accepted through the project&apos;s public GitHub Issues tracker.
             </p>
             <p>
               <a href={issueUrl} target="_blank" rel="noreferrer" className="text-link">
@@ -82,6 +82,22 @@ export default function ContactPage() {
                 Displayed result:
               </code>
             </div>
+          </div>
+        </section>
+
+        <section>
+          <span>05</span>
+          <div>
+            <h2>Public source and publisher profile</h2>
+            <p>
+              The source repository records calculator changes, content corrections and deployment history. The maintainer&apos;s public GitHub profile identifies the account responsible for the project.
+            </p>
+            <p>
+              <a href="https://github.com/Hosyss/print-prep-lab" target="_blank" rel="noreferrer" className="text-link">View the public source repository →</a>
+            </p>
+            <p>
+              <a href="https://github.com/Hosyss" target="_blank" rel="noreferrer" className="text-link">View Hossam Eldeen&apos;s publisher profile →</a>
+            </p>
           </div>
         </section>
       </article>

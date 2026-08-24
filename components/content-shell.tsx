@@ -34,6 +34,18 @@ export function FaqList({ items }: { items: Array<{ question: string; answer: st
   return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} /><div className="faq-list">{items.map((item) => <details key={item.question}><summary>{item.question}<span>+</span></summary><p>{item.answer}</p></details>)}</div></>;
 }
 
-export function PageCta() {
-  return <section className="page-cta"><div><span>Check before you print</span><h2>Use the image, not a guess.</h2><p>Run the source pixels against the exact size you plan to order.</p></div><Link className="button primary" href="/tools/print-readiness-checker">Check an image <span>→</span></Link></section>;
+export function PageCta({
+  eyebrow = "Check before you print",
+  title = "Use the image, not a guess.",
+  description = "Run the source pixels against the exact size you plan to order.",
+  href = "/tools/print-readiness-checker",
+  label = "Check an image",
+}: {
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  href?: string;
+  label?: string;
+}) {
+  return <section className="page-cta"><div><span>{eyebrow}</span><h2>{title}</h2><p>{description}</p></div><Link className="button primary" href={href}>{label} <span>→</span></Link></section>;
 }

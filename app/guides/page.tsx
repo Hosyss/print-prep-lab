@@ -14,6 +14,7 @@ const topics = [
   { label: "Image quality", title: "How many pixels are enough?", text: "Choose a realistic PPI target and calculate the maximum physical size from real source pixels.", href: "/guides/how-large-can-i-print-my-image" },
   { label: "Crop and ratio", title: "Why does the lab remove part of my photo?", text: "Compare the source and print shapes before ordering an edge-to-edge print.", href: "/guides/aspect-ratio-cropping-print" },
   { label: "Document setup", title: "Where do bleed, trim and safe area go?", text: "Separate the final cut edge from the extra image and the protected content zone.", href: "/guides/bleed-trim-safe-area" },
+  { label: "Final export", title: "What should I check before sending the file?", text: "Use a twelve-point preflight from product specification through proof approval.", href: "/guides/print-file-preflight-checklist" },
 ];
 
 const toolHandoffs = [
@@ -25,7 +26,7 @@ const toolHandoffs = [
 export default function GuidesIndex() {
   return <main>
     <div className="shell"><Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides" }]} /></div>
-    <PageHero eyebrow="Plain-English production decisions" title="Print Preparation Guides" description="Understand image resolution, PPI, cropping and document margins before changing a file. Each guide shows the decision, the formula and the tool to use next.">
+    <PageHero eyebrow="Eight original production guides" title="Print Preparation Guides" description="Understand image resolution, PPI, cropping, document margins and export checks before changing a file. Each guide shows the decision, the formula and the tool to use next.">
       <div className="hero-spec"><span>Featured guide</span><strong>How large can you print an image?</strong><small>Start with real pixels, then account for PPI and crop.</small><Link className="text-link" href="/guides/how-large-can-i-print-my-image">Read the guide →</Link></div>
     </PageHero>
 

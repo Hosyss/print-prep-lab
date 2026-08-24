@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs, FaqList, PageCta, PageHero } from "@/components/content-shell";
 import { GUIDE_PAGES } from "@/lib/site-content";
-import { pageMetadata } from "@/lib/seo";
+import { AUTHOR_NAME, SITE_LAUNCHED_AT, SITE_UPDATED_AT, SITE_URL, pageMetadata } from "@/lib/seo";
 
 export function generateStaticParams() { return GUIDE_PAGES.map((guide) => ({ slug: guide.slug })); }
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> { const { slug } = await params; const guide = GUIDE_PAGES.find((item) => item.slug === slug); return guide ? pageMetadata({ title: guide.title, description: guide.description, path: `/guides/${slug}` }) : {}; }
@@ -12,9 +12,24 @@ export default async function GuideDetail({ params }: { params: Promise<{ slug: 
   const { slug } = await params;
   const guide = GUIDE_PAGES.find((item) => item.slug === slug);
   if (!guide) notFound();
+  const articleStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: guide.heading,
+    description: guide.description,
+    mainEntityOfPage: `${SITE_URL}/guides/${guide.slug}`,
+    datePublished: SITE_LAUNCHED_AT,
+    dateModified: SITE_UPDATED_AT,
+    inLanguage: "en",
+    author: { "@type": "Person", name: AUTHOR_NAME, url: `${SITE_URL}/about` },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+  };
   return <main>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleStructuredData).replace(/</g, "\\u003c") }} />
     <div className="shell"><Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides", href: "/guides" }, { label: guide.heading }]} /></div>
-    <PageHero eyebrow="Print preparation guide" title={guide.heading} description={guide.description}><div className="hero-spec"><span>Key takeaway</span><strong>{guide.takeaway}</strong><small>Reviewed August 2026</small></div></PageHero>
+    <PageHero eyebrow="Print preparation guide" title={guide.heading} description={guide.description}><div className="hero-spec"><span>Key takeaway</span><strong>{guide.takeaway}</strong><small>Reviewed and updated August 24, 2026</small></div></PageHero>
+
+    <section className="guide-byline shell" aria-label="Guide authorship and review details"><div><span>Written and maintained by</span><Link href="/about">{AUTHOR_NAME}</Link></div><div><span>Calculation review</span><Link href="/methodology">Documented formulas and automated tests</Link></div><div><span>Editorial standard</span><Link href="/editorial-policy">Sources, corrections and independence</Link></div></section>
 
     <section className="quick-answer shell" aria-label="Quick answer"><div><span>Quick answer</span><p>{guide.quickAnswer}</p></div><code>{guide.formula}</code></section>
 
@@ -31,6 +46,6 @@ export default async function GuideDetail({ params }: { params: Promise<{ slug: 
     <section className="content-section shell two-column-copy guide-faq-section"><article><div className="section-kicker">Sources and method</div><h2>Check the requirement behind the number.</h2><p>These guides explain repeatable calculations and planning ranges. The print provider&apos;s written specification remains the final production requirement.</p><div className="guide-source-links">{guide.sources.map((source) => source.href.startsWith("/") ? <Link href={source.href} key={source.href}>{source.label} <b>→</b></Link> : <a href={source.href} key={source.href} target="_blank" rel="noreferrer">{source.label} <b>↗</b></a>)}</div></article><aside><div className="section-kicker">Questions</div><FaqList items={guide.faq} /></aside></section>
 
     <section className="related-strip shell"><span>Continue learning</span>{guide.related.map((relatedSlug) => { const item = GUIDE_PAGES.find((candidate) => candidate.slug === relatedSlug); return item ? <Link href={`/guides/${item.slug}`} key={item.slug}>{item.heading} <b>→</b></Link> : null; })}</section>
-    <div className="shell"><PageCta /></div>
+    <div className="shell"><PageCta eyebrow="Put the guide into practice" title={guide.takeaway} description={`Use the linked calculator with your own dimensions, then verify the result against the provider's production requirement.`} href={guide.primaryCta.href} label={guide.primaryCta.label} /></div>
   </main>;
 }

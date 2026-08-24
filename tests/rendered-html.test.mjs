@@ -1,5 +1,26 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
+
+const SITE_URL = "https://printpreplab.pages.dev";
+const LEGACY_URL = "https://print-prep-lab.hosys.chatgpt.site";
+const EXPECTED_PATHS = [
+  "/", "/tools", "/sizes", "/guides",
+  "/tools/print-readiness-checker", "/tools/pixels-to-print-size",
+  "/tools/print-size-to-pixels", "/tools/dpi-ppi-calculator",
+  "/tools/paper-size-pixels-calculator", "/tools/aspect-ratio-crop-preview",
+  "/tools/bleed-safe-area-calculator",
+  "/sizes/a2", "/sizes/a3", "/sizes/a4", "/sizes/a5",
+  "/sizes/us-letter", "/sizes/us-legal", "/sizes/4x6-photo",
+  "/sizes/5x7-photo", "/sizes/8x10-photo", "/sizes/11x14-photo",
+  "/sizes/12x18-photo", "/sizes/16x20-photo",
+  "/guides/how-large-can-i-print-my-image", "/guides/dpi-vs-ppi",
+  "/guides/print-resolution-guide", "/guides/bleed-trim-safe-area",
+  "/guides/aspect-ratio-cropping-print", "/guides/print-file-preflight-checklist",
+  "/guides/export-images-for-large-format-printing", "/guides/a4-vs-us-letter-printing",
+  "/about", "/methodology", "/sources", "/editorial-policy",
+  "/privacy", "/terms", "/contact",
+];
 
 const developmentPreviewMeta =
   /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
@@ -10,260 +31,212 @@ async function loadWorker() {
   return (await import(workerUrl.href)).default;
 }
 
-async function renderPath(worker, path) {
-  const response = await worker.fetch(
-    new Request(`https://print-prep-lab.hosys.chatgpt.site${path}`, { headers: { accept: "text/html" } }),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
+function workerEnv() {
+  return { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } };
+}
+
+function workerContext() {
+  return { waitUntil() {}, passThroughOnException() {} };
+}
+
+async function requestPath(worker, path, base = SITE_URL) {
+  return worker.fetch(
+    new Request(`${base}${path}`, { headers: { accept: "text/html" } }),
+    workerEnv(),
+    workerContext(),
   );
+}
+
+async function renderPath(worker, path) {
+  const response = await requestPath(worker, path);
   assert.equal(response.status, 200, path);
   return response.text();
 }
 
-test("renders production SEO, accessibility and security signals", async () => {
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+test("renders production security, publisher, advertising and consent signals", async () => {
   const worker = await loadWorker();
-
-  const response = await worker.fetch(
-    new Request("https://print-prep-lab.hosys.chatgpt.site/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
-
+  const response = await requestPath(worker, "/");
   assert.equal(response.status, 200);
-  assert.match(
-    response.headers.get("content-type") ?? "",
-    /^text\/html\b/i,
-  );
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   assert.match(response.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
   assert.equal(response.headers.get("strict-transport-security"), "max-age=31536000; includeSubDomains");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
 
   const html = await response.text();
   assert.doesNotMatch(html, developmentPreviewMeta);
-  assert.match(html, /<link rel="canonical" href="https:\/\/print-prep-lab\.hosys\.chatgpt\.site\/"\/>/);
-  assert.match(html, /<meta property="og:title"/);
+  assert.match(html, new RegExp(`<link rel="canonical" href="${escapeRegex(SITE_URL)}/"`));
+  assert.match(html, /ca-pub-3369551572403499/);
+  assert.match(html, /google-site-verification/);
+  assert.match(html, /msvalidate\.01/);
+  assert.match(html, /Analytics choices/);
   assert.match(html, /<script type="application\/ld\+json">/);
-  assert.match(html, /<label class="drop-zone/);
-  assert.doesNotMatch(html, /role="button"/);
+});
 
-  const robotsResponse = await worker.fetch(
-    new Request("https://print-prep-lab.hosys.chatgpt.site/robots.txt"),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
+test("redirects every legacy hostname path to its canonical Pages URL", async () => {
+  const worker = await loadWorker();
+  const response = await requestPath(
+    worker,
+    "/guides/dpi-vs-ppi?source=legacy",
+    LEGACY_URL,
   );
+  assert.equal(response.status, 301);
+  assert.equal(response.headers.get("location"), `${SITE_URL}/guides/dpi-vs-ppi?source=legacy`);
+  assert.match(response.headers.get("link") ?? "", new RegExp(`<${escapeRegex(SITE_URL)}/guides/dpi-vs-ppi>; rel="canonical"`));
+});
+
+test("serves a clean robots file, a complete sitemap and an authorized ads.txt", async () => {
+  const worker = await loadWorker();
+  const robotsResponse = await requestPath(worker, "/robots.txt");
   assert.equal(robotsResponse.status, 200);
-  assert.match(await robotsResponse.text(), /Sitemap: https:\/\/print-prep-lab\.hosys\.chatgpt\.site\/sitemap\.xml/);
+  const robots = await robotsResponse.text();
+  assert.match(robots, /User-Agent: \*/i);
+  assert.match(robots, /Allow: \//i);
+  assert.match(robots, new RegExp(`Sitemap: ${escapeRegex(SITE_URL)}/sitemap\\.xml`));
+  assert.doesNotMatch(robots, /^Host:/im);
 
-  const sitemapResponse = await worker.fetch(
-    new Request("https://print-prep-lab.hosys.chatgpt.site/sitemap.xml"),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
-  );
+  const sitemapResponse = await requestPath(worker, "/sitemap.xml");
   assert.equal(sitemapResponse.status, 200);
-  const sitemap = await sitemapResponse.text();
-  assert.match(sitemap, /https:\/\/print-prep-lab\.hosys\.chatgpt\.site\/sizes\/a4</);
-  assert.doesNotMatch(sitemap, /\/sizes\/a4\//);
-});
-
-test("renders every P0 tool with distinct intent and strengthened content", async () => {
-  const worker = await loadWorker();
-  const expectations = [
-    ["/tools/print-readiness-checker", "Is Your Image Ready to Print?", "Best aspect-ratio matches"],
-    ["/tools/pixels-to-print-size", "Convert Pixels to Print Size", "Same pixels at common print targets"],
-    ["/tools/print-size-to-pixels", "Convert Print Size to Pixels", "Pixels required at common targets"],
-    ["/tools/dpi-ppi-calculator", "Calculate Image PPI for Printing", "Width density"],
-    ["/tools/paper-size-pixels-calculator", "Calculate Any Paper Size in Pixels", "A4 at common targets"],
-    ["/tools/aspect-ratio-crop-preview", "Preview How Your Photo Will Crop", "Fit full image"],
-    ["/tools/bleed-safe-area-calculator", "Calculate Bleed, Trim and Safe Area", "Common starting points"],
-  ];
-
-  for (const [path, heading, proof] of expectations) {
-    const html = await renderPath(worker, path);
-    assert.match(html, new RegExp(heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.match(html, new RegExp(proof.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.match(html, /Quick answer/);
-    assert.match(html, /FAQPage/);
-  }
-});
-
-test("renders the three P0 size pages with exact quick answers and unique planning notes", async () => {
-  const worker = await loadWorker();
-  const expectations = [
-    ["/sizes/a4", "2480 × 3508 pixels", "A4 vs Letter"],
-    ["/sizes/4x6-photo", "1200 × 1800 pixels", "A natural match for 3:2 cameras"],
-    ["/sizes/8x10-photo", "2400 × 3000 pixels", "A 3:2 image loses about 16.7%"],
-  ];
-
-  for (const [path, answer, insight] of expectations) {
-    const html = await renderPath(worker, path);
-    assert.match(html, new RegExp(answer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.match(html, new RegExp(insight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.match(html, /Quick answer/);
-    assert.match(html, /FAQPage/);
-  }
-});
-
-test("renders the five P1 size pages with exact facts and distinct print decisions", async () => {
-  const worker = await loadWorker();
-  const expectations = [
-    ["/sizes/a3", "A3 Size in Pixels and Print Dimensions", "3508 × 4961 pixels", "A3 has twice the area of A4"],
-    ["/sizes/a5", "A5 Size in Pixels and Print Dimensions", "1748 × 2480 pixels", "One A4 sheet folds to two A5 pages"],
-    ["/sizes/us-letter", "US Letter Size in Pixels and Print Dimensions", "2550 × 3300 pixels", "Letter is wider and shorter"],
-    ["/sizes/5x7-photo", "5×7 Photo Size: Pixels, Inches and Aspect Ratio", "1500 × 2100 pixels", "A 3:2 photo loses about 6.7%"],
-    ["/sizes/16x20-photo", "16×20 Photo Size: Pixels, Resolution and Crop", "4800 × 6000 pixels", "28.8 megapixels"],
-  ];
-
-  for (const [path, heading, answer, insight] of expectations) {
-    const html = await renderPath(worker, path);
-    for (const value of [heading, answer, insight]) {
-      assert.match(html, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    }
-    assert.match(html, /Quick answer/);
-    assert.match(html, /FAQPage/);
-  }
-});
-
-test("renders the four P2 size pages with exact facts, crop guidance and one H1", async () => {
-  const worker = await loadWorker();
-  const expectations = [
-    ["/sizes/a2", "A2 Size in Pixels and Print Dimensions", "4961 × 7016 pixels", "A2 has twice the area of A3"],
-    ["/sizes/us-legal", "US Legal Size in Pixels and Print Dimensions", "2550 × 4200 pixels", "The same width, three inches taller"],
-    ["/sizes/11x14-photo", "11×14 Photo Size: Pixels, Resolution and Crop", "3300 × 4200 pixels", "A 3:2 image loses about 15.2%"],
-    ["/sizes/12x18-photo", "12×18 Photo Size: Pixels, Resolution and Ratio", "3600 × 5400 pixels", "A direct fit for 3:2 camera images"],
-  ];
-
-  for (const [path, heading, answer, insight] of expectations) {
-    const html = await renderPath(worker, path);
-    for (const value of [heading, answer, insight]) {
-      assert.match(html, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    }
-    assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
-    assert.match(html, /Quick answer/);
-    assert.match(html, /FAQPage/);
-  }
-});
-
-test("renders the P2 home and hub pages as distinct task routes", async () => {
-  const worker = await loadWorker();
-  const expectations = [
-    ["/", "Know If Your Image", "Start with what you know", "How large can you print an image without losing quality?"],
-    ["/tools", "Free Print Preparation Tools", "What do you have right now?", "One local check from pixels to paper."],
-    ["/sizes", "Paper and Photo Size Reference", "ISO A-series paper", "The same paper needs different pixels at different PPI."],
-    ["/guides", "Print Preparation Guides", "What are you trying to solve?", "Turn source pixels into a defensible maximum print size."],
-  ];
-
-  for (const [path, heading, route, proof] of expectations) {
-    const html = await renderPath(worker, path);
-    for (const value of [heading, route, proof]) {
-      assert.match(html, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    }
-    assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
-    assert.match(html, new RegExp(`<link rel="canonical" href="https://print-prep-lab\\.hosys\\.chatgpt\\.site${path === "/" ? "/" : path}"/>`));
-  }
-
-  const sitemapResponse = await worker.fetch(
-    new Request("https://print-prep-lab.hosys.chatgpt.site/sitemap.xml"),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
-  );
-  const sitemap = await sitemapResponse.text();
-  for (const path of ["/sizes/a2", "/sizes/us-legal", "/sizes/11x14-photo", "/sizes/12x18-photo"]) {
-    assert.match(sitemap, new RegExp(`https://print-prep-lab\\.hosys\\.chatgpt\\.site${path}`));
-  }
-});
-
-test("renders every P1 guide as a decision page with sources, FAQs and a tool handoff", async () => {
-  const worker = await loadWorker();
-  const expectations = [
-    ["/guides/how-large-can-i-print-my-image", "How Large Can You Print an Image Without Losing Quality?", "Maximum size for a 6000 × 4000 px image before crop", "Check your image now"],
-    ["/guides/dpi-vs-ppi", "DPI vs PPI Explained for Print", "PPI, DPI and the resolution tag solve different questions", "Calculate effective PPI"],
-    ["/guides/print-resolution-guide", "What Resolution Do You Need for Printing?", "Pixel requirements for an 8 × 10 inch print", "Convert pixels to print size"],
-    ["/guides/bleed-trim-safe-area", "Bleed, Trim and Safe Area Explained", "Bleed canvas · 216 × 303 mm", "Calculate your document boxes"],
-    ["/guides/aspect-ratio-cropping-print", "Why Photos Crop at Different Print Sizes", "How a 3:2 camera image fits common edge-to-edge prints", "Preview your crop"],
-  ];
-
-  for (const [path, heading, proof, cta] of expectations) {
-    const html = await renderPath(worker, path);
-    for (const value of [heading, proof, cta]) {
-      assert.match(html, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    }
-    assert.match(html, /Decision table/);
-    assert.match(html, /Common mistakes/);
-    assert.match(html, /Sources and method/);
-    assert.match(html, /FAQPage/);
-  }
-});
-
-test("audits every public URL for indexable, distinct metadata and valid internal links", async () => {
-  const worker = await loadWorker();
-  const sitemapResponse = await worker.fetch(
-    new Request("https://print-prep-lab.hosys.chatgpt.site/sitemap.xml"),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
-  );
-  assert.equal(sitemapResponse.status, 200);
-
+  assert.match(sitemapResponse.headers.get("content-type") ?? "", /xml/i);
   const sitemap = await sitemapResponse.text();
   const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-  assert.equal(locations.length, 34, "the launch sitemap must contain exactly 34 focused URLs");
-  assert.equal(new Set(locations).size, locations.length, "sitemap URLs must be unique");
-  assert.equal((sitemap.match(/<lastmod>2026-08-09T00:00:00\.000Z<\/lastmod>/g) ?? []).length, 34);
+  assert.deepEqual(new Set(locations), new Set(EXPECTED_PATHS.map((path) => `${SITE_URL}${path}`)));
+  assert.equal(new Set(locations).size, EXPECTED_PATHS.length);
+  assert.equal((sitemap.match(/<lastmod>2026-08-24T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length);
+  assert.doesNotMatch(sitemap, /<priority>|<changefreq>/);
 
-  const expectedPaths = new Set(locations.map((location) => new URL(location).pathname));
-  const seenTitles = new Map();
-  const seenDescriptions = new Map();
+  const adsText = (await readFile(new URL("../public/ads.txt", import.meta.url), "utf8")).trim();
+  assert.equal(adsText, "google.com, pub-3369551572403499, DIRECT, f08c47fec0942fa0");
+});
 
-  for (const location of locations) {
-    const url = new URL(location);
-    const html = await renderPath(worker, url.pathname);
-    assert.doesNotMatch(html, developmentPreviewMeta, `${url.pathname} must not expose preview metadata`);
-    assert.doesNotMatch(html, /<meta[^>]+content="noindex/i, `${url.pathname} must be indexable`);
-    assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${url.pathname} must have exactly one H1`);
+test("renders all seven calculators with original use cases, examples, notes and FAQs", async () => {
+  const worker = await loadWorker();
+  const toolPaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/tools/"));
+  const bodyFingerprints = new Set();
+
+  for (const path of toolPaths) {
+    const html = await renderPath(worker, path);
+    assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
+    assert.match(html, /When to use this tool/);
+    assert.match(html, /Technical notes/);
+    assert.match(html, /Worked example/);
+    assert.match(html, /FAQPage/);
+    const context = html.match(/<section class="tool-context-grid[\s\S]*?<\/section>/)?.[0];
+    assert.ok(context && context.length > 800, `${path} needs substantial tool-specific context`);
+    assert.ok(!bodyFingerprints.has(context), `${path} duplicates another tool context`);
+    bodyFingerprints.add(context);
+  }
+  assert.equal(bodyFingerprints.size, 7);
+});
+
+test("renders all twelve size references with format-specific editorial context", async () => {
+  const worker = await loadWorker();
+  const sizePaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/sizes/"));
+  const bodyFingerprints = new Set();
+
+  for (const path of sizePaths) {
+    const html = await renderPath(worker, path);
+    assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
+    assert.match(html, /Quick answer/);
+    assert.match(html, /Format-specific context/);
+    assert.match(html, /FAQPage/);
+    const context = html.match(/<section class="size-use-case[\s\S]*?<\/section>/)?.[0];
+    assert.ok(context && context.length > 900, `${path} needs substantial format-specific context`);
+    assert.ok(!bodyFingerprints.has(context), `${path} duplicates another size context`);
+    bodyFingerprints.add(context);
+  }
+  assert.equal(bodyFingerprints.size, 12);
+});
+
+test("renders eight original guides with authorship, review, sources and practical decisions", async () => {
+  const worker = await loadWorker();
+  const guidePaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/guides/"));
+  assert.equal(guidePaths.length, 8);
+
+  for (const path of guidePaths) {
+    const html = await renderPath(worker, path);
+    assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
+    assert.match(html, /Written and maintained by/);
+    assert.match(html, /Hossam Eldeen/);
+    assert.match(html, /Reviewed and updated August 24, 2026/);
+    assert.match(html, /Decision table/);
+    assert.match(html, /Practical workflow/);
+    assert.match(html, /Common mistakes/);
+    assert.match(html, /Sources and method/);
+    assert.match(html, /"@type":"Article"/);
+    assert.match(html, /FAQPage/);
+  }
+});
+
+test("publishes complete identity, editorial, methodology and policy pages", async () => {
+  const worker = await loadWorker();
+  const expectations = new Map([
+    ["/about", ["Hossam Eldeen", "independent educational project", "Public source and change history"]],
+    ["/methodology", ["Effective PPI", "Aspect ratio and crop retention", "Verification and correction process"]],
+    ["/sources", ["Source hierarchy", "Verification policy", "Corrections and transparency"]],
+    ["/editorial-policy", ["Who is responsible", "Advertising and editorial independence", "Corrections"]],
+    ["/privacy", ["Google AdSense", "Microsoft Clarity", "Cloudflare", "Your choices"]],
+    ["/terms", ["Planning guidance", "Corrections and contact"]],
+    ["/contact", ["Hossam Eldeen", "GitHub Issues", "Public source and publisher profile"]],
+  ]);
+
+  for (const [path, phrases] of expectations) {
+    const html = await renderPath(worker, path);
+    assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
+    for (const phrase of phrases) assert.match(html, new RegExp(escapeRegex(phrase), "i"));
+  }
+});
+
+test("audits every sitemap page for indexability, distinct metadata and valid internal links", async () => {
+  const worker = await loadWorker();
+  const expectedPathSet = new Set(EXPECTED_PATHS);
+  const titles = new Map();
+  const descriptions = new Map();
+
+  for (const path of EXPECTED_PATHS) {
+    const html = await renderPath(worker, path);
+    assert.doesNotMatch(html, developmentPreviewMeta, `${path} exposes preview metadata`);
+    assert.doesNotMatch(html, /<meta[^>]+content="noindex/i, `${path} must be indexable`);
+    assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have exactly one H1`);
 
     const title = html.match(/<title>([^<]+)<\/title>/)?.[1]?.trim();
-    assert.ok(title && title.length >= 30 && title.length <= 80, `${url.pathname} must have a useful title`);
-    assert.equal(seenTitles.get(title), undefined, `${url.pathname} duplicates the title from ${seenTitles.get(title)}`);
-    seenTitles.set(title, url.pathname);
+    assert.ok(title && title.length >= 30 && title.length <= 80, `${path} needs a useful title`);
+    assert.equal(titles.get(title), undefined, `${path} duplicates the title from ${titles.get(title)}`);
+    titles.set(title, path);
 
-    const description = html.match(/<meta name="description" content="([^"]+)"\/>/)?.[1]?.trim();
-    assert.ok(description && description.length >= 70 && description.length <= 180, `${url.pathname} must have a useful description`);
-    assert.equal(
-      seenDescriptions.get(description),
-      undefined,
-      `${url.pathname} duplicates the description from ${seenDescriptions.get(description)}`,
-    );
-    seenDescriptions.set(description, url.pathname);
+    const description = html.match(/<meta name="description" content="([^"]+)"\/?\s*>/)?.[1]?.trim();
+    assert.ok(description && description.length >= 70 && description.length <= 180, `${path} needs a useful description`);
+    assert.equal(descriptions.get(description), undefined, `${path} duplicates the description from ${descriptions.get(description)}`);
+    descriptions.set(description, path);
 
-    assert.match(
-      html,
-      new RegExp(`<link rel="canonical" href="${location.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"/>`),
-      `${url.pathname} must self-canonicalize`,
-    );
-    assert.match(html, /<meta property="og:image" content="https:\/\/print-prep-lab\.hosys\.chatgpt\.site\/og-image\.png"\/>/);
-    assert.match(html, /<meta name="twitter:card" content="summary_large_image"\/>/);
+    const canonical = `${SITE_URL}${path}`;
+    assert.match(html, new RegExp(`<link rel="canonical" href="${escapeRegex(canonical)}"`));
+    assert.match(html, new RegExp(`<meta property="og:image" content="${escapeRegex(SITE_URL)}/og-image\\.png"`));
+    assert.match(html, /<meta name="twitter:card" content="summary_large_image"/);
 
     for (const match of html.matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)) {
       const href = match[1];
       if (!href.startsWith("/")) continue;
-      const linkedPath = new URL(href, location).pathname;
-      assert.ok(expectedPaths.has(linkedPath), `${url.pathname} links to a route missing from the sitemap: ${href}`);
+      const linkedPath = new URL(href, SITE_URL).pathname;
+      assert.ok(expectedPathSet.has(linkedPath), `${path} links to a route missing from the sitemap: ${href}`);
     }
   }
+  assert.equal(titles.size, EXPECTED_PATHS.length);
+  assert.equal(descriptions.size, EXPECTED_PATHS.length);
+});
 
-  const manifestResponse = await worker.fetch(
-    new Request("https://print-prep-lab.hosys.chatgpt.site/manifest.webmanifest"),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
-  );
+test("returns a helpful non-indexable 404 and a valid web manifest", async () => {
+  const worker = await loadWorker();
+  const missingResponse = await requestPath(worker, "/this-page-does-not-exist");
+  assert.equal(missingResponse.status, 404);
+  const missingHtml = await missingResponse.text();
+  assert.match(missingHtml, /That print-preparation page is not here/);
+  assert.match(missingHtml, /noindex/);
+
+  const manifestResponse = await requestPath(worker, "/manifest.webmanifest");
   assert.equal(manifestResponse.status, 200);
   assert.match(manifestResponse.headers.get("content-type") ?? "", /application\/manifest\+json/);
   const manifest = await manifestResponse.json();

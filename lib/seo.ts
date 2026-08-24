@@ -5,7 +5,13 @@ export const SITE_URL = "https://printpreplab.pages.dev";
 export const SITE_DESCRIPTION =
   "Free browser-based tools for checking image print size, effective PPI, paper dimensions, cropping, bleed and safe areas before printing.";
 export const SOCIAL_IMAGE_PATH = "/og-image.png";
-export const SITE_UPDATED_AT = "2026-08-12";
+export const SITE_UPDATED_AT = "2026-08-24";
+export const SITE_LAUNCHED_AT = "2026-08-09";
+export const AUTHOR_NAME = "Hossam Eldeen";
+export const AUTHOR_PROFILE_PATH = "/about";
+export const ADSENSE_CLIENT_ID = "ca-pub-3369551572403499";
+export const DEFAULT_GOOGLE_VERIFICATION = "vc6AQqU29GL5NAhDOlsKu-UgKYHKxPiq5M9aDsSzFVU";
+export const DEFAULT_BING_VERIFICATION = "A2E81C5F15BA075100FA4911952E2A04";
 
 export const socialImage = {
   url: SOCIAL_IMAGE_PATH,
@@ -54,6 +60,11 @@ export const siteStructuredData = {
       "@id": `${SITE_URL}/#organization`,
       name: SITE_NAME,
       url: SITE_URL,
+      founder: {
+        "@type": "Person",
+        name: AUTHOR_NAME,
+        url: `${SITE_URL}${AUTHOR_PROFILE_PATH}`,
+      },
     },
     {
       "@type": "WebSite",

@@ -16,7 +16,7 @@ export default function TermsPage() {
       </div>
 
       <PageHero
-        eyebrow="Last updated August 11, 2026"
+        eyebrow="Last updated August 24, 2026"
         title="Terms of Use"
         description="Important limits and responsibilities when using Print Prep Lab calculators, references and external services."
       />
@@ -68,6 +68,15 @@ export default function TermsPage() {
             <h2>Changes and availability</h2>
             <p>
               Features, calculations and reference material may be corrected or updated when standards, provider guidance or site functionality changes. Print Prep Lab does not guarantee uninterrupted availability of every tool or external service.
+            </p>
+          </div>
+        </section>
+        <section>
+          <span>06</span>
+          <div>
+            <h2>Corrections and contact</h2>
+            <p>
+              Reproducible calculation errors and missing formats can be reported through the Contact page. A confirmed defect may be corrected across the calculator, related examples and reference pages; the public change history records the updated source.
             </p>
           </div>
         </section>

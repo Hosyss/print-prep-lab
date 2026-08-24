@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs, FaqList, PageCta, PageHero } from "@/components/content-shell";
 import { ToolCalculator } from "@/components/tool-calculators";
 import { PRINT_PRESETS, formatDecimal, mmToInches, pixelsForMm } from "@/lib/print-math";
-import { SIZE_DETAILS } from "@/lib/site-content";
+import { SIZE_DETAILS, SIZE_USE_CASES } from "@/lib/site-content";
 import { pageMetadata } from "@/lib/seo";
 
 const ppiRows = [72, 96, 150, 240, 300, 600];
@@ -191,6 +191,7 @@ export default async function SizeDetail({ params }: { params: Promise<{ slug: s
   const preset = PRINT_PRESETS.find((item) => item.slug === slug);
   if (!preset) notFound();
   const detail = SIZE_DETAILS[preset.slug];
+  const useCase = SIZE_USE_CASES[preset.slug];
   const featured = FEATURED_SIZE_CONTENT[preset.slug];
   const widthIn = mmToInches(preset.widthMm);
   const heightIn = mmToInches(preset.heightMm);
@@ -205,8 +206,9 @@ export default async function SizeDetail({ params }: { params: Promise<{ slug: s
     {featured && <section className="quick-answer shell" aria-label={`${preset.shortLabel} quick answer`}><div><span>Quick answer</span><p>{featured.quickAnswer}</p></div><code>{featured.formulaLine}</code></section>}
     <section className="content-section shell size-detail-grid"><article><div className="section-kicker">Pixel table</div><h2>{preset.shortLabel} pixels by PPI</h2><p>Portrait values are rounded to the nearest whole pixel after converting the native physical dimensions.</p><div className="data-table-wrap"><table className="data-table"><thead><tr><th>PPI</th><th>Width</th><th>Height</th><th>Use context</th></tr></thead><tbody>{ppiRows.map((ppi) => <tr key={ppi}><td><b>{ppi}</b></td><td>{pixelsForMm(preset.widthMm, ppi)} px</td><td>{pixelsForMm(preset.heightMm, ppi)} px</td><td>{ppi >= 300 ? "Detailed print target" : ppi >= 150 ? "Print / distance dependent" : "Layout or screen reference"}</td></tr>)}</tbody></table></div></article><aside><div className="fact-panel"><span>Common uses</span><p>{detail.uses}.</p><span>Print note</span><p>{detail.note}</p><Link href="/tools/aspect-ratio-crop-preview">Preview a crop →</Link></div></aside></section>
     {featured && <section className="size-insights shell" aria-label={`${preset.shortLabel} planning notes`}>{featured.insights.map((insight) => <article key={insight.heading}><span>{insight.label}</span><h2>{insight.heading}</h2><p>{insight.text}</p>{insight.href && insight.linkLabel && <Link href={insight.href}>{insight.linkLabel} →</Link>}</article>)}</section>}
+    {useCase && <section className="size-use-case shell" aria-labelledby={`${preset.slug}-use-case-heading`}><div><div className="section-kicker">Format-specific context</div><h2 id={`${preset.slug}-use-case-heading`}>{useCase.heading}</h2></div><article>{useCase.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</article></section>}
     <section className="tool-embed shell"><div className="section-kicker">Change the resolution</div><h2>Calculate {preset.shortLabel} at any PPI.</h2><ToolCalculator mode="paper-size-pixels-calculator" initialPreset={preset.slug} /></section>
     <section className="content-section shell two-column-copy"><article><div className="section-kicker">Print setup</div><h2>Trim first. Add production values second.</h2><p>{preset.shortLabel} identifies the final physical format. Bleed expands the artwork beyond that edge; a safe margin moves important content inward. Those extra values depend on the print provider.</p><Link className="text-link" href="/tools/bleed-safe-area-calculator">Calculate bleed and safe area →</Link></article><aside><div className="section-kicker">Questions about {preset.shortLabel}</div><FaqList items={faq} /></aside></section>
-    <div className="shell"><PageCta /></div>
+    <div className="shell"><PageCta eyebrow={`${preset.shortLabel} file check`} title={`Check whether your image fits ${preset.shortLabel}.`} description={`Use the source pixels, final orientation and intended crop for ${detail.uses}; then confirm the required PPI with the provider.`} /></div>
   </main>;
 }

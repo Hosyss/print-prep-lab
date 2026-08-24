@@ -1,3 +1,5 @@
+import { ADDITIONAL_GUIDES } from "@/lib/additional-guides";
+
 export type ToolMode =
   | "pixels-to-print-size"
   | "print-size-to-pixels"
@@ -174,6 +176,93 @@ export const TOOL_PAGES: ToolPage[] = [
   },
 ];
 
+export const TOOL_CONTEXT: Record<string, { useCases: string[]; technicalNotes: string[] }> = {
+  "print-readiness-checker": {
+    useCases: [
+      "Use it after choosing the exact image file and before ordering a standard photo, paper or wall-print size.",
+      "Use it when a printer warns that a file is low resolution and you need to see whether crop, orientation or target PPI is causing the shortfall.",
+      "Use it to compare maximum physical sizes at 150, 240 and 300 PPI without changing or uploading the source image.",
+    ],
+    technicalNotes: [
+      "The browser reads natural pixel dimensions; the stored DPI/PPI metadata tag is not used as proof of detail.",
+      "Effective PPI and maximum size use the final usable pixels. A ratio-changing crop can reduce the available long edge before printing.",
+      "The status compares the file with the PPI target you selected. It does not inspect focus, compression, paper, color profile or printer calibration.",
+    ],
+  },
+  "pixels-to-print-size": {
+    useCases: [
+      "Use it when a camera, scanner, stock image or exported design gives you pixel dimensions but you do not yet know the physical print size.",
+      "Use it to compare how the same file changes from a close-viewed 300 PPI print to a provider-approved 240 or 150 PPI enlargement.",
+      "Use it before resizing so you can decide whether the existing pixels are already sufficient for the product.",
+    ],
+    technicalNotes: [
+      "The calculation divides pixels by image PPI. Printer hardware DPI is a different measurement and should not be substituted.",
+      "Results describe the uncropped image unless you enter the pixel dimensions that remain after the final crop.",
+      "Changing the metadata resolution tag can change a document's suggested size but does not change this pixel-based maximum.",
+    ],
+  },
+  "print-size-to-pixels": {
+    useCases: [
+      "Use it before creating or exporting artwork when the printer has supplied a final trim size and required image PPI.",
+      "Use it to brief a photographer, scanner operator or designer on the minimum raster dimensions for a planned product.",
+      "Use it to compare how much source resolution is needed at 150, 240 and 300 PPI before deciding whether upsampling is necessary.",
+    ],
+    technicalNotes: [
+      "The result is rounded to a whole pixel only after converting the exact physical input to inches.",
+      "The dimensions represent trim unless you enter a full bleed canvas. Use the bleed calculator to add production margins explicitly.",
+      "Meeting the pixel count does not prove the source is sharp; focus, noise, compression and resampling quality remain separate checks.",
+    ],
+  },
+  "dpi-ppi-calculator": {
+    useCases: [
+      "Use it when you know both the image pixels and the final physical size and need the actual density the print will receive.",
+      "Use it to explain a printer's resolution warning without relying on the 72 or 300 number displayed in file metadata.",
+      "Use it after a crop to find which axis limits quality when the source and print ratios do not match.",
+    ],
+    technicalNotes: [
+      "Width PPI and height PPI are calculated separately; the lower value is the limiting effective PPI for a fill-to-size result.",
+      "PPI describes image pixels per printed inch. DPI describes output dots and can be much higher because several dots may reproduce one pixel.",
+      "A higher numerical PPI cannot repair motion blur or compression artifacts already present in the source.",
+    ],
+  },
+  "paper-size-pixels-calculator": {
+    useCases: [
+      "Use it when starting a document for a known ISO, US or photo format and the design software asks for raster width and height.",
+      "Use it to compare portrait and landscape requirements without manually converting millimetres to inches.",
+      "Use it when a tutorial quotes one fixed pixel size for A4 or Letter and you need to recalculate it for the printer's actual PPI.",
+    ],
+    technicalNotes: [
+      "Paper names define physical trim dimensions, not a universal pixel grid. The selected PPI creates the pixel result.",
+      "ISO sizes are calculated from stored millimetres; native inch formats use their exact inch dimensions before final rounding.",
+      "The output excludes bleed. A printer-specific bleed canvas is larger than the selected paper trim.",
+    ],
+  },
+  "aspect-ratio-crop-preview": {
+    useCases: [
+      "Use it before ordering a borderless photo when the camera ratio and frame ratio may differ.",
+      "Use it to compare fill, which removes image content, with fit, which preserves the image and can leave borders.",
+      "Use the position controls to protect faces, text, horizons or other subject-critical areas before calculating post-crop PPI.",
+    ],
+    technicalNotes: [
+      "The crop percentage is geometric: it compares source and target ratios. Moving the crop changes what is removed, not how much area is removed.",
+      "Selected image previews use a temporary local object URL and are not intentionally uploaded to Print Prep Lab.",
+      "Some borderless labs add a small production crop beyond the ratio calculation, so keep important content away from the edge.",
+    ],
+  },
+  "bleed-safe-area-calculator": {
+    useCases: [
+      "Use it when a printer supplies a finished trim, bleed on each edge and a safe margin for text or logos.",
+      "Use it before creating the document canvas so backgrounds extend beyond the cut without moving critical content into the bleed.",
+      "Use it to convert a provider's millimetre or inch margins into a full raster canvas at the requested PPI.",
+    ],
+    technicalNotes: [
+      "Bleed is added twice to each dimension—once on each opposing edge. A 3 mm bleed adds 6 mm to width and 6 mm to height.",
+      "Safe area sits inside trim; it is not part of bleed and it does not change the finished product dimensions.",
+      "Three millimetres and 0.125 inch are common examples, not interchangeable universal rules. Enter the provider's exact value.",
+    ],
+  },
+};
+
 export const SIZE_DETAILS: Record<string, { ratio: string; uses: string; note: string }> = {
   a2: { ratio: "1:√2", uses: "posters, diagrams and presentation boards", note: "A2 is four times the area of A4 and is commonly prepared at lower PPI only when viewing distance allows it." },
   a3: { ratio: "1:√2", uses: "small posters, menus and folded A4 spreads", note: "A3 folds exactly to A4 in the ISO series, which makes it useful for spreads and larger office output." },
@@ -187,6 +276,105 @@ export const SIZE_DETAILS: Record<string, { ratio: string; uses: string; note: s
   "11x14-photo": { ratio: "11:14", uses: "portraits, art prints and medium frames", note: "11 × 14 does not exactly match 4:5 or 2:3, so preview the crop rather than relying on a nearby ratio." },
   "12x18-photo": { ratio: "2:3", uses: "camera-ratio enlargements and wall art", note: "The 2:3 ratio matches 4 × 6 and many camera sensors, reducing the need to crop." },
   "16x20-photo": { ratio: "4:5", uses: "large portraits, art prints and gallery frames", note: "At this physical size, verify both effective PPI and intended viewing distance before ordering." },
+};
+
+export const SIZE_USE_CASES: Record<string, { heading: string; paragraphs: string[] }> = {
+  a2: {
+    heading: "When A2 is the practical poster format",
+    paragraphs: [
+      "A2 is often used by schools, studios, offices and small-event teams that need a poster large enough to read on a wall without moving into specialist exhibition-panel sizes. It gives diagrams, schedules and presentation boards room to breathe while remaining manageable for many short-run digital print services.",
+      "Compared with A3, A2 has twice the area and needs about 1.414 times as many pixels along each edge at the same PPI. Compared with A1, it is easier to handle and frame but offers less room for distant-viewed type. Choose the format after estimating both viewing distance and available display space.",
+      "For a photographic A2 poster, position the crop before evaluating PPI and ask whether the provider expects full 300 PPI detail or accepts a lower target for the normal viewing distance. For presentation boards, keep labels and QR codes large enough to remain useful after the complete layout is scaled.",
+    ],
+  },
+  a3: {
+    heading: "Why designers choose A3 for spreads and small posters",
+    paragraphs: [
+      "A3 is a common bridge between office documents and wall graphics. Designers use it for menu sheets, classroom diagrams, proof sheets, folded A4 spreads and short-distance posters where A4 would feel crowded but A2 would be unnecessarily large.",
+      "An A3 sheet folds to A4 while keeping the ISO proportion. That makes it useful for a two-page A4 spread or a folded handout, but the fold and binding area need their own safe margin. A full-page A4 layout should be intentionally scaled or reflowed rather than simply centred on A3.",
+      "At 300 PPI, A3 needs 3508 × 4961 pixels before bleed. Small text and detailed diagrams can justify that dense target; a simple poster viewed farther away may use a lower provider-approved value. Vector type and logos should remain vector when the workflow allows it.",
+    ],
+  },
+  a4: {
+    heading: "A4 for documents, flyers and everyday print workflows",
+    paragraphs: [
+      "A4 is the default document size across most ISO-paper markets, so it appears in office reports, worksheets, invoices, handouts, magazines and home printers. It is usually the right starting point when the recipient expects a normal document rather than a North American Letter page.",
+      "A4 and US Letter are close but not interchangeable: Letter is 5.9 mm wider and 17.6 mm shorter in portrait. That difference can move page breaks, crop a full-page background or alter margins. Maintain separate checked layouts when the same document must serve both formats.",
+      "An edge-to-edge A4 flyer normally needs a bleed canvas larger than 210 × 297 mm, while an office document printed on a desktop device may instead need to respect non-printable margins. The printer's product template decides which workflow applies.",
+    ],
+  },
+  a5: {
+    heading: "A5 for compact reading and folded pieces",
+    paragraphs: [
+      "A5 is widely used for booklets, invitations, small flyers, journals and notepads because it fits comfortably in the hand while offering more reading space than a postcard. It is especially practical when an A4 sheet is folded once to create two A5 pages.",
+      "Although A5 has half the area of A4, typography should not simply be reduced by 50%. Reflow text, check line length and increase the protection around folds or binding. A layout that is merely scaled down can leave body text and QR codes too small for comfortable use.",
+      "For invitations and full-bleed covers, calculate the artwork canvas from the exact provider bleed and keep names, dates and logos inside the safe area. For multi-page booklets, confirm whether the supplied template includes page creep, spine or imposed spreads.",
+    ],
+  },
+  "us-letter": {
+    heading: "US Letter for North American office and home printing",
+    paragraphs: [
+      "US Letter is the normal page for resumes, forms, reports, school material and office printers in the United States and parts of North America. Use it when the recipient, printer tray or submission requirement explicitly expects an 8.5 × 11 inch document.",
+      "Letter is wider and shorter than A4. An A4 PDF printed at actual size can lose content on Letter paper; fit-to-page preserves the full page but reduces it and leaves side margins. Editable documents should be reflowed and checked page by page instead of relying on automatic scaling.",
+      "For commercial edge-to-edge pieces, 0.125 inch is a common bleed example but not a universal requirement. For office printers, the more important limitation may be the device's non-printable edge. These two cases should not be confused.",
+    ],
+  },
+  "us-legal": {
+    heading: "US Legal for long forms and document-heavy layouts",
+    paragraphs: [
+      "US Legal is used for contracts, legal filings, real-estate documents, menus and long forms that benefit from three extra vertical inches without becoming wider than Letter. It fits workflows built around 8.5-inch paper trays but needs a printer that actually supports the 14-inch length.",
+      "Legal and Letter share the same width, so a Letter design can keep its horizontal grid while gaining vertical space. That does not make automatic scaling desirable: extending the layout, reflowing text or adding content uses the format more effectively than stretching an 11-inch page.",
+      "Before delivery, confirm whether the recipient truly requires Legal or the similar but different 8.5 × 13 inch format sometimes called Folio. The names are often mixed in everyday use, while their physical lengths and required pixels are not the same.",
+    ],
+  },
+  "4x6-photo": {
+    heading: "4 × 6 for camera-ratio snapshots and lab prints",
+    paragraphs: [
+      "The 4 × 6 is the standard small photo-lab print for snapshots, albums, postcards and inexpensive proofs. Its 2:3 ratio matches many 3:2 camera sensors, so orientation-aligned photographs often fill the paper without a deliberate ratio crop.",
+      "A ratio match does not eliminate every edge risk. Borderless lab equipment may enlarge slightly to avoid white slivers, so faces, captions and dates should stay away from the edge. Ask whether the product is borderless, bordered or supplied with an automatic crop preview.",
+      "At 300 PPI, 1200 × 1800 pixels is the trim target. A phone image often exceeds that count, but focus, noise reduction, messaging-app compression and screenshots can still limit visible quality. Inspect the actual file rather than its source device alone.",
+    ],
+  },
+  "5x7-photo": {
+    heading: "5 × 7 for portraits, cards and small frames",
+    paragraphs: [
+      "The 5 × 7 format is popular for desk frames, greeting cards, event portraits and small gifts because it feels more substantial than 4 × 6 without requiring the wall space of 8 × 10. Its shape is also common in ready-made frames and folded card products.",
+      "A 5:7 print is not the same ratio as a 3:2 camera image. Filling it removes about 6.7% of a typical 3:2 image area, usually from the long direction. Preview that crop around heads, hands, borders and captions instead of accepting an automatic centre crop.",
+      "If composition matters more than edge-to-edge coverage, fit the complete image and design a border. For greeting cards, also distinguish the flat artwork size from the folded size and include any fold-safe guidance supplied by the printer.",
+    ],
+  },
+  "8x10-photo": {
+    heading: "8 × 10 for close-viewed portraits and display prints",
+    paragraphs: [
+      "The 8 × 10 is a traditional portrait, certificate and small wall-display format. It is usually viewed closely, so skin detail, eyes, text and retouching deserve more scrutiny than they would on a distant-viewed poster.",
+      "Its 4:5 ratio removes about 16.7% of a 3:2 camera image when filled. The crop is substantial enough to cut shoulders, hands or environmental context. Recompose deliberately, use a 4:5 camera crop when available, or fit the whole image with a border.",
+      "At 300 PPI, the trim needs 2400 × 3000 pixels. The same 4:5 crop also fits 16 × 20 by shape, but doubling each physical edge doubles the pixel requirement for equal PPI. Do not assume one exported file is equally dense at both sizes.",
+    ],
+  },
+  "11x14-photo": {
+    heading: "11 × 14 for medium portraits and framed artwork",
+    paragraphs: [
+      "The 11 × 14 is common for school and studio portraits, art reproductions and medium wall frames. It offers more presence than 8 × 10 while remaining easier to display and ship than larger 16 × 20 work.",
+      "Its 11:14 ratio is close to—but not identical with—4:5. A 3:2 source loses about 15.2% when filled, while a 4:5 crop needs only a small additional adjustment. Preview the exact 11:14 frame rather than substituting the nearest familiar ratio.",
+      "At this size, check both the photographic image and any overlaid signature or caption. Keep text and critical details inside the frame opening as well as the printer's safe area; a mat can cover more of the edge than the nominal print trim suggests.",
+    ],
+  },
+  "12x18-photo": {
+    heading: "12 × 18 for uncropped 3:2 enlargements",
+    paragraphs: [
+      "The 12 × 18 format is a natural enlargement for 3:2 camera images and is used for landscape photography, event prints and affordable wall art. It preserves the same shape as 4 × 6 while providing nine times the printed area.",
+      "Matching ratio prevents the geometric crop, but the larger physical size raises the pixel requirement. A file that easily supports 4 × 6 may fall below the intended density at 12 × 18. Use the actual post-edit pixel dimensions and choose the provider-approved PPI for the normal viewing distance.",
+      "Ready-made frames may be less common than 12 × 16 or 11 × 14 in some markets, so check the frame and mat before ordering. If the final opening uses another ratio, preview that framing crop even when the paper itself is 2:3.",
+    ],
+  },
+  "16x20-photo": {
+    heading: "16 × 20 for large portraits and 4:5 wall art",
+    paragraphs: [
+      "The 16 × 20 is widely used for large portraits, gallery walls and art reproductions. Its 4:5 shape matches 8 × 10, making it convenient when a composition has already been prepared for that ratio.",
+      "A 3:2 camera image loses about 16.7% of its area when filled to 4:5. Apply that crop before calculating resolution: the removed long-edge pixels are no longer available to support the enlargement. Protect faces and deliberate negative space rather than relying on a centred default.",
+      "At 300 PPI, 16 × 20 requires 4800 × 6000 pixels, or 28.8 megapixels after the final crop. Some providers accept a lower target for wall viewing, but fine portrait detail and close inspection can justify the denser file. Confirm the product and proof it when the job is important.",
+    ],
+  },
 };
 
 export type GuidePage = {
@@ -209,7 +397,7 @@ export type GuidePage = {
   sources: Array<{ label: string; href: string }>;
 };
 
-export const GUIDE_PAGES: GuidePage[] = [
+const CORE_GUIDE_PAGES: GuidePage[] = [
   {
     slug: "dpi-vs-ppi",
     title: "DPI vs PPI: What Matters for Printing?",
@@ -434,59 +622,57 @@ export const GUIDE_PAGES: GuidePage[] = [
   },
 ];
 
+export const GUIDE_PAGES: GuidePage[] = [...CORE_GUIDE_PAGES, ...ADDITIONAL_GUIDES];
+
 export const TRUST_PAGES: Record<string, { title: string; description: string; sections: Array<{ heading: string; paragraphs: string[] }> }> = {
   about: {
     title: "About Print Prep Lab",
-    description: "A focused set of tools for turning image dimensions into clear, inspectable print decisions.",
+    description: "Who publishes Print Prep Lab, why the project exists and how its calculators turn image dimensions into inspectable print decisions.",
     sections: [
-      { heading: "Why this site exists", paragraphs: ["Print questions often mix pixels, DPI, PPI, paper size and crop into one confusing answer. Print Prep Lab separates those decisions and shows the inputs behind every result.", "The initial audience is students, photographers, artists, Canva users and print customers who need a reliable plan before placing an order."] },
-      { heading: "What this site does not promise", paragraphs: ["A browser calculator cannot inspect a printer, ink, paper profile, sharpening method or production tolerance. Results are planning guidance and should be checked against the provider's specification."] },
+      { heading: "Who publishes this site", paragraphs: ["Print Prep Lab is an independent educational project created and maintained by Hossam Eldeen. He is responsible for the calculator logic, page content, corrections and public project tracker. The site is not owned by a print shop, paper manufacturer, standards body or software vendor.", "That independence is important: examples are written to explain the decision behind a print calculation, not to promote a particular laboratory or product. External references are identified on guide and source pages rather than presented as endorsements."] },
+      { heading: "Why Print Prep Lab exists", paragraphs: ["Print questions often mix pixels, DPI, PPI, paper size, crop and bleed into one confusing answer. Print Prep Lab separates those decisions, keeps the relevant formula visible and lets a visitor reproduce the result from the same inputs.", "The project is intended for photographers, artists, students, small businesses, Canva users and print customers who need to check a file before paying for an order. It focuses on the gap between a digital image's pixel dimensions and a physical product's trim size."] },
+      { heading: "What the calculators actually do", paragraphs: ["The tools convert physical units, calculate required or available pixels, compare image and paper aspect ratios, estimate crop retention, and build bleed and safe-area dimensions. Standard paper presets are stored in physical units so the pixel result is generated from the PPI selected by the visitor rather than copied from a fixed chart.", "When an image is selected, its width, height and temporary preview are read locally by the browser. The file is not intentionally sent to a Print Prep Lab server. The same calculations can also be used by entering dimensions manually."] },
+      { heading: "How results are checked", paragraphs: ["The mathematical functions have deterministic tests covering unit conversion, PPI, crop, bleed, rounding and invalid input. Public pages are also checked for distinct titles, descriptions, canonical URLs, working internal links and a single main heading.", "A public issue template asks for the exact inputs and expected result when a discrepancy is reported. This makes a correction reproducible without requiring anyone to share a private image."] },
+      { heading: "What this site does not promise", paragraphs: ["A browser calculator cannot inspect a printer, ink, paper profile, sharpening method, color conversion or production tolerance. A numerical result can show that a file meets a selected pixel-density target, but it cannot certify the finished print.", "The company producing the work remains the final source for bleed, minimum resolution, color profile, file format and proofing requirements. Print Prep Lab deliberately labels common values as planning targets rather than universal rules."] },
+      { heading: "Contact and corrections", paragraphs: ["Calculation problems, missing formats and page errors can be reported through the public GitHub Issues link on the Contact page. Reports are most useful when they include the page, numerical inputs, orientation, selected unit, expected result and any relevant provider specification.", "Privacy, editorial process, sources and terms are linked from every page so visitors can see who is responsible for the site and how its guidance is produced before relying on a result."] },
     ],
   },
   methodology: {
     title: "Calculation Methodology",
-    description: "The formulas, rounding rules and quality labels used throughout Print Prep Lab.",
+    description: "The unit conversions, formulas, rounding rules, crop model and quality labels used throughout Print Prep Lab.",
     sections: [
-      { heading: "Core conversions", paragraphs: ["One inch equals exactly 25.4 millimetres. Pixels required equals physical inches multiplied by the selected PPI. Physical print inches equals pixels divided by PPI.", "All displayed pixel dimensions are rounded to the nearest whole pixel only after calculation from the stored physical measurement. Pixel inputs are restricted to positive whole numbers; physical sizes and PPI must also be positive."] },
-      { heading: "Effective PPI for a filled print", paragraphs: ["Horizontal PPI equals pixel width divided by printed width in inches. Vertical PPI uses height. For a fill-to-size result, the lower value is reported because it is the limiting dimension."] },
-      { heading: "Quality labels", paragraphs: ["Meets target allows a 0.1% tolerance for unavoidable whole-pixel rounding. Close to target means at least 80% of the chosen target; Limited means at least 50%. These labels compare numbers and do not certify a print process."] },
-      { heading: "Crop percentage", paragraphs: ["The crop estimate compares source and target aspect ratios. It reports the image-area fraction retained by a centered fill crop. Manual crop position changes which content is removed, not the calculated area fraction."] },
+      { heading: "Units and stored dimensions", paragraphs: ["One inch equals exactly 25.4 millimetres. ISO A-series presets are stored in millimetres; US paper and photo formats are converted from their native inch dimensions. This avoids repeatedly copying rounded inch equivalents back into later calculations.", "Centimetres are converted to millimetres by multiplying by 10. Inches are converted by multiplying by 25.4. Orientation swaps the two stored edges but does not alter the physical format or aspect ratio."] },
+      { heading: "Pixels and physical print size", paragraphs: ["Required pixels equal physical inches multiplied by the selected PPI. Available print inches equal source pixels divided by PPI. Width and height are calculated separately because a file and a print can have different proportions.", "All displayed raster dimensions are rounded to the nearest whole pixel only after the full unit conversion and multiplication. Intermediate values remain unrounded. Pixel inputs are positive whole numbers; physical sizes and PPI must be positive finite values."] },
+      { heading: "Effective PPI", paragraphs: ["Horizontal effective PPI equals usable pixel width divided by printed width in inches. Vertical effective PPI uses usable pixel height and printed height. The lower value is reported as the limiting density when the image fills the target.", "Effective PPI is different from a resolution tag saved in file metadata. Changing a tag from 72 to 300 without resampling changes the suggested physical scale, not the number of image pixels or the captured detail."] },
+      { heading: "Aspect ratio and crop retention", paragraphs: ["The fill-crop estimate compares the source width-to-height ratio with the target ratio. Retained area is the smaller ratio divided by the larger ratio after the orientations are aligned; cropped percentage is one minus that retained fraction.", "For example, a 3:2 image filling a 4:5 print retains about 83.3% of its area and removes about 16.7%. Moving the crop changes which part is removed, but the ratio still determines the amount removed. A print laboratory may apply an additional production crop that this geometric estimate cannot predict."] },
+      { heading: "Bleed, trim and safe area", paragraphs: ["The full artwork canvas equals trim size plus bleed on both opposing edges. A 210 × 297 mm trim with 3 mm bleed therefore becomes 216 × 303 mm. The safe area equals trim size minus the chosen safe margin on both edges.", "Bleed and safe margin are deliberately editable because provider requirements differ. The calculator does not silently assume that 3 mm bleed or a 5 mm safe margin applies to every product."] },
+      { heading: "Quality labels and tolerance", paragraphs: ["Meets target allows a 0.1% tolerance for unavoidable whole-pixel rounding. Close to target means at least 80% of the selected target; Limited means at least 50%. Below that level, the interface warns that more source pixels or a smaller print is needed.", "These labels compare a calculated density with the visitor's selected target. They do not judge focus, motion blur, compression, sharpening, color, paper, printer screening or viewing distance and must not be treated as a production guarantee."] },
+      { heading: "Verification and correction process", paragraphs: ["Automated tests cover known conversions, common paper presets, orientation changes, crop ratios, bleed boxes, readiness thresholds and invalid input. Rendered-page checks cover crawlable links, self-canonical URLs, structured metadata and public sitemap entries.", "When a calculation report is received, the numerical inputs are reproduced in a deterministic test before the displayed explanation is changed. Material content revisions update the public review date and sitemap last-modified value."] },
     ],
   },
   sources: {
     title: "Sources & Reference Policy",
-    description: "Primary references used for physical standards, image resolution concepts and print setup guidance.",
+    description: "The source hierarchy used for physical standards, unit definitions, image-resolution concepts and print-production guidance.",
     sections: [
-      { heading: "Physical dimensions", paragraphs: ["ISO A-series trim dimensions are based on ISO 216:2007. North American and photo dimensions are stored in their native inches and converted using the NIST-defined exact relationship of 25.4 millimetres per inch."] },
-      { heading: "Resolution terminology", paragraphs: ["Adobe Photoshop documentation is used as a reference for pixel dimensions, PPI, physical print size and resampling concepts. Printer-specific bleed and resolution requirements always take precedence over generic guidance."] },
-      { heading: "Verification policy", paragraphs: ["Calculation rules, standard presets, unit conversions, rounding boundaries and invalid-input behavior are covered by deterministic tests. Source-dependent guidance is dated and should be rechecked when documentation or industry practice changes."] },
+      { heading: "Source hierarchy", paragraphs: ["Print Prep Lab prefers a published standard or government measurement definition for fixed physical facts, official software documentation for image-processing terminology, and a print provider's own specification for provider-specific production requirements.", "A secondary article may help explain a concept, but it is not used to override a primary source. Examples created by Print Prep Lab are labeled as examples and show enough inputs for the arithmetic to be repeated."] },
+      { heading: "Paper and physical dimensions", paragraphs: ["ISO A-series trim dimensions are based on ISO 216:2007. The A-series relationship and listed millimetre dimensions are treated as physical standards, not as fixed pixel dimensions.", "North American paper and common photo formats are stored using their native inch measurements. Metric equivalents use the exact inch conversion maintained by the United States National Institute of Standards and Technology: one inch is exactly 25.4 millimetres."] },
+      { heading: "Image resolution terminology", paragraphs: ["Adobe Photoshop documentation is used as a reference for the relationship among pixel dimensions, document size, PPI and resampling. Print Prep Lab uses PPI for image pixels per printed inch and reserves DPI for printer output dots, even when everyday print-shop instructions use the terms interchangeably.", "A metadata resolution tag is not treated as new image detail. Any calculation that claims to assess print readiness begins with the file's real pixel width and height and the intended post-crop physical size."] },
+      { heading: "Bleed and production requirements", paragraphs: ["There is no universal bleed, safe-margin, color-profile or minimum-PPI rule for every printer and product. Values such as 3 mm bleed, 0.125 inch bleed, 150 PPI, 240 PPI and 300 PPI are presented as common planning examples only.", "The written specification from the company producing the work takes precedence. Guide pages explain why the values matter and calculator inputs remain editable so a visitor can use the provider's actual requirement."] },
+      { heading: "Verification policy", paragraphs: ["Calculation rules, standard presets, unit conversions, rounding boundaries and invalid-input behavior are covered by deterministic tests. Key examples in guide tables are checked against the same underlying formulas used by the interactive tools.", "Source-dependent guidance is dated and rechecked when a referenced standard, official documentation or common production practice changes. A material correction updates both the affected page and its review date rather than silently changing only a table cell."] },
+      { heading: "Corrections and transparency", paragraphs: ["Every public guide links to its relevant sources or to this methodology. Visitors can report a conflicting standard or calculation through the Contact page without uploading the private image itself.", "Print Prep Lab does not claim affiliation with ISO, NIST, Adobe, Google, Microsoft or any print provider. Links identify the evidence used; trademarks remain the property of their owners."] },
     ],
   },
-  privacy: {
-    title: "Privacy",
-    description: "How Print Prep Lab handles images, calculator inputs and browser data.",
+  "editorial-policy": {
+    title: "Editorial Policy",
+    description: "How Print Prep Lab creates, tests, reviews, dates and corrects its calculators, reference pages and educational guides.",
     sections: [
-      { heading: "Image processing", paragraphs: ["The print-readiness checker reads image dimensions and generates the crop preview in your browser. The selected image is not uploaded to a Print Prep Lab server.", "Closing or replacing the image releases its temporary browser preview. The current version does not create an account or store an image library."] },
-      { heading: "Calculator inputs", paragraphs: ["Pixel counts, physical sizes, PPI, bleed and safe-margin values are used in the page session to calculate results. Do not enter confidential information because none is required."] },
-      { heading: "Future advertising or analytics", paragraphs: ["If analytics, advertising or consent-managed cookies are introduced, this policy and the interface must be updated before those services are enabled."] },
-    ],
-  },
-  terms: {
-    title: "Terms of Use",
-    description: "Important limits for using print calculations and reference information from this site.",
-    sections: [
-      { heading: "Planning guidance", paragraphs: ["Results are provided for general planning and education. They are not a production guarantee, printer certification or substitute for a proof supplied by a professional print provider."] },
-      { heading: "Your production responsibility", paragraphs: ["Confirm final size, bleed, safe area, color mode, profile, file format and resolution with the company producing the work. Save an editable source file before resizing or cropping."] },
-      { heading: "Reasonable use", paragraphs: ["You may use the calculators for personal, educational and commercial print planning. Do not present the site's guidance as a guarantee from a third-party printer."] },
-    ],
-  },
-  contact: {
-    title: "Contact & Calculation Reports",
-    description: "Prepare a useful issue report when a result appears wrong or a print format is missing.",
-    sections: [
-      { heading: "Report the inputs, not the image", paragraphs: ["A useful calculation report includes the page used, pixel width and height, physical width and height, unit, PPI, orientation, bleed and the result you expected.", "You never need to send the private image itself to explain a dimension calculation."] },
-      { heading: "Before reporting a discrepancy", paragraphs: ["Check that width and height were not reversed, confirm portrait or landscape, and distinguish trim size from the full bleed canvas. Include the printer's written requirement when it conflicts with a general default."] },
-      { heading: "Contact channel", paragraphs: ["A verified public contact address will be connected before the independent-domain launch. Until then, keep the generated input summary with the project feedback channel where you received this site."] },
+      { heading: "Purpose and audience", paragraphs: ["Print Prep Lab publishes calculators and explanations to help people make a specific print-preparation decision before ordering or exporting a file. Pages are written for photographers, designers, artists, students, small businesses and print customers—not for search engines alone.", "A page should leave the visitor with a usable answer, the formula behind it, the limitations of that answer and a clear next step. New pages are not added merely to target a slightly different keyword or repeat an existing table."] },
+      { heading: "Who is responsible", paragraphs: ["Hossam Eldeen creates and maintains the site, including its source code, mathematical functions, editorial content and public corrections. Guide pages show a visible maintainer line and link back to the About, Methodology and Sources pages.", "The project does not invent professional credentials or imply that a calculator is a certification from a printer. When a page depends on a provider-specific rule, it tells the visitor to confirm that rule with the provider."] },
+      { heading: "How a calculator page is produced", paragraphs: ["A calculator begins with a defined user question, explicit inputs, a documented formula and a reproducible example. The result must identify its unit, rounding behavior and any assumption such as fill crop, orientation or bleed on every edge.", "The underlying math is covered by automated tests before publication. Explanatory content is then checked against the tool so the worked example and the live result cannot quietly use different formulas."] },
+      { heading: "How reference and guide pages are produced", paragraphs: ["A reference page starts from a physical standard or native format, then adds context unique to that format: typical uses, nearby-size comparisons, crop implications, bleed examples and practical pixel targets. Repeated navigation, calculator controls and table headings are site interface; the decision-making explanation must be specific to the page.", "A guide answers a broader production question with a quick answer, decision table, worked numbers, ordered workflow, common mistakes, frequently asked questions and source links. Examples are selected to expose the tradeoff rather than produce a predetermined recommendation."] },
+      { heading: "Sources, automation and review", paragraphs: ["Primary references are preferred for standards, unit definitions and software terminology. Calculations and standard page components may be generated programmatically for consistency, but automation is not treated as evidence and must not replace the page-specific explanation.", "Material pages receive a visible review date. Source-dependent claims are rechecked when official documentation changes, while deterministic formulas are re-run through their tests after code changes."] },
+      { heading: "Corrections", paragraphs: ["Reports should include the page, numerical inputs, unit, orientation, expected result and displayed result. A confirmed arithmetic defect is first captured as a failing test, then corrected in the shared function and every affected example.", "Substantive corrections update the page review date. Minor spelling or layout changes do not pretend that the underlying guidance was newly reviewed."] },
+      { heading: "Advertising and editorial independence", paragraphs: ["Advertising may support the site's operating cost, but advertisers do not choose calculator results, page topics or conclusions. Ads are not presented as print recommendations and are kept separate from interactive controls and editorial content.", "The presence of an affiliate, advertising or analytics service must be disclosed in the relevant privacy or policy page before it is enabled. A useful answer remains available without requiring an ad click, account or image upload."] },
     ],
   },
 };

@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { AnalyticsConsent } from "@/components/analytics-consent";
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import {
+  ADSENSE_CLIENT_ID,
+  DEFAULT_BING_VERIFICATION,
+  DEFAULT_GOOGLE_VERIFICATION,
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
@@ -10,8 +14,10 @@ import {
 } from "@/lib/seo";
 import "./globals.css";
 
-const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
-const bingVerification = process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION?.trim();
+const googleVerification =
+  process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || DEFAULT_GOOGLE_VERIFICATION;
+const bingVerification =
+  process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION?.trim() || DEFAULT_BING_VERIFICATION;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -65,12 +71,18 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         <script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
+          crossOrigin="anonymous"
+        />
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteStructuredData).replace(/</g, "\\u003c") }}
         />
         <SiteHeader />
         {children}
         <SiteFooter />
+        <AnalyticsConsent />
       </body>
     </html>
   );

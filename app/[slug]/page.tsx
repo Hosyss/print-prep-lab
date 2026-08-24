@@ -2,25 +2,21 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumbs, PageCta, PageHero } from "@/components/content-shell";
 import { TRUST_PAGES } from "@/lib/site-content";
-import { pageMetadata } from "@/lib/seo";
+import { AUTHOR_NAME, SITE_URL, pageMetadata } from "@/lib/seo";
 
 const TRUST_SEO_TITLES: Record<string, string> = {
   about: "About Our Print Preparation Tools",
   methodology: "Print Calculation Methodology",
   sources: "Standards and Reference Sources",
+  "editorial-policy": "Editorial Policy and Review Process",
 };
 
-const DEDICATED_TRUST_ROUTES = new Set(["privacy", "terms", "contact"]);
-
 export function generateStaticParams() {
-  return Object.keys(TRUST_PAGES)
-    .filter((slug) => !DEDICATED_TRUST_ROUTES.has(slug))
-    .map((slug) => ({ slug }));
+  return Object.keys(TRUST_PAGES).map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  if (DEDICATED_TRUST_ROUTES.has(slug)) return {};
   const page = TRUST_PAGES[slug];
   return page
     ? pageMetadata({
@@ -33,13 +29,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function TrustPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  if (DEDICATED_TRUST_ROUTES.has(slug)) notFound();
-
   const page = TRUST_PAGES[slug];
   if (!page) notFound();
 
+  const profileStructuredData = slug === "about" ? {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    mainEntity: {
+      "@type": "Person",
+      name: AUTHOR_NAME,
+      url: `${SITE_URL}/about`,
+      sameAs: ["https://github.com/Hosyss"],
+      jobTitle: "Publisher and maintainer of Print Prep Lab",
+    },
+  } : null;
+
   return (
     <main>
+      {profileStructuredData && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(profileStructuredData).replace(/</g, "\\u003c") }} />}
       <div className="shell">
         <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: page.title }]} />
       </div>
@@ -73,9 +80,19 @@ export default async function TrustPage({ params }: { params: Promise<{ slug: st
             </a>
           </div>
         )}
+        {slug === "about" && (
+          <div className="source-links">
+            <a href="https://github.com/Hosyss/print-prep-lab" target="_blank" rel="noreferrer">
+              Public source and change history <b>↗</b>
+            </a>
+            <a href="https://github.com/Hosyss/print-prep-lab/issues" target="_blank" rel="noreferrer">
+              Public calculation reports <b>↗</b>
+            </a>
+          </div>
+        )}
       </article>
       <div className="shell">
-        <PageCta />
+        <PageCta eyebrow="Transparent print planning" title={page.title === "About Print Prep Lab" ? "Try the tools this project is built to explain." : `Apply the ${page.title.toLowerCase()} to a real print.`} description="Use a calculator with visible inputs and formulas, then compare the result with the production provider's specification." />
       </div>
     </main>
   );
