@@ -73,6 +73,7 @@ test("renders production security, publisher, advertising and consent signals", 
   assert.match(html, /google-site-verification/);
   assert.match(html, /msvalidate\.01/);
   assert.match(html, /Analytics choices/);
+  assert.match(html, /data-clarity-mask="true"/);
   assert.match(html, /<script type="application\/ld\+json">/);
 });
 
@@ -110,6 +111,13 @@ test("serves a clean robots file, a complete sitemap and an authorized ads.txt",
 
   const adsText = (await readFile(new URL("../public/ads.txt", import.meta.url), "utf8")).trim();
   assert.equal(adsText, "google.com, pub-3369551572403499, DIRECT, f08c47fec0942fa0");
+
+  const googleVerification = (await readFile(new URL("../public/google6d67c58ff3b5201c.html", import.meta.url), "utf8")).trim();
+  assert.equal(googleVerification, "google-site-verification: google6d67c58ff3b5201c.html");
+
+  const indexNowResponse = await requestPath(worker, "/516c1331b746fbca4fb273e523b64e3e.txt");
+  assert.equal(indexNowResponse.status, 200);
+  assert.equal((await indexNowResponse.text()).trim(), "516c1331b746fbca4fb273e523b64e3e");
 });
 
 test("renders all seven calculators with original use cases, examples, notes and FAQs", async () => {
@@ -124,6 +132,10 @@ test("renders all seven calculators with original use cases, examples, notes and
     assert.match(html, /Technical notes/);
     assert.match(html, /Worked example/);
     assert.match(html, /FAQPage/);
+    if (path !== "/tools/print-readiness-checker") {
+      assert.match(html, /Calculated results/);
+      assert.match(html, /class="result-copy"/);
+    }
     const context = html.match(/<section class="tool-context-grid[\s\S]*?<\/section>/)?.[0];
     assert.ok(context && context.length > 800, `${path} needs substantial tool-specific context`);
     assert.ok(!bodyFingerprints.has(context), `${path} duplicates another tool context`);

@@ -93,7 +93,7 @@ export function PrintReadinessLab({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <section className={`lab-card ${compact ? "lab-card-compact" : ""}`} aria-label="Image print readiness checker">
+    <section className={`lab-card ${compact ? "lab-card-compact" : ""}`} aria-label="Image print readiness checker" data-clarity-mask="true">
       <div className="lab-topline">
         <div><span className="live-dot" /> Live print check</div>
         <span>Runs locally in your browser</span>

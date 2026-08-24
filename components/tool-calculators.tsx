@@ -139,11 +139,11 @@ export function ToolCalculator({ mode, initialPreset = "a4" }: { mode: ToolMode;
   if (mode === "aspect-ratio-crop-preview") {
     const crop = cropRetention(widthPx, heightPx, oriented.widthMm, oriented.heightMm);
     return <CalculatorFrame title="Image ratio → print crop" formula="retained area = smaller ratio ÷ larger ratio">
-      <label className="crop-upload"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={readLocalImage} /><span>Choose a local image</span><strong>{fileName ?? "No image selected"}</strong><small>{fileName ? `${widthPx} × ${heightPx} px` : "The file stays in your browser"}</small></label>
+      <label className="crop-upload" data-clarity-mask="true"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={readLocalImage} /><span>Choose a local image</span><strong>{fileName ?? "No image selected"}</strong><small>{fileName ? `${widthPx} × ${heightPx} px` : "The file stays in your browser"}</small></label>
       <div className="tool-form-grid"><NumericField label="Pixel width" value={widthPx} onChange={setWidthPx} suffix="px" minimum={1} integer /><NumericField label="Pixel height" value={heightPx} onChange={setHeightPx} suffix="px" minimum={1} integer /></div>
       <PresetControls presetSlug={presetSlug} setPresetSlug={setPresetSlug} landscape={landscape} setLandscape={setLandscape} />
       <div className="crop-mode-row" role="group" aria-label="Crop preview mode"><span>Preview mode</span><button type="button" className={cropMode === "fill" ? "active" : ""} aria-pressed={cropMode === "fill"} onClick={() => setCropMode("fill")}>Fill & crop</button><button type="button" className={cropMode === "fit" ? "active" : ""} aria-pressed={cropMode === "fit"} onClick={() => setCropMode("fit")}>Fit full image</button></div>
-      <div className="crop-preview-grid">
+      <div className="crop-preview-grid" data-clarity-mask="true">
         <div className={`crop-stage ${cropMode}`} style={{ aspectRatio: `${oriented.widthMm} / ${oriented.heightMm}` }}>
           {previewUrl ? (
             // A local object URL cannot be optimized by a remote image loader.
@@ -180,5 +180,42 @@ function CalculatorFrame({ title, formula, children }: { title: string; formula:
 }
 
 function ResultGrid({ items }: { items: Array<{ label: string; value: string; featured?: boolean }> }) {
-  return <div className="tool-result-grid">{items.map((item) => <div className={item.featured ? "featured" : ""} key={item.label}><small>{item.label}</small><strong>{item.value}</strong></div>)}</div>;
+  const [copyStatus, setCopyStatus] = useState<{ label: string; state: "copied" | "error" } | null>(null);
+
+  async function copyResult(label: string, value: string) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = value;
+        textArea.setAttribute("readonly", "");
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.select();
+        const copied = document.execCommand("copy");
+        textArea.remove();
+        if (!copied) throw new Error("Copy command failed");
+      }
+      setCopyStatus({ label, state: "copied" });
+    } catch {
+      setCopyStatus({ label, state: "error" });
+    }
+    window.setTimeout(() => setCopyStatus(null), 1800);
+  }
+
+  return <section className="tool-results" aria-label="Calculated results">
+    <div className="tool-results-heading"><strong>Calculated results</strong><span>Updates as you change the inputs</span></div>
+    <div className="tool-result-grid">{items.map((item) => {
+      const status = copyStatus?.label === item.label ? copyStatus.state : null;
+      return <div className={`result-card ${item.featured ? "featured" : ""}`} key={item.label}>
+        <div className="result-card-heading"><small>{item.label}</small><span>{item.featured ? "Primary result" : "Result"}</span></div>
+        <strong>{item.value}</strong>
+        <button type="button" className="result-copy" aria-label={`Copy ${item.label}: ${item.value}`} onClick={() => copyResult(item.label, item.value)}>
+          {status === "copied" ? "Copied ✓" : status === "error" ? "Copy failed" : "Copy"}
+        </button>
+      </div>;
+    })}</div>
+  </section>;
 }

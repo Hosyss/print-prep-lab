@@ -27,7 +27,7 @@ mkdir -p "${output_dir}"
 cp -R "${client_dir}/." "${output_dir}/"
 cp "${worker_file}" "${output_dir}/_worker.js"
 
-for required_file in _worker.js _routes.json ads.txt favicon.svg og-image.png; do
+for required_file in _worker.js _routes.json ads.txt favicon.svg google6d67c58ff3b5201c.html og-image.png; do
   [[ -f "${output_dir}/${required_file}" ]] || {
     echo "Missing Pages artifact: ${required_file}" >&2
     exit 66
