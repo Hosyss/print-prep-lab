@@ -525,7 +525,7 @@ const CORE_GUIDE_PAGES: GuidePage[] = [
     primaryCta: { label: "Convert pixels to print size", href: "/tools/pixels-to-print-size" },
     sources: [
       { label: "Adobe Photoshop — Image size and resolution", href: "https://helpx.adobe.com/photoshop/using/image-size-resolution.html" },
-      { label: "Adobe — Understanding image resolution", href: "https://www.adobe.com/creativecloud/photography/discover/image-resolution.html" },
+      { label: "Adobe — Resolution specifications for printing images", href: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/resolution-specs-for-printing-images.html" },
     ],
   },
   {
@@ -569,7 +569,7 @@ const CORE_GUIDE_PAGES: GuidePage[] = [
     related: ["print-resolution-guide", "aspect-ratio-cropping-print", "how-large-can-i-print-my-image"],
     primaryCta: { label: "Calculate your document boxes", href: "/tools/bleed-safe-area-calculator" },
     sources: [
-      { label: "Adobe — Print bleed explained", href: "https://www.adobe.com/creativecloud/design/discover/print-bleed.html" },
+      { label: "Adobe InDesign — Print bleed and slug areas", href: "https://helpx.adobe.com/indesign/desktop/print/page-set-up-and-printer-marks/print-bleed-and-slug-areas.html" },
       { label: "Print Prep Lab calculation methodology", href: "/methodology" },
     ],
   },

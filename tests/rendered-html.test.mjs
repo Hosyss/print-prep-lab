@@ -168,6 +168,13 @@ test("renders eight original guides with authorship, review, sources and practic
   const guidePaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/guides/"));
   assert.equal(guidePaths.length, 8);
 
+  const homeHtml = await renderPath(worker, "/");
+  assert.match(homeHtml, /Eight original guides/);
+  const homeGuideLinks = new Set(
+    [...homeHtml.matchAll(/<a\b[^>]*\bhref="(\/guides\/[^"#?]+)"/g)].map((match) => match[1]),
+  );
+  assert.deepEqual(homeGuideLinks, new Set(guidePaths), "the home page must expose all eight guides");
+
   for (const path of guidePaths) {
     const html = await renderPath(worker, path);
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);

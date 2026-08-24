@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PrintReadinessLab } from "@/components/print-readiness-lab";
 import { pageMetadata } from "@/lib/seo";
+import { GUIDE_PAGES } from "@/lib/site-content";
 
 const homeMetadata = pageMetadata({
   title: "Print Size, Pixel and Image Resolution Tools | Print Prep Lab",
@@ -74,7 +75,12 @@ export default function Home() {
     </section>
 
     <section className="home-guide-section">
-      <div className="shell home-guide-grid"><div><span>Flagship guide</span><h2>How large can you print an image without losing quality?</h2><p>Start with real pixel dimensions, choose a defensible PPI target and account for the final crop before calculating inches.</p><Link className="button primary" href="/guides/how-large-can-i-print-my-image">Read the print-size guide <span>→</span></Link></div><aside><strong>6000 × 4000 px</strong><p>20 × 13.33 in at 300 PPI</p><p>25 × 16.67 in at 240 PPI</p><p>40 × 26.67 in at 150 PPI</p><small>Before crop · confirm provider requirements</small></aside></div>
+      <div className="shell home-guide-grid"><div><span>Featured guide</span><h2>How large can you print an image without losing quality?</h2><p>Start with real pixel dimensions, choose a defensible PPI target and account for the final crop before calculating inches.</p><Link className="button primary" href="/guides/how-large-can-i-print-my-image">Read the print-size guide <span>→</span></Link></div><aside><strong>6000 × 4000 px</strong><p>20 × 13.33 in at 300 PPI</p><p>25 × 16.67 in at 240 PPI</p><p>40 × 26.67 in at 150 PPI</p><small>Before crop · confirm provider requirements</small></aside></div>
+      <div className="shell home-guide-library" aria-labelledby="home-guide-library-title">
+        <div className="home-guide-library-heading"><div><span>Eight original guides</span><h2 id="home-guide-library-title">Read the full print-preparation library.</h2></div><p>Move from the quick calculation to the production decision: resolution, crop, bleed, export checks and paper-format differences.</p></div>
+        <div className="home-guide-library-grid">{GUIDE_PAGES.map((guide, index) => <Link href={`/guides/${guide.slug}`} key={guide.slug}><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{guide.title}</h3><p>{guide.description}</p></div><b>Read →</b></Link>)}</div>
+        <div className="home-index-link"><Link href="/guides">Browse all eight guides in one place →</Link></div>
+      </div>
     </section>
 
     <section className="method-strip">

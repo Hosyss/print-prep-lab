@@ -92,7 +92,7 @@ export const ADDITIONAL_GUIDES: GuidePage[] = [
     primaryCta: { label: "Calculate maximum print size", href: "/tools/pixels-to-print-size" },
     sources: [
       { label: "Adobe Photoshop — Image size and resolution", href: "https://helpx.adobe.com/photoshop/using/image-size-resolution.html" },
-      { label: "Adobe — Understanding image resolution", href: "https://www.adobe.com/creativecloud/photography/discover/image-resolution.html" },
+      { label: "Adobe — Resolution specifications for printing images", href: "https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/resolution-specs-for-printing-images.html" },
       { label: "Print Prep Lab calculation methodology", href: "/methodology" },
     ],
   },
