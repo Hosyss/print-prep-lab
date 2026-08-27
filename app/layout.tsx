@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { AnalyticsConsent } from "@/components/analytics-consent";
-import { LanguageProvider } from "@/components/language-provider";
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import {
   ADSENSE_CLIENT_ID,
@@ -63,13 +62,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#071a3a",
+  themeColor: "#f2f0e8",
   colorScheme: "light",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body>
         <script
           async
@@ -80,12 +79,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteStructuredData).replace(/</g, "\\u003c") }}
         />
-        <LanguageProvider>
-          <SiteHeader />
-          {children}
-          <SiteFooter />
-          <AnalyticsConsent />
-        </LanguageProvider>
+        <SiteHeader />
+        {children}
+        <SiteFooter />
+        <AnalyticsConsent />
       </body>
     </html>
   );
