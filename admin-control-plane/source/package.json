@@ -1,0 +1,13 @@
+{
+  "name": "print-prep-lab-admin",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check worker.js && node --check public/admin.js && npm test",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.31.0"
+  }
+}

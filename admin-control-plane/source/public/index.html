@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+    <title>Print Prep Lab Admin</title>
+    <link rel="stylesheet" href="/admin.css">
+    <script src="/admin.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#admin-main">Skip to admin content</a>
+
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <div>
+          <strong>Print Prep Lab</strong>
+          <span>Secure control plane</span>
+        </div>
+      </div>
+      <div class="topbar-status">
+        <span id="access-status" class="status-chip status-pending">Checking protection</span>
+        <span id="admin-identity" class="identity">—</span>
+      </div>
+    </header>
+
+    <div class="admin-shell">
+      <aside class="sidebar" aria-label="Admin sections">
+        <div class="security-seal">
+          <span aria-hidden="true">◆</span>
+          <div>
+            <strong>Isolated admin</strong>
+            <small>Public integration disabled</small>
+          </div>
+        </div>
+        <nav class="admin-nav">
+          <button type="button" data-view-target="overview" aria-selected="true">Overview</button>
+          <button type="button" data-view-target="content" aria-selected="false">Site settings</button>
+          <button type="button" data-view-target="navigation" aria-selected="false">Navigation</button>
+          <button type="button" data-view-target="pages" aria-selected="false">Page content</button>
+          <button type="button" data-view-target="tools" aria-selected="false">Tool visibility</button>
+          <button type="button" data-view-target="release" aria-selected="false">Snapshots &amp; backups</button>
+          <button type="button" data-view-target="audit" aria-selected="false">Audit log</button>
+        </nav>
+        <div class="sidebar-note">
+          <strong>No code editing</strong>
+          <p>Formulas, scripts, secrets and deployments stay outside this browser.</p>
+        </div>
+      </aside>
+
+      <main id="admin-main" tabindex="-1">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">OWNER-ONLY ADMIN</span>
+            <h1 id="view-title">Control plane overview</h1>
+            <p id="view-description">Review protection, draft health and the separation from the public site.</p>
+          </div>
+          <div class="revision-box">
+            <span>Draft revision</span>
+            <strong id="revision-number">—</strong>
+            <small id="revision-time">Not loaded</small>
+          </div>
+        </div>
+
+        <section id="view-overview" class="view-panel" data-view="overview">
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span>Access</span>
+              <strong id="metric-access">Checking</strong>
+              <small>JWT verified again inside the Worker</small>
+            </article>
+            <article class="metric-card">
+              <span>Managed pages</span>
+              <strong id="metric-pages">—</strong>
+              <small>Structured fields only</small>
+            </article>
+            <article class="metric-card">
+              <span>Draft checksum</span>
+              <strong id="metric-checksum" class="mono">—</strong>
+              <small>SHA-256 integrity marker</small>
+            </article>
+            <article class="metric-card">
+              <span>Public site</span>
+              <strong class="safe-text">Disconnected</strong>
+              <small>No live-site writes in this stage</small>
+            </article>
+          </div>
+
+          <div class="two-column">
+            <article class="panel-card">
+              <div class="panel-heading">
+                <div>
+                  <span class="kicker">SECURITY GATE</span>
+                  <h2>Required protection layers</h2>
+                </div>
+              </div>
+              <ul class="check-list">
+                <li><span aria-hidden="true">✓</span> Dedicated Worker and D1 database</li>
+                <li><span aria-hidden="true">✓</span> Cloudflare Access deny-by-default policy</li>
+                <li><span aria-hidden="true">✓</span> Owner email allowlist and MFA policy</li>
+                <li><span aria-hidden="true">✓</span> Worker-side JWT, origin and CSRF validation</li>
+                <li><span aria-hidden="true">✓</span> Backups and hash-chained audit trail</li>
+              </ul>
+            </article>
+            <article class="panel-card warning-card">
+              <span class="kicker">BOUNDARY</span>
+              <h2>Publishing is intentionally isolated</h2>
+              <p>A published snapshot is stored inside the protected Admin database. It cannot alter Print Prep Lab until a separate read-only integration is reviewed and approved.</p>
+              <div class="boundary-row"><span>Executable code</span><strong>Blocked</strong></div>
+              <div class="boundary-row"><span>Calculator formulas</span><strong>Blocked</strong></div>
+              <div class="boundary-row"><span>Secrets and Access policy</span><strong>Blocked</strong></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-content" class="view-panel" data-view="content" hidden>
+          <form id="site-settings-form" class="panel-card form-card" novalidate>
+            <div class="panel-heading">
+              <div><span class="kicker">SAFE CONFIGURATION</span><h2>Site and brand settings</h2></div>
+              <span class="field-note">Draft only</span>
+            </div>
+            <div class="form-grid">
+              <label>Brand name<input id="brand-name" name="brandName" maxlength="100" required></label>
+              <label>Default locale<input id="default-locale" name="defaultLocale" maxlength="12" required></label>
+              <label>Secondary locale<input id="secondary-locale" name="secondaryLocale" maxlength="12" required></label>
+              <label class="wide">Default SEO title<input id="seo-title" name="seoTitle" maxlength="180" required></label>
+              <label class="wide">Default SEO description<textarea id="seo-description" name="seoDescription" maxlength="500" rows="3" required></textarea></label>
+              <label class="toggle-field"><input id="announcement-enabled" type="checkbox"><span>Enable announcement</span></label>
+              <label class="toggle-field danger-toggle"><input id="maintenance-mode" type="checkbox"><span>Maintenance mode</span></label>
+              <label class="wide">Announcement text<textarea id="announcement-text" maxlength="500" rows="3"></textarea></label>
+            </div>
+            <div class="subsection">
+              <h3>Feature switches</h3>
+              <div id="feature-switches" class="switch-grid"></div>
+            </div>
+          </form>
+        </section>
+
+        <section id="view-navigation" class="view-panel" data-view="navigation" hidden>
+          <article class="panel-card">
+            <div class="panel-heading">
+              <div><span class="kicker">INTERNAL ROUTES ONLY</span><h2>Navigation entries</h2></div>
+              <button id="add-navigation" class="button secondary" type="button">Add entry</button>
+            </div>
+            <p class="panel-intro">Links must stay on Print Prep Lab. External URLs and executable schemes are rejected by the server.</p>
+            <div id="navigation-list" class="editor-list"></div>
+          </article>
+        </section>
+
+        <section id="view-pages" class="view-panel" data-view="pages" hidden>
+          <article class="panel-card">
+            <div class="panel-heading page-picker-heading">
+              <div><span class="kicker">BILINGUAL CONTENT</span><h2>Page overrides</h2></div>
+              <label class="page-picker">Page<select id="page-select" aria-label="Select managed page"></select></label>
+            </div>
+            <p id="page-source-note" class="panel-intro">Choose a managed page to edit safe text fields.</p>
+            <div class="form-grid">
+              <label>English title<input id="page-title" maxlength="180"></label>
+              <label>Arabic title<input id="page-title-ar" maxlength="180" dir="rtl"></label>
+              <label class="wide">English description<textarea id="page-description" maxlength="500" rows="3"></textarea></label>
+              <label class="wide">Arabic description<textarea id="page-description-ar" maxlength="500" rows="3" dir="rtl"></textarea></label>
+              <label>English H1<input id="page-h1" maxlength="240"></label>
+              <label>Arabic H1<input id="page-h1-ar" maxlength="240" dir="rtl"></label>
+              <label class="wide">English intro<textarea id="page-intro" maxlength="2000" rows="4"></textarea></label>
+              <label class="wide">Arabic intro<textarea id="page-intro-ar" maxlength="2000" rows="4" dir="rtl"></textarea></label>
+              <label class="toggle-field"><input id="page-enabled" type="checkbox"><span>Page enabled in snapshot</span></label>
+            </div>
+            <div class="subsection">
+              <div class="panel-heading compact-heading">
+                <h3>Structured sections</h3>
+                <button id="add-section" class="button secondary" type="button">Add section</button>
+              </div>
+              <div id="section-list" class="editor-list"></div>
+            </div>
+          </article>
+        </section>
+
+        <section id="view-tools" class="view-panel" data-view="tools" hidden>
+          <article class="panel-card">
+            <div class="panel-heading">
+              <div><span class="kicker">VISIBILITY ONLY</span><h2>Tool availability</h2></div>
+              <span class="field-note">No formula access</span>
+            </div>
+            <p class="panel-intro">These switches describe a future safe integration. They cannot edit tool JavaScript or calculations.</p>
+            <div id="tool-list" class="tool-list"></div>
+          </article>
+        </section>
+
+        <section id="view-release" class="view-panel" data-view="release" hidden>
+          <div class="two-column release-columns">
+            <article class="panel-card">
+              <span class="kicker">PROTECTED SNAPSHOT</span>
+              <h2>Publish current draft</h2>
+              <p>Creates an immutable snapshot in the Admin D1 only. The public site remains disconnected.</p>
+              <label>Type the confirmation phrase
+                <input id="publish-confirmation" autocomplete="off" spellcheck="false" placeholder="PUBLISH PRINT PREP LAB">
+              </label>
+              <button id="publish-snapshot" class="button danger" type="button">Create protected snapshot</button>
+              <p id="publish-result" class="result-note" role="status"></p>
+            </article>
+            <article class="panel-card">
+              <div class="panel-heading compact-heading">
+                <div><span class="kicker">SERVER-SIDE SAFETY</span><h2>Backups</h2></div>
+                <button id="refresh-backups" class="button ghost" type="button">Refresh</button>
+              </div>
+              <div id="backup-list" class="record-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-audit" class="view-panel" data-view="audit" hidden>
+          <article class="panel-card">
+            <div class="panel-heading">
+              <div><span class="kicker">APPEND-ONLY</span><h2>Audit log</h2></div>
+              <button id="refresh-audit" class="button ghost" type="button">Refresh</button>
+            </div>
+            <div id="audit-list" class="record-list audit-list"></div>
+          </article>
+        </section>
+
+        <div class="action-bar" aria-label="Draft actions">
+          <div>
+            <span id="dirty-indicator" class="dirty-indicator">No unsaved changes</span>
+            <small>All validation is repeated on the server.</small>
+          </div>
+          <div class="action-buttons">
+            <button id="reload-draft" class="button ghost" type="button">Reload draft</button>
+            <button id="save-draft" class="button primary" type="button" disabled>Save protected draft</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+  </body>
+</html>

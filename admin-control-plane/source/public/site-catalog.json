@@ -1,0 +1,403 @@
+{
+  "release": "v118.7",
+  "count": 66,
+  "source": "route-stable v118.6 recovery baseline",
+  "pages": [
+    {
+      "route": "/",
+      "file": "home-v112.html",
+      "title": "Print Prep Lab — Print preparation and prepress workspace",
+      "kind": "hub"
+    },
+    {
+      "route": "/approval-matrix",
+      "file": "approval-matrix.html",
+      "title": "Print Approval Matrix – Required Sign-offs, Pending Gates & Release Status",
+      "kind": "tool"
+    },
+    {
+      "route": "/audit-log",
+      "file": "audit-log.html",
+      "title": "Print Production Audit Snapshot Log – Local Signal History & SHA-256",
+      "kind": "tool"
+    },
+    {
+      "route": "/automation-lab",
+      "file": "automation-lab.html",
+      "title": "Local Automation & Next Action",
+      "kind": "tool"
+    },
+    {
+      "route": "/batch",
+      "file": "batch.html",
+      "title": "Batch Print Checker – Compare Image Print Readiness",
+      "kind": "tool"
+    },
+    {
+      "route": "/calibration-registry",
+      "file": "calibration-registry.html",
+      "title": "Print Calibration & Device Registry – Media, Profile, Verification & Review Dates",
+      "kind": "tool"
+    },
+    {
+      "route": "/capa",
+      "file": "capa.html",
+      "title": "Print CAPA Tracker – Nonconformance, Root Cause & Corrective Action",
+      "kind": "tool"
+    },
+    {
+      "route": "/capacity-planner",
+      "file": "capacity-planner.html",
+      "title": "Print Production Capacity Planner – Throughput, Setup, Shifts & Deadline",
+      "kind": "tool"
+    },
+    {
+      "route": "/change-impact",
+      "file": "change-impact.html",
+      "title": "Print Change Impact Engine – Detect Stale Cost, Preflight & Production Assumptions",
+      "kind": "tool"
+    },
+    {
+      "route": "/color-control",
+      "file": "color-control.html",
+      "title": "Color Control Board",
+      "kind": "tool"
+    },
+    {
+      "route": "/command-center",
+      "file": "command-center.html",
+      "title": "Print Prep Command Center",
+      "kind": "hub"
+    },
+    {
+      "route": "/compliance-center",
+      "file": "compliance-center.html",
+      "title": "Compliance & Evidence Center",
+      "kind": "tool"
+    },
+    {
+      "route": "/customer-handoff",
+      "file": "customer-handoff.html",
+      "title": "Customer Handoff",
+      "kind": "tool"
+    },
+    {
+      "route": "/digital-twin",
+      "file": "digital-twin.html",
+      "title": "Digital Production Twin",
+      "kind": "tool"
+    },
+    {
+      "route": "/enterprise-dashboard",
+      "file": "enterprise-dashboard.html",
+      "title": "Enterprise Dashboard",
+      "kind": "tool"
+    },
+    {
+      "route": "/file-manifest",
+      "file": "file-manifest.html",
+      "title": "Print File Manifest – Checksums & Delivery List",
+      "kind": "tool"
+    },
+    {
+      "route": "/finishing-intelligence",
+      "file": "finishing-intelligence.html",
+      "title": "Finishing Intelligence",
+      "kind": "tool"
+    },
+    {
+      "route": "/fold-planner",
+      "file": "fold-planner.html",
+      "title": "Fold Panel Planner – Tri-fold, Z-fold & Half-fold Widths",
+      "kind": "tool"
+    },
+    {
+      "route": "/fulfillment-center",
+      "file": "fulfillment-center.html",
+      "title": "Fulfilment Intelligence",
+      "kind": "tool"
+    },
+    {
+      "route": "/glossary",
+      "file": "glossary.html",
+      "title": "Print Preparation Glossary – PPI, Bleed, Color & PDF",
+      "kind": "tool"
+    },
+    {
+      "route": "/imposition-planner",
+      "file": "imposition-planner.html",
+      "title": "Imposition & Cut Planner – Sheet Margins, N-up, Rotation & Cut Lines",
+      "kind": "tool"
+    },
+    {
+      "route": "/inspector",
+      "file": "inspector.html",
+      "title": "Print File Inspector – Image Metadata for Printing",
+      "kind": "tool"
+    },
+    {
+      "route": "/job-brief",
+      "file": "job-brief.html",
+      "title": "Print Job Brief Builder – Production Handoff",
+      "kind": "tool"
+    },
+    {
+      "route": "/job-core",
+      "file": "job-core.html",
+      "title": "Job Core & Revision Engine",
+      "kind": "tool"
+    },
+    {
+      "route": "/job-costing",
+      "file": "job-costing.html",
+      "title": "Print Job Costing Lab – Unit Cost, Waste, Markup & Break-even",
+      "kind": "tool"
+    },
+    {
+      "route": "/jobs",
+      "file": "jobs.html",
+      "title": "Print Job Command Center",
+      "kind": "hub"
+    },
+    {
+      "route": "/knowledge-base",
+      "file": "knowledge-base.html",
+      "title": "Production Knowledge Base",
+      "kind": "tool"
+    },
+    {
+      "route": "/material-intelligence",
+      "file": "material-intelligence.html",
+      "title": "Material & Procurement Intelligence",
+      "kind": "tool"
+    },
+    {
+      "route": "/operations",
+      "file": "operations.html",
+      "title": "Print Operations Command Center – Cost, Capacity, QA & Release Signals",
+      "kind": "tool"
+    },
+    {
+      "route": "/packaging",
+      "file": "packaging.html",
+      "title": "Print Packaging & Shipping Planner – Cartons, Gross & Volumetric Weight",
+      "kind": "tool"
+    },
+    {
+      "route": "/pallet-planner",
+      "file": "pallet-planner.html",
+      "title": "Pallet Load Planner – Cartons per Layer, Height & Gross Weight",
+      "kind": "tool"
+    },
+    {
+      "route": "/preflight",
+      "file": "preflight.html",
+      "title": "Print Preflight Checker – Resolution, Bleed & Delivery",
+      "kind": "tool"
+    },
+    {
+      "route": "/prepress-lab",
+      "file": "prepress-lab.html",
+      "title": "Advanced Prepress Lab – Color, Viewing Distance, Paper & Creep",
+      "kind": "tool"
+    },
+    {
+      "route": "/procurement",
+      "file": "procurement.html",
+      "title": "Print Material Procurement Planner – Lead Time, Cover & Reorder Window",
+      "kind": "tool"
+    },
+    {
+      "route": "/production-analytics",
+      "file": "production-analytics.html",
+      "title": "Production Analytics",
+      "kind": "tool"
+    },
+    {
+      "route": "/production-archive",
+      "file": "production-archive.html",
+      "title": "Production Archive",
+      "kind": "tool"
+    },
+    {
+      "route": "/proof-sheet",
+      "file": "proof-sheet.html",
+      "title": "Printable Proof Sheet Builder",
+      "kind": "tool"
+    },
+    {
+      "route": "/provider-matrix",
+      "file": "provider-matrix.html",
+      "title": "Print Provider Capability Matrix – Size, PPI, Bleed & File Format",
+      "kind": "tool"
+    },
+    {
+      "route": "/qa-history",
+      "file": "qa-history.html",
+      "title": "Print QA History – Local Checkpoints, Findings & Sign-off Log",
+      "kind": "tool"
+    },
+    {
+      "route": "/queue-planner",
+      "file": "queue-planner.html",
+      "title": "Multi-job Print Queue Planner – Due Dates, Priority & Lateness",
+      "kind": "tool"
+    },
+    {
+      "route": "/quote-compare",
+      "file": "quote-compare.html",
+      "title": "Print Quote Comparator – Landed Cost & Turnaround",
+      "kind": "tool"
+    },
+    {
+      "route": "/readiness-audit",
+      "file": "readiness-audit.html",
+      "title": "Release Readiness Audit",
+      "kind": "tool"
+    },
+    {
+      "route": "/release-center",
+      "file": "release-center.html",
+      "title": "Release Center 2.0",
+      "kind": "tool"
+    },
+    {
+      "route": "/release-packet",
+      "file": "release-packet.html",
+      "title": "Print Release Packet Builder – Consolidate Preflight, Cost, QA, Risk & Approvals",
+      "kind": "tool"
+    },
+    {
+      "route": "/revision-diff",
+      "file": "revision-diff.html",
+      "title": "Print File Revision Diff – Compare Delivery Manifests & SHA-256",
+      "kind": "tool"
+    },
+    {
+      "route": "/risk-register",
+      "file": "risk-register.html",
+      "title": "Print Production Risk Register – Probability, Impact & Mitigation",
+      "kind": "tool"
+    },
+    {
+      "route": "/roll-diameter",
+      "file": "roll-diameter.html",
+      "title": "Roll Diameter & Length Calculator – Core, Thickness & Wound Media",
+      "kind": "tool"
+    },
+    {
+      "route": "/roll-media",
+      "file": "roll-media.html",
+      "title": "Roll Media Planner – Linear Metres, Across Count & Utilization",
+      "kind": "tool"
+    },
+    {
+      "route": "/scenarios",
+      "file": "scenarios.html",
+      "title": "Print Size Scenario Matrix",
+      "kind": "tool"
+    },
+    {
+      "route": "/schedule-optimizer",
+      "file": "schedule-optimizer.html",
+      "title": "Multi-job Schedule Optimizer",
+      "kind": "tool"
+    },
+    {
+      "route": "/search",
+      "file": "search.html",
+      "title": "Search Print Prep Lab",
+      "kind": "hub"
+    },
+    {
+      "route": "/sheet-planner",
+      "file": "sheet-planner.html",
+      "title": "Sheet Yield & N-up Planner – Pieces per Sheet",
+      "kind": "tool"
+    },
+    {
+      "route": "/signature-planner",
+      "file": "signature-planner.html",
+      "title": "Advanced Signature Planner",
+      "kind": "tool"
+    },
+    {
+      "route": "/specs",
+      "file": "specs.html",
+      "title": "Print Specification Profiles – PPI, Bleed & Export",
+      "kind": "tool"
+    },
+    {
+      "route": "/spine-planner",
+      "file": "spine-planner.html",
+      "title": "Book Spine & Book-block Thickness Planner – Pages × Paper Caliper",
+      "kind": "tool"
+    },
+    {
+      "route": "/stock-coverage",
+      "file": "stock-coverage.html",
+      "title": "Print Stock Coverage Planner – Available, Reserved, Safety & Reorder",
+      "kind": "tool"
+    },
+    {
+      "route": "/studio",
+      "file": "studio.html",
+      "title": "Print Job Studio – Plan Crop, PPI & Bleed",
+      "kind": "tool"
+    },
+    {
+      "route": "/supplier-intelligence",
+      "file": "supplier-intelligence.html",
+      "title": "Supplier Intelligence",
+      "kind": "tool"
+    },
+    {
+      "route": "/timeline",
+      "file": "timeline.html",
+      "title": "Print Job Timeline Planner – Backward Schedule, Slack & Release Gates",
+      "kind": "tool"
+    },
+    {
+      "route": "/tools/print-readiness-checker",
+      "file": "print-readiness-v111.html",
+      "title": "Print Readiness Checker",
+      "kind": "tool"
+    },
+    {
+      "route": "/troubleshoot",
+      "file": "troubleshoot.html",
+      "title": "Print Troubleshooting Center – Diagnose Common Problems",
+      "kind": "tool"
+    },
+    {
+      "route": "/vault",
+      "file": "vault.html",
+      "title": "Workspace Vault – Backup Local Print Plans",
+      "kind": "tool"
+    },
+    {
+      "route": "/vendor-handoff",
+      "file": "vendor-handoff.html",
+      "title": "Vendor Handoff",
+      "kind": "tool"
+    },
+    {
+      "route": "/wall-layout",
+      "file": "wall-layout.html",
+      "title": "Wall & Gallery Layout Planner – Frames & Spacing",
+      "kind": "tool"
+    },
+    {
+      "route": "/waste-ledger",
+      "file": "waste-ledger.html",
+      "title": "Print Waste & Yield Ledger – First-pass Yield, Spoilage & Material Cost",
+      "kind": "tool"
+    },
+    {
+      "route": "/workspace",
+      "file": "workspace.html",
+      "title": "Print Preparation Workspace",
+      "kind": "hub"
+    }
+  ]
+}
