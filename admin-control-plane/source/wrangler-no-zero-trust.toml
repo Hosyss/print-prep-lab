@@ -1,0 +1,27 @@
+name = "print-prep-lab-admin"
+main = "worker-no-zero-trust.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "print-prep-lab-admin"
+database_id = "REPLACE_AFTER_CREATING_D1"
+migrations_dir = "migrations"
+
+[vars]
+PUBLIC_SITE_ORIGIN = "https://printpreplab.pages.dev"
+
+# No Cloudflare Access / Zero Trust dependency.
+# Set these as Worker secrets during deployment. Never commit values:
+# ADMIN_EMAILS
+# ADMIN_PASSWORD
+# CSRF_SECRET
+# AUDIT_SECRET
+# SESSION_SECRET
+# Optional: ADMIN_ORIGIN for an exact custom HTTPS origin.
