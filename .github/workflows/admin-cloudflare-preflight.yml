@@ -1,0 +1,112 @@
+name: Admin Cloudflare read-only preflight
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-v2-20260830
+    paths:
+      - .github/workflows/admin-cloudflare-preflight.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-admin-cloudflare-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/security/admin-control-plane-v2-20260830'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Check out the isolated Admin branch
+        uses: actions/checkout@v4
+
+      - name: Enforce branch and source isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/security/admin-control-plane-v2-20260830"
+          test -f admin-control-plane/source/wrangler.toml
+          test -f admin-control-plane/source/worker.js
+          grep -Eq '^workers_dev[[:space:]]*=[[:space:]]*false$' admin-control-plane/source/wrangler.toml
+          ! grep -Eq 'printpreplab\.pages\.dev/' admin-control-plane/source/wrangler.toml
+
+      - name: Verify existing Cloudflare credentials are available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+            echo "::error::Missing CLOUDFLARE_API_TOKEN (or CF_API_TOKEN) repository secret."
+            exit 1
+          fi
+          if [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+            echo "::error::Missing CLOUDFLARE_ACCOUNT_ID repository secret or variable."
+            exit 1
+          fi
+          echo "Cloudflare credentials are present; values were not printed."
+
+      - name: Run Admin security tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install isolated Admin dependencies
+        working-directory: admin-control-plane/source
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Run isolated Admin quality gate
+        working-directory: admin-control-plane/source
+        run: npm run check
+
+      - name: Inspect Cloudflare resources without changing them
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cf_get() {
+            local path="$1"
+            curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4${path}"
+          }
+
+          zones="$(cf_get '/zones?per_page=100')"
+          d1="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100")"
+          workers="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")"
+          access_apps="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps?per_page=100")"
+
+          jq -e '.success == true' <<<"$zones" >/dev/null
+          jq -e '.success == true' <<<"$d1" >/dev/null
+          jq -e '.success == true' <<<"$workers" >/dev/null
+          jq -e '.success == true' <<<"$access_apps" >/dev/null
+
+          zone_count="$(jq '.result | length' <<<"$zones")"
+          d1_exists="$(jq -r '[.result[] | select(.name == "print-prep-lab-admin")] | length' <<<"$d1")"
+          worker_exists="$(jq -r '[.result[] | select((.id // .name) == "print-prep-lab-admin")] | length' <<<"$workers")"
+          access_count="$(jq '.result | length' <<<"$access_apps")"
+
+          echo "Eligible zones visible: ${zone_count}"
+          echo "Dedicated D1 already exists: ${d1_exists}"
+          echo "Dedicated Worker already exists: ${worker_exists}"
+          echo "Access applications visible: ${access_count}"
+
+          {
+            echo "## Admin Cloudflare read-only preflight"
+            echo
+            echo "- Exact branch: confirmed"
+            echo "- Admin tests: passed"
+            echo "- Eligible zones visible: ${zone_count}"
+            echo "- Dedicated D1 already exists: ${d1_exists}"
+            echo "- Dedicated Worker already exists: ${worker_exists}"
+            echo "- Access applications visible: ${access_count}"
+            echo "- Cloudflare mutations: none"
+            echo "- Main / Production changes: none"
+          } >> "$GITHUB_STEP_SUMMARY"
