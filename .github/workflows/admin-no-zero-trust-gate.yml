@@ -1,0 +1,66 @@
+name: Admin no-Zero-Trust quality gate
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - admin-control-plane/source/**
+      - .github/workflows/admin-no-zero-trust-gate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-admin-no-zero-trust-gate
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out isolated Admin branch
+        uses: actions/checkout@v4
+
+      - name: Enforce branch and source isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/security/admin-control-plane-no-zero-trust-20260831"
+          test -f admin-control-plane/source/worker-no-zero-trust.js
+          test -f admin-control-plane/source/wrangler-no-zero-trust.toml
+          test -f admin-control-plane/source/public/login.html
+          test -f admin-control-plane/source/public/login.js
+          test -f admin-control-plane/source/migrations/0002_auth_settings.sql
+          grep -Eq '^workers_dev[[:space:]]*=[[:space:]]*true$' admin-control-plane/source/wrangler-no-zero-trust.toml
+          grep -Eq '^main[[:space:]]*=[[:space:]]*"worker-no-zero-trust\.js"$' admin-control-plane/source/wrangler-no-zero-trust.toml
+          ! grep -Eq 'cloudflareaccess\.com|CF_ACCESS_|Cf-Access-Jwt-Assertion|CF_Authorization' admin-control-plane/source/worker-no-zero-trust.js
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install isolated Admin dependencies
+        working-directory: admin-control-plane/source
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Syntax-check new auth surface
+        working-directory: admin-control-plane/source
+        run: |
+          node --check worker-no-zero-trust.js
+          node --check public/login.js
+
+      - name: Run full Admin test suite
+        working-directory: admin-control-plane/source
+        run: npm test
+
+      - name: Confirm no Production mutation path exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -REn 'wrangler[[:space:]]+deploy|d1[[:space:]]+migrations[[:space:]]+apply|api\.cloudflare\.com/client/v4.*(PUT|POST|PATCH|DELETE)' admin-control-plane/source .github/workflows/admin-no-zero-trust-gate.yml
+          echo "Quality gate is test-only. Main, Pages Production and Cloudflare resources were not changed."
