@@ -75,25 +75,51 @@ jobs:
         run: |
           set -euo pipefail
 
-          cf_get() {
-            local path="$1"
-            curl --fail-with-body --silent --show-error \
+          cf_get_checked() {
+            local label="$1"
+            local path="$2"
+            local outfile
+            local status
+            local detail
+            outfile="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --output "$outfile" \
+              --write-out '%{http_code}' \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
               -H "Content-Type: application/json" \
-              "https://api.cloudflare.com/client/v4${path}"
+              "https://api.cloudflare.com/client/v4${path}" || true)"
+
+            if [[ "$status" != "200" ]]; then
+              detail="$(jq -r '[.errors[]? | ((.code // "unknown")|tostring) + ": " + (.message // "unspecified Cloudflare error")] | join("; ")' "$outfile" 2>/dev/null || true)"
+              if [[ -z "$detail" ]]; then
+                detail="Cloudflare returned no parseable error message"
+              fi
+              echo "::error::${label} failed with HTTP ${status}: ${detail}" >&2
+              rm -f "$outfile"
+              return 1
+            fi
+
+            if ! jq -e '.success == true' "$outfile" >/dev/null 2>&1; then
+              echo "::error::${label} returned HTTP 200 but success was not true." >&2
+              rm -f "$outfile"
+              return 1
+            fi
+
+            cat "$outfile"
+            rm -f "$outfile"
           }
 
-          d1="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100")"
-          workers="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")"
-          access_apps="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps?per_page=100")"
-          access_org="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/organizations")"
-          workers_subdomain="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain")"
+          failed=0
+          d1="$(cf_get_checked "D1 database list" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100")" || failed=1
+          workers="$(cf_get_checked "Workers scripts list" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")" || failed=1
+          access_apps="$(cf_get_checked "Access applications list" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps?per_page=100")" || failed=1
+          access_org="$(cf_get_checked "Access organization read" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/organizations")" || failed=1
+          workers_subdomain="$(cf_get_checked "Workers subdomain read" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain")" || failed=1
 
-          jq -e '.success == true' <<<"$d1" >/dev/null
-          jq -e '.success == true' <<<"$workers" >/dev/null
-          jq -e '.success == true' <<<"$access_apps" >/dev/null
-          jq -e '.success == true' <<<"$access_org" >/dev/null
-          jq -e '.success == true' <<<"$workers_subdomain" >/dev/null
+          if [[ "$failed" -ne 0 ]]; then
+            echo "::error::One or more read-only Cloudflare checks were denied. No Cloudflare mutations were attempted."
+            exit 1
+          fi
 
           d1_exists="$(jq -r '[.result[] | select(.name == "print-prep-lab-admin")] | length' <<<"$d1")"
           worker_exists="$(jq -r '[.result[] | select((.id // .name) == "print-prep-lab-admin")] | length' <<<"$workers")"
