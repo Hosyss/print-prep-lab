@@ -23,6 +23,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
 
     steps:
       - name: Check out the isolated Admin branch
@@ -48,6 +49,10 @@ jobs:
           fi
           if [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
             echo "::error::Missing CLOUDFLARE_ACCOUNT_ID repository secret or variable."
+            exit 1
+          fi
+          if [[ -z "${ADMIN_EMAILS:-}" ]]; then
+            echo "::error::Missing ADMIN_EMAILS repository secret."
             exit 1
           fi
           echo "Cloudflare credentials are present; values were not printed."
@@ -78,35 +83,40 @@ jobs:
               "https://api.cloudflare.com/client/v4${path}"
           }
 
-          zones="$(cf_get '/zones?per_page=100')"
           d1="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100")"
           workers="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")"
           access_apps="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/apps?per_page=100")"
+          access_org="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/access/organizations")"
+          workers_subdomain="$(cf_get "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain")"
 
-          jq -e '.success == true' <<<"$zones" >/dev/null
           jq -e '.success == true' <<<"$d1" >/dev/null
           jq -e '.success == true' <<<"$workers" >/dev/null
           jq -e '.success == true' <<<"$access_apps" >/dev/null
+          jq -e '.success == true' <<<"$access_org" >/dev/null
+          jq -e '.success == true' <<<"$workers_subdomain" >/dev/null
 
-          zone_count="$(jq '.result | length' <<<"$zones")"
           d1_exists="$(jq -r '[.result[] | select(.name == "print-prep-lab-admin")] | length' <<<"$d1")"
           worker_exists="$(jq -r '[.result[] | select((.id // .name) == "print-prep-lab-admin")] | length' <<<"$workers")"
           access_count="$(jq '.result | length' <<<"$access_apps")"
+          access_org_ready="$(jq -r 'if .result.auth_domain then 1 else 0 end' <<<"$access_org")"
+          workers_subdomain_ready="$(jq -r 'if .result.subdomain then 1 else 0 end' <<<"$workers_subdomain")"
 
-          echo "Eligible zones visible: ${zone_count}"
           echo "Dedicated D1 already exists: ${d1_exists}"
           echo "Dedicated Worker already exists: ${worker_exists}"
           echo "Access applications visible: ${access_count}"
+          echo "Access organization ready: ${access_org_ready}"
+          echo "Workers subdomain ready: ${workers_subdomain_ready}"
 
           {
             echo "## Admin Cloudflare read-only preflight"
             echo
             echo "- Exact branch: confirmed"
             echo "- Admin tests: passed"
-            echo "- Eligible zones visible: ${zone_count}"
             echo "- Dedicated D1 already exists: ${d1_exists}"
             echo "- Dedicated Worker already exists: ${worker_exists}"
             echo "- Access applications visible: ${access_count}"
+            echo "- Access organization ready: ${access_org_ready}"
+            echo "- Workers subdomain ready: ${workers_subdomain_ready}"
             echo "- Cloudflare mutations: none"
             echo "- Main / Production changes: none"
           } >> "$GITHUB_STEP_SUMMARY"
