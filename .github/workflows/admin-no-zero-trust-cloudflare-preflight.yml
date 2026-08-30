@@ -1,0 +1,95 @@
+name: Admin no-Zero-Trust Cloudflare preflight
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-no-zero-trust-cloudflare-preflight.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-admin-no-zero-trust-cloudflare-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
+    steps:
+      - name: Check out isolated Admin branch
+        uses: actions/checkout@v4
+
+      - name: Enforce exact branch and required credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/security/admin-control-plane-no-zero-trust-20260831"
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${ADMIN_EMAILS:-}"
+          test -f admin-control-plane/source/wrangler-no-zero-trust.toml
+          ! grep -Eq 'CF_ACCESS_|cloudflareaccess\.com|access/apps|access/organizations' .github/workflows/admin-no-zero-trust-cloudflare-preflight.yml admin-control-plane/source/wrangler-no-zero-trust.toml
+
+      - name: Inspect D1, Workers and workers.dev without mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          cf_get() {
+            local label="$1"
+            local path="$2"
+            local outfile
+            local status
+            local detail
+            outfile="$(mktemp)"
+            status="$(curl --silent --show-error \
+              --output "$outfile" \
+              --write-out '%{http_code}' \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4${path}" || true)"
+            if [[ "$status" != "200" ]]; then
+              detail="$(jq -r '[.errors[]? | ((.code // "unknown")|tostring) + ": " + (.message // "unspecified Cloudflare error")] | join("; ")' "$outfile" 2>/dev/null || true)"
+              [[ -n "$detail" ]] || detail="Cloudflare returned no parseable error message"
+              echo "::error::${label} failed with HTTP ${status}: ${detail}" >&2
+              rm -f "$outfile"
+              return 1
+            fi
+            jq -e '.success == true' "$outfile" >/dev/null
+            cat "$outfile"
+            rm -f "$outfile"
+          }
+
+          d1="$(cf_get "D1 database list" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100")"
+          workers="$(cf_get "Workers scripts list" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")"
+          subdomain="$(cf_get "Workers subdomain read" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain")"
+
+          d1_count="$(jq -r '[.result[] | select(.name == "print-prep-lab-admin")] | length' <<<"$d1")"
+          d1_id="$(jq -r '[.result[] | select(.name == "print-prep-lab-admin")][0].uuid // ""' <<<"$d1")"
+          worker_count="$(jq -r '[.result[] | select((.id // .name) == "print-prep-lab-admin")] | length' <<<"$workers")"
+          worker_subdomain="$(jq -r '.result.subdomain // ""' <<<"$subdomain")"
+
+          echo "Dedicated D1 exists: ${d1_count}"
+          echo "Dedicated Worker exists: ${worker_count}"
+          echo "Workers subdomain configured: $([[ -n "$worker_subdomain" ]] && echo yes || echo no)"
+
+          {
+            echo "## Admin no-Zero-Trust Cloudflare preflight"
+            echo
+            echo "- Exact isolated branch: confirmed"
+            echo "- Cloudflare Access / Zero Trust calls: none"
+            echo "- Dedicated D1 exists: ${d1_count}"
+            echo "- Dedicated D1 ID discovered: $([[ -n "$d1_id" ]] && echo yes || echo no)"
+            echo "- Dedicated Worker exists: ${worker_count}"
+            echo "- Workers subdomain configured: $([[ -n "$worker_subdomain" ]] && echo yes || echo no)"
+            echo "- Cloudflare mutations: none"
+            echo "- main / Pages Production changes: none"
+          } >> "$GITHUB_STEP_SUMMARY"
