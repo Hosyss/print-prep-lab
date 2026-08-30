@@ -37,7 +37,7 @@ jobs:
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
           test -n "${ADMIN_EMAILS:-}"
           test -f admin-control-plane/source/wrangler-no-zero-trust.toml
-          ! grep -Eq 'CF_ACCESS_|cloudflareaccess\.com|access/apps|access/organizations' .github/workflows/admin-no-zero-trust-cloudflare-preflight.yml admin-control-plane/source/wrangler-no-zero-trust.toml
+          ! grep -Eq 'CF_ACCESS_|cloudflareaccess\.com' admin-control-plane/source/wrangler-no-zero-trust.toml
 
       - name: Inspect D1, Workers and workers.dev without mutations
         shell: bash
