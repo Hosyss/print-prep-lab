@@ -1,0 +1,71 @@
+name: Admin one-time session contract cleanup
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-one-time-session-contract-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce isolated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/security/admin-control-plane-no-zero-trust-20260831"
+
+      - name: Check out exact isolated branch
+        uses: actions/checkout@v4
+        with:
+          ref: security/admin-control-plane-no-zero-trust-20260831
+          fetch-depth: 1
+
+      - name: Replace stale Access API contract in self-hosted Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("admin-control-plane/source/worker-no-zero-trust.js")
+          text = path.read_text(encoding="utf-8")
+          old = "accessVerified: true"
+          count = text.count(old)
+          if count != 2:
+              raise SystemExit(f"expected exactly two occurrences of {old!r}, found {count}")
+          text = text.replace(old, "sessionVerified: true")
+          if "accessVerified" in text:
+              raise SystemExit("stale accessVerified marker remains in self-hosted Worker")
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          node --check admin-control-plane/source/worker-no-zero-trust.js
+
+      - name: Run full isolated Admin suite
+        working-directory: admin-control-plane/source
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --ignore-scripts --no-audit --no-fund
+          npm test
+
+      - name: Commit only the Worker contract cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- . ':!admin-control-plane/source/worker-no-zero-trust.js' || {
+            echo "::error::Unexpected file changes detected."
+            exit 1
+          }
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add admin-control-plane/source/worker-no-zero-trust.js
+          git commit -m "api: rename self-hosted session verification contract"
+          git push origin HEAD:security/admin-control-plane-no-zero-trust-20260831
