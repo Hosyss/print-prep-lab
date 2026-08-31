@@ -16,6 +16,8 @@ const ADMIN_SESSION_SECONDS = 30 * 60;
 const SETUP_SESSION_SECONDS = 10 * 60;
 const LOGIN_WINDOW_SECONDS = 10 * 60;
 const LOGIN_ATTEMPT_LIMIT = 5;
+const TOTP_ATTEMPT_WINDOW_SECONDS = 10 * 60;
+const TOTP_ATTEMPT_LIMIT = 10;
 const ADMIN_WRITE_LEASE_KEY = "admin-write-lease-v1";
 const ADMIN_WRITE_LEASE_WINDOW = 0;
 const ADMIN_WRITE_LEASE_SECONDS = 15;
@@ -517,6 +519,24 @@ async function clearFailedLogin(bucket, env) {
     .bind(bucket.key, bucket.windowStart).run();
 }
 
+async function consumeTotpAttemptBudget(env, email) {
+  const key = await hmacHex(requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"), `totp-attempt:v1:${email}`);
+  const now = Math.floor(Date.now() / 1000);
+  const windowStart = Math.floor(now / TOTP_ATTEMPT_WINDOW_SECONDS) * TOTP_ATTEMPT_WINDOW_SECONDS;
+  const expiresAt = windowStart + TOTP_ATTEMPT_WINDOW_SECONDS * 2;
+  await env.DB.prepare(
+    "INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, ?, 1, ?) ON CONFLICT(key, window_start) DO UPDATE SET count = count + 1, expires_at = excluded.expires_at",
+  ).bind(key, windowStart, expiresAt).run();
+  const row = await env.DB.prepare("SELECT count FROM rate_limits WHERE key = ? AND window_start = ?")
+    .bind(key, windowStart).first();
+  const count = Number(row?.count || 0);
+  if (count > TOTP_ATTEMPT_LIMIT) {
+    const retryAfter = Math.max(1, windowStart + TOTP_ATTEMPT_WINDOW_SECONDS - now);
+    throw new HttpError(429, "Too many failed sign-in attempts. Try again later.", "rate_limited", { "Retry-After": String(retryAfter) });
+  }
+  return { key, windowStart };
+}
+
 async function claimTotpStep(env, email, step) {
   if (!Number.isInteger(step) || step < 0) throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");
   const key = await hmacHex(requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"), `totp-replay:v1:${email}`);
@@ -576,6 +596,7 @@ async function handleLogin(request, env, origin, requestId) {
   const row = await totpRow(env);
   if (row?.verified_at) {
     if (!body.totp) throw new HttpError(401, "Authenticator code is required.", "totp_required");
+    const totpAttemptBucket = await consumeTotpAttemptBudget(env, email);
     const secret = await decryptTotpSecret(row, env);
     const matchedStep = await verifyTotpStep(secret, String(body.totp));
     if (!Number.isInteger(matchedStep)) {
@@ -591,6 +612,7 @@ async function handleLogin(request, env, origin, requestId) {
       await auditStatement(env, audit).run();
     });
     await clearFailedLogin(loginBucket, env);
+    await clearFailedLogin(totpAttemptBucket, env);
     const token = await signSession(email, "admin", env);
     return jsonResponse(
       { ok: true, authenticated: true, mfa: "totp" },
