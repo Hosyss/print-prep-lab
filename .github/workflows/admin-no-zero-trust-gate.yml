@@ -65,4 +65,4 @@ jobs:
           ! grep -REn 'wrangler[[:space:]]+deploy|d1[[:space:]]+migrations[[:space:]]+apply|api\.cloudflare\.com/client/v4.*(PUT|POST|PATCH|DELETE)' admin-control-plane/source .github/workflows/admin-no-zero-trust-gate.yml
           echo "Quality gate is test-only. Main, Pages Production and Cloudflare resources were not changed."
 
-# Trigger: verify distributed Admin write lease and concurrency regression coverage before isolated redeploy.
+# Trigger: verify password-bound session revocation and setup-session TTL hardening before isolated redeploy.
