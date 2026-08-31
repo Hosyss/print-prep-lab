@@ -1,0 +1,45 @@
+{
+  "release": "v118.6",
+  "date": "2026-08-30",
+  "baseline": {
+    "release": "v118.5",
+    "artifact": "print-prep-lab-pages-20260829-v118-5-final-preupload.zip",
+    "sha256": "8a52b954cb9d58cddc851a19a2fc3ca30c184c4c941cdfef176bbf7b13486167"
+  },
+  "scope": [
+    "remove the external translation runtime and keep Arabic browser-local",
+    "make language application idempotent and stop the Job Companion mutation loop",
+    "remove the document-flow spacer below pages",
+    "bound the mobile drawer to the dynamic viewport and safe area",
+    "preserve v118.5 calculation modules and content"
+  ],
+  "arabic": {
+    "mode": "fully-local",
+    "external_requests": 0,
+    "visible_strings_audited": 3325,
+    "dictionary_entries": 4020,
+    "missing_strings": 0,
+    "untranslated_nontechnical_strings": 0
+  },
+  "qa": {
+    "public_html_pages": 66,
+    "simulated_clean_routes": 66,
+    "release_tests": 6,
+    "release_tests_passed": 6,
+    "javascript_syntax": "passed"
+  },
+  "recovery_assets": {
+    "ppl-app-v1186.js": "8fc728583439136a98edc67907f8d54515e269cb515c00e2b5aed84056a20fd6",
+    "ppl-ui-v1186.js": "f87a025de5a77033e1449a64450b7c429a7bebd3f793e0450c50fb42c91dc8d5",
+    "ppl-workflow-v1186.js": "539450a7da8add3f1187d3285d20465577e74287e95a56c05777c2884c0614f5",
+    "ppl-workflow-v1186.css": "acb6142dba30724761165f74c8ea114924146a74da3777c5367ab55d303a4bb8",
+    "ppl-ar-v1186.json": "b691d5b213689b51e235648b1aa7e1b6a88dcbe66d9c1d2956d0e9e03bc7c0b9",
+    "_worker.js": "4c52f224e4fdbe10ecd5ca6d343e8c7774307ca3789ff8ad565f582f21489016",
+    "_routes.json": "bb911ce7689ac3963c27f6e3b6ef97bacac90b7e37585f3136c376a86d9dbb66"
+  },
+  "protected_v1185_modules": {
+    "capacity-planner.js": "23ca6f7fb656961873b239334c87b0c4e9be5f9a675ed0c188adae85853ef1df",
+    "imposition-planner.js": "c41732a80921ba20fd4e9b62e1eedcc088041e2d88629d6d9fcd7b15165b9023",
+    "quote-compare.js": "fbf408fd9c3d69d1d02cd06a5ef665d6b00f071cf25b1edc964a573a05d360a7"
+  }
+}
