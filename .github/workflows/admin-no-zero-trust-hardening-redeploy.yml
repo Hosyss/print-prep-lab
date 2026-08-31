@@ -189,4 +189,4 @@ jobs:
             echo "- Public Print Prep Lab integration: still disabled"
           } >> "$GITHUB_STEP_SUMMARY"
 
-# Trigger: deploy audited no-Zero-Trust admin error-copy hardening after 29/29 gate.
+# Trigger: deploy complete 113-route Admin catalog after audit and 29/29 quality gate.
