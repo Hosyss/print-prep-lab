@@ -30,3 +30,19 @@ test("logout endpoint is POST-only, clears the host session cookie, and remains 
   assert.match(source, /Set-Cookie": clearSessionCookie\(\)/);
   assert.match(source, /if \(write\) \{[\s\S]*requireJsonWrite\(request, origin\);[\s\S]*requireCsrf\(request, auth, env\);/);
 });
+
+test("large Admin catalog UI provides safe page and tool filtering with source context", async () => {
+  const source = await readFile(copyUrl, "utf8");
+  assert.match(source, /page-filter/);
+  assert.match(source, /tool-filter/);
+  assert.match(source, /\/site-catalog\.json/);
+  assert.match(source, /payload\.pages\.length !== 113/);
+  assert.match(source, /baselineH1/);
+  assert.match(source, /baselineDescription/);
+  assert.match(source, /sourceType/);
+  assert.match(source, /indexedInProduction/);
+  assert.match(source, /No managed pages match this filter/);
+  assert.match(source, /Admin catalog search could not start/);
+  assert.match(source, /loadCatalogUx\(\)\.catch/);
+  assert.doesNotMatch(source, /localStorage|sessionStorage|innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval\s*\(|new\s+Function/);
+});
