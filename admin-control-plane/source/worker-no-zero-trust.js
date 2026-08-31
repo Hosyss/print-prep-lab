@@ -10,6 +10,7 @@ const decoder = new TextDecoder();
 const SESSION_COOKIE = "__Host-ppl_admin_session";
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_AUDIT_ROWS = 100;
+const MAX_AUDIT_VERIFY_ROWS = 5000;
 const MAX_BACKUP_ROWS = 50;
 const ADMIN_SESSION_SECONDS = 30 * 60;
 const SETUP_SESSION_SECONDS = 10 * 60;
@@ -368,7 +369,7 @@ function databaseChanges(result) {
 }
 
 async function auditRecord(env, auth, requestId, action, resource, metadata) {
-  const previous = await env.DB.prepare("SELECT entry_hash FROM audit_log ORDER BY occurred_at DESC, id DESC LIMIT 1").first();
+  const previous = await env.DB.prepare("SELECT entry_hash FROM audit_log ORDER BY rowid DESC LIMIT 1").first();
   const record = {
     id: crypto.randomUUID(),
     occurredAt: new Date().toISOString(),
@@ -676,19 +677,47 @@ async function publishSnapshot(env, auth, requestId, body) {
 }
 
 async function listAudit(env) {
-  const rows = await env.DB.prepare("SELECT id, occurred_at, actor, action, resource, request_id, metadata, previous_hash, entry_hash FROM audit_log ORDER BY occurred_at DESC, id DESC LIMIT ?")
-    .bind(MAX_AUDIT_ROWS).all();
-  return (rows?.results || []).map((row) => ({
-    id: row.id,
-    occurredAt: row.occurred_at,
-    actor: row.actor,
-    action: row.action,
-    resource: row.resource,
-    requestId: row.request_id,
-    metadata: JSON.parse(row.metadata),
-    previousHash: row.previous_hash,
-    entryHash: row.entry_hash,
-  }));
+  const result = await env.DB.prepare("SELECT rowid AS sequence, id, occurred_at, actor, action, resource, request_id, metadata, previous_hash, entry_hash FROM audit_log ORDER BY rowid ASC LIMIT ?")
+    .bind(MAX_AUDIT_VERIFY_ROWS + 1).all();
+  const rows = result?.results || [];
+  if (rows.length > MAX_AUDIT_VERIFY_ROWS) {
+    throw new HttpError(503, "Audit history exceeds the verified read window.", "audit_verification_limit");
+  }
+
+  const entries = [];
+  let expectedPreviousHash = "GENESIS";
+  for (const row of rows) {
+    let metadata;
+    try {
+      metadata = JSON.parse(row.metadata);
+    } catch {
+      throw new HttpError(500, "Audit chain integrity verification failed.", "audit_integrity_error");
+    }
+    const storedPreviousHash = String(row.previous_hash || "");
+    const storedEntryHash = String(row.entry_hash || "");
+    if (!timingSafeEqual(storedPreviousHash, expectedPreviousHash)) {
+      throw new HttpError(500, "Audit chain integrity verification failed.", "audit_integrity_error");
+    }
+    const record = {
+      id: String(row.id),
+      occurredAt: String(row.occurred_at),
+      actor: String(row.actor),
+      action: String(row.action),
+      resource: String(row.resource),
+      requestId: String(row.request_id),
+      metadata,
+    };
+    const expectedEntryHash = await hmacHex(
+      requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"),
+      `${expectedPreviousHash}.${canonicalStringify(record)}`,
+    );
+    if (!timingSafeEqual(storedEntryHash, expectedEntryHash)) {
+      throw new HttpError(500, "Audit chain integrity verification failed.", "audit_integrity_error");
+    }
+    entries.push({ ...record, previousHash: storedPreviousHash, entryHash: storedEntryHash });
+    expectedPreviousHash = storedEntryHash;
+  }
+  return entries.slice(-MAX_AUDIT_ROWS).reverse();
 }
 
 async function handleApi(request, env, auth, requestId, url, origin) {
@@ -718,7 +747,7 @@ async function handleApi(request, env, auth, requestId, url, origin) {
   const restoreMatch = url.pathname.match(/^\/api\/backups\/([0-9a-f-]{36})\/restore$/i);
   if (restoreMatch && request.method === "POST") return jsonResponse(await restoreBackup(env, auth, requestId, restoreMatch[1], await readJson(request)));
   if (url.pathname === "/api/publish" && request.method === "POST") return jsonResponse(await publishSnapshot(env, auth, requestId, await readJson(request)), 201);
-  if (url.pathname === "/api/audit" && request.method === "GET") return jsonResponse({ entries: await listAudit(env) });
+  if (url.pathname === "/api/audit" && request.method === "GET") return jsonResponse({ entries: await listAudit(env), integrityVerified: true });
   if (url.pathname === "/api/auth/logout" && request.method === "POST") {
     return jsonResponse({ ok: true }, 200, { "Set-Cookie": clearSessionCookie() });
   }
