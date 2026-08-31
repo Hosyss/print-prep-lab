@@ -20,7 +20,7 @@ jobs:
       - name: Check out isolated Admin branch
         uses: actions/checkout@v4
 
-      - name: Build read-only live route inventory
+      - name: Build read-only live route inventory and merged catalog candidate
         shell: bash
         run: |
           set -euo pipefail
@@ -34,7 +34,8 @@ jobs:
           import xml.etree.ElementTree as ET
 
           base = 'https://printpreplab.pages.dev'
-          catalog = json.loads(pathlib.Path('admin-control-plane/source/public/site-catalog.json').read_text(encoding='utf-8'))
+          catalog_path = pathlib.Path('admin-control-plane/source/public/site-catalog.json')
+          catalog = json.loads(catalog_path.read_text(encoding='utf-8'))
           existing = {page['route']: page for page in catalog['pages']}
 
           def get(url):
@@ -51,17 +52,17 @@ jobs:
                   if route != '/' and route.endswith('/'):
                       route = route[:-1]
                   routes.append(route)
+          sitemap_routes = set(routes)
 
           def text_match(pattern, text):
               m = re.search(pattern, text, flags=re.I | re.S)
               if not m:
                   return ''
               value = re.sub(r'<[^>]+>', ' ', m.group(1))
-              value = html.unescape(re.sub(r'\s+', ' ', value)).strip()
-              return value
+              return html.unescape(re.sub(r'\s+', ' ', value)).strip()
 
           inventory = []
-          for route in sorted(set(routes)):
+          for route in sorted(sitemap_routes):
               status, body, content_type = get(base + route)
               decoded = body.decode('utf-8', errors='replace')
               title = text_match(r'<title[^>]*>(.*?)</title>', decoded)
@@ -104,18 +105,62 @@ jobs:
               'missingFromAdminCount': len(missing),
               'missingFromAdmin': missing,
               'sitemapInventory': inventory,
-          }, ensure_ascii=False, indent=2), encoding='utf-8')
+          }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          merged_pages = []
+          for page in catalog['pages']:
+              item = dict(page)
+              item['sourceType'] = 'recovery-html'
+              item['sourceRelease'] = 'v118.6'
+              item['indexedInProduction'] = item['route'] in sitemap_routes
+              merged_pages.append(item)
+
+          for item in missing:
+              merged_pages.append({
+                  'route': item['route'],
+                  'file': '',
+                  'title': item['title'],
+                  'kind': item['kind'],
+                  'sourceType': 'production-sitemap',
+                  'sourceRelease': 'main',
+                  'indexedInProduction': True,
+                  'baselineH1': item['h1'],
+                  'baselineDescription': item['description'],
+              })
+
+          assert len(merged_pages) == 113, f'expected 113 merged routes, found {len(merged_pages)}'
+          assert len({page['route'] for page in merged_pages}) == 113, 'merged routes are not unique'
+          assert sitemap_routes.issubset({page['route'] for page in merged_pages}), 'a live sitemap route is still missing'
+
+          merged = dict(catalog)
+          merged['count'] = len(merged_pages)
+          merged['source'] = 'hybrid: pinned v118.6 recovery HTML + current Production sitemap'
+          merged['sourceProvenance'] = {
+              'recoveryCommit': '07efaae843406f6cd9de74cb18ab5fffe2bf0a17',
+              'recoveryArtifactSha256': 'd5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625',
+              'productionOrigin': base,
+              'productionSitemapRoutes': len(sitemap_routes),
+              'recoveryManagedRoutes': len(existing),
+              'unionManagedRoutes': len(merged_pages),
+              'excludedSystemHtml': ['google6d67c58ff3b5201c.html'],
+          }
+          merged['pages'] = merged_pages
+          pathlib.Path('/tmp/site-catalog-merged.json').write_text(json.dumps(merged, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
           print(f'Live sitemap routes: {len(inventory)}')
-          print(f'Routes missing from Admin: {len(missing)}')
+          print(f'Routes missing from old Admin: {len(missing)}')
+          print(f'Merged Admin candidate routes: {len(merged_pages)}')
           for item in missing:
               print(f"{item['kind']}\t{item['route']}\t{item['title']}")
           PY
 
-      - name: Upload discovery artifact
+      - name: Upload discovery artifacts
         uses: actions/upload-artifact@v4
         with:
           name: admin-live-route-inventory
-          path: /tmp/live-route-inventory.json
+          path: |
+            /tmp/live-route-inventory.json
+            /tmp/site-catalog-merged.json
           if-no-files-found: error
           retention-days: 1
 
