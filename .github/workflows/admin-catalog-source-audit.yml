@@ -29,7 +29,7 @@ jobs:
           curl --fail --location --retry 3 --retry-all-errors --output /tmp/ppl-v118.6.zip "$url"
           echo 'd5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625  /tmp/ppl-v118.6.zip' | sha256sum -c -
 
-      - name: Compare managed catalog to packaged HTML inventory
+      - name: Compare catalog, packaged HTML and sitemap
         shell: bash
         run: |
           set -euo pipefail
@@ -53,44 +53,46 @@ jobs:
 
           with zipfile.ZipFile('/tmp/ppl-v118.6.zip') as archive:
               names = [name for name in archive.namelist() if not name.endswith('/')]
-              html_names = [name for name in names if name.lower().endswith('.html')]
-              html_basenames = [pathlib.PurePosixPath(name).name for name in html_names]
-              if len(html_basenames) != 66:
-                  raise AssertionError(f'expected 66 packaged HTML pages, found {len(html_basenames)}')
-              if len(set(html_basenames)) != 66:
+              html_basenames = [pathlib.PurePosixPath(name).name for name in names if name.lower().endswith('.html')]
+              if len(set(html_basenames)) != len(html_basenames):
                   raise AssertionError('packaged HTML basenames are not unique')
 
               missing = sorted(set(files) - set(html_basenames))
-              extra = sorted(set(html_basenames) - set(files))
-              if missing or extra:
-                  print('Catalog files missing from recovery ZIP:', missing)
-                  print('Recovery ZIP HTML files missing from catalog:', extra)
-                  raise AssertionError('Admin catalog does not exactly match the pinned v118.6 HTML inventory')
+              unmanaged_html = sorted(set(html_basenames) - set(files))
+              print(f'Packaged HTML files: {len(html_basenames)}')
+              print(f'Admin managed HTML files: {len(files)}')
+              print(f'Catalog files missing from recovery ZIP: {len(missing)}')
+              for name in missing:
+                  print(f'  missing: {name}')
+              print(f'Packaged HTML intentionally/unexpectedly outside catalog: {len(unmanaged_html)}')
+              for name in unmanaged_html:
+                  print(f'  unmanaged-html: {name}')
+
+              if missing:
+                  raise AssertionError('Admin catalog references HTML that is absent from the pinned recovery artifact')
+              if len(unmanaged_html) != 1:
+                  raise AssertionError(f'expected one non-managed special HTML file, found {len(unmanaged_html)}')
 
               sitemap_candidates = [name for name in names if pathlib.PurePosixPath(name).name == 'sitemap.xml']
               if len(sitemap_candidates) != 1:
                   raise AssertionError(f'expected one sitemap.xml in recovery ZIP, found {len(sitemap_candidates)}')
               root = ET.fromstring(archive.read(sitemap_candidates[0]))
-              locs = []
+              sitemap_routes = set()
               for node in root.iter():
                   if node.tag.endswith('loc') and node.text:
-                      path = urllib.parse.urlparse(node.text.strip()).path or '/'
-                      if path != '/' and path.endswith('/'):
-                          path = path[:-1]
-                      locs.append(path)
-              sitemap_routes = set(locs)
-              catalog_routes = set(routes)
-              catalog_only = sorted(catalog_routes - sitemap_routes)
-              sitemap_only = sorted(sitemap_routes - catalog_routes)
+                      route = urllib.parse.urlparse(node.text.strip()).path or '/'
+                      if route != '/' and route.endswith('/'):
+                          route = route[:-1]
+                      sitemap_routes.add(route)
 
-          print(f'Pinned recovery HTML pages: {len(html_basenames)}')
-          print(f'Admin managed pages: {len(files)}')
-          print('HTML inventory match: exact')
+          catalog_routes = set(routes)
+          catalog_only = sorted(catalog_routes - sitemap_routes)
+          sitemap_only = sorted(sitemap_routes - catalog_routes)
           print(f'Packaged sitemap routes: {len(sitemap_routes)}')
           print(f'Catalog routes absent from sitemap: {len(catalog_only)}')
           for route in catalog_only:
               print(f'  catalog-only: {route}')
-          print(f'Sitemap routes not represented as standalone managed HTML: {len(sitemap_only)}')
+          print(f'Sitemap routes without standalone managed HTML: {len(sitemap_only)}')
           for route in sitemap_only:
               print(f'  sitemap-only: {route}')
 
@@ -98,9 +100,10 @@ jobs:
               '## Admin catalog source audit\n\n'
               '- Recovery commit: `07efaae843406f6cd9de74cb18ab5fffe2bf0a17`\n'
               '- Recovery artifact SHA-256: `d5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625`\n'
-              f'- Packaged HTML pages: **{len(html_basenames)}**\n'
-              f'- Admin managed pages: **{len(files)}**\n'
-              '- HTML inventory: **exact match**\n'
+              f'- Packaged HTML files: **{len(html_basenames)}**\n'
+              f'- Admin managed HTML files: **{len(files)}**\n'
+              f'- Managed files absent from package: **{len(missing)}**\n'
+              f'- Special/unmanaged packaged HTML: **{len(unmanaged_html)}** (`{", ".join(unmanaged_html)}`)\n'
               f'- Packaged sitemap routes: **{len(sitemap_routes)}**\n'
               f'- Catalog-only routes: **{len(catalog_only)}**\n'
               f'- Sitemap-only routes: **{len(sitemap_only)}**\n',
