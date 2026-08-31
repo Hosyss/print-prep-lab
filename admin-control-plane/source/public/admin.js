@@ -16,7 +16,7 @@ const viewCopy = {
   navigation: ["Navigation", "Manage internal, same-origin navigation entries only."],
   pages: ["Page content", "Maintain structured bilingual text without exposing code or formulas."],
   tools: ["Tool visibility", "Control visibility flags without access to calculator logic."],
-  release: ["Snapshots & backups", "Create isolated snapshots and restore integrity-checked server backups."],
+  release: ["Backups & safe snapshots", "Restore protected backups or create a safety snapshot that cannot change the public site."],
   audit: ["Audit log", "Review the append-only, hash-chained record of administrative writes."],
 };
 
@@ -511,7 +511,7 @@ async function publishSnapshot() {
     });
     byId("publish-confirmation").value = "";
     byId("publish-result").textContent = `Snapshot ${result.id.slice(0, 8)} created for revision ${result.revision}. Public integration remains disabled.`;
-    toast("Protected snapshot created. The public site was not changed.");
+    toast("Admin-only safety snapshot created. The public site was not changed.");
   } catch (error) {
     byId("publish-result").textContent = "";
     toast(error instanceof Error ? error.message : "The snapshot could not be created.", true);

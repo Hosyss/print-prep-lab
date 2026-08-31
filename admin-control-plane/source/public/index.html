@@ -41,7 +41,7 @@
           <button type="button" data-view-target="navigation" aria-selected="false">Navigation</button>
           <button type="button" data-view-target="pages" aria-selected="false">Page content</button>
           <button type="button" data-view-target="tools" aria-selected="false">Tool visibility</button>
-          <button type="button" data-view-target="release" aria-selected="false">Snapshots &amp; backups</button>
+          <button type="button" data-view-target="release" aria-selected="false">Backups &amp; safe snapshots</button>
           <button type="button" data-view-target="audit" aria-selected="false">Audit log</button>
         </nav>
         <div class="sidebar-note">
@@ -192,12 +192,12 @@
           <div class="two-column release-columns">
             <article class="panel-card">
               <span class="kicker">PROTECTED SNAPSHOT</span>
-              <h2>Publish current draft</h2>
-              <p>Creates an immutable snapshot in the Admin D1 only. The public site remains disconnected.</p>
+              <h2>Create an Admin-only safety snapshot</h2>
+              <p>This saves a locked safety copy inside the private Admin database only. It does <strong>not</strong> publish or change the public website.</p>
               <label>Type the confirmation phrase
                 <input id="publish-confirmation" autocomplete="off" spellcheck="false" placeholder="PUBLISH PRINT PREP LAB">
               </label>
-              <button id="publish-snapshot" class="button danger" type="button">Create protected snapshot</button>
+              <button id="publish-snapshot" class="button danger" type="button">Create Admin-only snapshot</button>
               <p id="publish-result" class="result-note" role="status"></p>
             </article>
             <article class="panel-card">
