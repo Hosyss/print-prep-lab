@@ -37,7 +37,7 @@ jobs:
           const TOTP_ATTEMPT_LIMIT = 10;
           '''
           if source.count(constant_marker) != 1:
-            raise SystemExit(f'login constant marker mismatch: {source.count(constant_marker)}')
+              raise SystemExit(f'login constant marker mismatch: {source.count(constant_marker)}')
           source = source.replace(constant_marker, constants, 1)
 
           clear_marker = '''async function clearFailedLogin(bucket, env) {
@@ -65,32 +65,30 @@ jobs:
           }
           '''
           if source.count(clear_marker) != 1:
-            raise SystemExit(f'clear bucket marker mismatch: {source.count(clear_marker)}')
+              raise SystemExit(f'clear bucket marker mismatch: {source.count(clear_marker)}')
           source = source.replace(clear_marker, budget_helper, 1)
 
-          old_totp_start = '''  if (row?.verified_at) {
-            if (!body.totp) throw new HttpError(401, "Authenticator code is required.", "totp_required");
-            const secret = await decryptTotpSecret(row, env);
+          login_secret_marker = '''    const secret = await decryptTotpSecret(row, env);
+            const matchedStep = await verifyTotpStep(secret, String(body.totp));
           '''
-          new_totp_start = '''  if (row?.verified_at) {
-            if (!body.totp) throw new HttpError(401, "Authenticator code is required.", "totp_required");
-            const totpAttemptBucket = await consumeTotpAttemptBudget(env, email);
+          login_secret_replacement = '''    const totpAttemptBucket = await consumeTotpAttemptBudget(env, email);
             const secret = await decryptTotpSecret(row, env);
+            const matchedStep = await verifyTotpStep(secret, String(body.totp));
           '''
-          if source.count(old_totp_start) != 1:
-            raise SystemExit(f'TOTP login start marker mismatch: {source.count(old_totp_start)}')
-          source = source.replace(old_totp_start, new_totp_start, 1)
+          if source.count(login_secret_marker) != 1:
+              raise SystemExit(f'TOTP login secret marker mismatch: {source.count(login_secret_marker)}')
+          source = source.replace(login_secret_marker, login_secret_replacement, 1)
 
-          old_success = '''    await clearFailedLogin(loginBucket, env);
+          success_marker = '''    await clearFailedLogin(loginBucket, env);
             const token = await signSession(email, "admin", env);
           '''
-          new_success = '''    await clearFailedLogin(loginBucket, env);
+          success_replacement = '''    await clearFailedLogin(loginBucket, env);
             await clearFailedLogin(totpAttemptBucket, env);
             const token = await signSession(email, "admin", env);
           '''
-          if source.count(old_success) != 1:
-            raise SystemExit(f'login success marker mismatch: {source.count(old_success)}')
-          source = source.replace(old_success, new_success, 1)
+          if source.count(success_marker) != 1:
+              raise SystemExit(f'login success marker mismatch: {source.count(success_marker)}')
+          source = source.replace(success_marker, success_replacement, 1)
 
           path.write_text(source)
           PY
@@ -276,3 +274,5 @@ jobs:
           git diff --cached --quiet && { echo "No account TOTP budget change to commit."; exit 1; }
           git commit -m "security: cap distributed TOTP attempts after password verification"
           git push origin HEAD:security/admin-control-plane-no-zero-trust-20260831
+
+# Retry uses exact short source markers to avoid YAML/Python indentation drift.
