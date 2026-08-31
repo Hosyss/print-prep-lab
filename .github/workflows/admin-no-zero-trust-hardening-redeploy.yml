@@ -186,4 +186,4 @@ jobs:
             echo "- Public Print Prep Lab integration: still disabled"
           } >> "$GITHUB_STEP_SUMMARY"
 
-# Trigger: deploy rowid-based audit HMAC-chain read verification after successful gate.
+# Trigger: deploy distributed Admin write lease after successful 38-test quality gate.
