@@ -144,11 +144,11 @@ function updateRevision(data) {
   byId("metric-checksum").textContent = state.checksum ? state.checksum.slice(0, 16) : "Not stored";
 }
 
-function setAccessState(ok, identity = "") {
+function setSessionState(ok, identity = "") {
   const chip = byId("access-status");
   chip.className = `status-chip ${ok ? "status-safe" : "status-error"}`;
-  chip.textContent = ok ? "Access verified" : "Protection check failed";
-  byId("metric-access").textContent = ok ? "Verified" : "Blocked";
+  chip.textContent = ok ? "Session verified" : "Session check failed";
+  byId("metric-access").textContent = ok ? "Authenticated" : "Blocked";
   byId("admin-identity").textContent = identity || "—";
 }
 
@@ -584,18 +584,18 @@ async function initialize() {
   try {
     const session = await api("/api/session");
     state.session = session;
-    setAccessState(true, session.email);
+    setSessionState(true, session.email);
     const [draft, catalog] = await Promise.all([api("/api/config"), api("/site-catalog.json")]);
     state.config = deepClone(draft.config);
     state.catalog = Array.isArray(catalog.pages) ? catalog.pages : [];
     updateRevision(draft);
     renderAll();
   } catch (error) {
-    setAccessState(false);
+    setSessionState(false);
     byId("view-overview").replaceChildren(
       createElement("p", "empty-state", error instanceof Error ? error.message : "The protected admin could not start."),
     );
-    toast("Admin startup was blocked. Verify Cloudflare Access and the dedicated database.", true);
+    toast("Admin startup was blocked. Verify the protected session and the dedicated Admin database.", true);
   } finally {
     setBusy(false);
   }
