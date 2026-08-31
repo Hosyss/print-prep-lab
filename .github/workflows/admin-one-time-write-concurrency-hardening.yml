@@ -1,0 +1,407 @@
+name: Admin one-time write concurrency hardening
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-one-time-write-concurrency-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/admin-control-plane-no-zero-trust-20260831
+          fetch-depth: 0
+
+      - name: Add distributed Admin write lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('admin-control-plane/source/worker-no-zero-trust.js')
+          source = path.read_text()
+
+          marker = 'const LOGIN_ATTEMPT_LIMIT = 5;\n'
+          addition = '''const ADMIN_WRITE_LEASE_KEY = "admin-write-lease-v1";
+          const ADMIN_WRITE_LEASE_WINDOW = 0;
+          const ADMIN_WRITE_LEASE_SECONDS = 15;
+          const ADMIN_WRITE_LEASE_ATTEMPTS = 80;
+          const ADMIN_WRITE_LEASE_DELAY_MS = 25;
+          '''
+          if source.count(marker) != 1:
+              raise SystemExit('login-attempt constant marker mismatch')
+          source = source.replace(marker, marker + addition, 1)
+
+          helper_marker = '''function databaseChanges(result) {
+            return Number(result?.meta?.changes ?? result?.changes ?? 0);
+          }
+
+          '''
+          helper = '''function databaseChanges(result) {
+            return Number(result?.meta?.changes ?? result?.changes ?? 0);
+          }
+
+          function adminWriteLeaseToken() {
+            const value = crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
+            return value || 1;
+          }
+
+          async function withAdminWriteLease(env, operation) {
+            const token = adminWriteLeaseToken();
+            for (let attempt = 0; attempt < ADMIN_WRITE_LEASE_ATTEMPTS; attempt += 1) {
+              const now = Math.floor(Date.now() / 1000);
+              const expiresAt = now + ADMIN_WRITE_LEASE_SECONDS;
+              const result = await env.DB.prepare(
+                "INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, ?, ?, ?) ON CONFLICT(key, window_start) DO UPDATE SET count = excluded.count, expires_at = excluded.expires_at WHERE rate_limits.expires_at <= ?",
+              ).bind(ADMIN_WRITE_LEASE_KEY, ADMIN_WRITE_LEASE_WINDOW, token, expiresAt, now).run();
+              if (databaseChanges(result) === 1) {
+                try {
+                  return await operation();
+                } finally {
+                  try {
+                    await env.DB.prepare("DELETE FROM rate_limits WHERE key = ? AND window_start = ? AND count = ?")
+                      .bind(ADMIN_WRITE_LEASE_KEY, ADMIN_WRITE_LEASE_WINDOW, token).run();
+                  } catch {
+                    // Lease expiry provides bounded recovery if cleanup cannot complete.
+                  }
+                }
+              }
+              await new Promise((resolve) => setTimeout(resolve, ADMIN_WRITE_LEASE_DELAY_MS));
+            }
+            throw new HttpError(503, "Another protected administrative write is finishing. Try again shortly.", "admin_write_busy", { "Retry-After": "1" });
+          }
+
+          '''
+          if source.count(helper_marker) != 1:
+              raise SystemExit('databaseChanges helper marker mismatch')
+          source = source.replace(helper_marker, helper, 1)
+
+          start = source.index('async function createTotpSetup(env) {')
+          end = source.index('\nasync function handleLogin(', start)
+          source = source[:start] + '''async function createTotpSetup(env) {
+            return withAdminWriteLease(env, async () => {
+              const existing = await totpRow(env);
+              if (existing?.verified_at) throw new HttpError(409, "TOTP is already configured.", "totp_already_configured");
+              if (existing) return decryptTotpSecret(existing, env);
+              const secret = base32Encode(crypto.getRandomValues(new Uint8Array(20)));
+              const encrypted = await encryptTotpSecret(secret, env);
+              await env.DB.prepare(
+                "INSERT INTO auth_settings (id, ciphertext, iv, created_at, verified_at) VALUES ('totp', ?, ?, ?, NULL)",
+              ).bind(encrypted.ciphertext, encrypted.iv, new Date().toISOString()).run();
+              return secret;
+            });
+          }
+          ''' + source[end:]
+
+          login_old = '''    const auth = { email };
+              const audit = await auditRecord(env, auth, requestId, "auth.login", "session", { mfa: "totp" });
+              await auditStatement(env, audit).run();
+          '''
+          login_new = '''    const auth = { email };
+              await withAdminWriteLease(env, async () => {
+                const audit = await auditRecord(env, auth, requestId, "auth.login", "session", { mfa: "totp" });
+                await auditStatement(env, audit).run();
+              });
+          '''
+          if source.count(login_old) != 1:
+              raise SystemExit(f'login audit block mismatch: {source.count(login_old)}')
+          source = source.replace(login_old, login_new, 1)
+
+          start = source.index('async function handleTotpConfirm(')
+          end = source.index('\nasync function saveConfig(', start)
+          source = source[:start] + '''async function handleTotpConfirm(request, env, origin, requestId) {
+            requireJsonWrite(request, origin);
+            const auth = await authenticate(request, env, "totp-setup");
+            const body = await readJson(request);
+            return withAdminWriteLease(env, async () => {
+              const row = await totpRow(env);
+              if (!row || row.verified_at) throw new HttpError(409, "TOTP setup is not available.", "totp_setup_unavailable");
+              if (!await verifyTotp(await decryptTotpSecret(row, env), String(body.totp || ""))) {
+                throw new HttpError(401, "Authenticator code was rejected.", "invalid_totp");
+              }
+              const verifiedAt = new Date().toISOString();
+              const audit = await auditRecord(env, auth, requestId, "auth.totp.enroll", "totp", { verifiedAt });
+              const results = await env.DB.batch([
+                env.DB.prepare("UPDATE auth_settings SET verified_at = ? WHERE id = 'totp' AND verified_at IS NULL").bind(verifiedAt),
+                auditStatement(env, audit),
+              ]);
+              if (databaseChanges(results[0]) !== 1) throw new HttpError(409, "TOTP setup is not available.", "totp_setup_unavailable");
+              const token = await signSession(auth.email, "admin", env);
+              return jsonResponse(
+                { ok: true, authenticated: true, mfa: "totp" },
+                200,
+                { "Set-Cookie": sessionCookie(token, ADMIN_SESSION_SECONDS) },
+              );
+            });
+          }
+          ''' + source[end:]
+
+          start = source.index('async function saveConfig(')
+          end = source.index('\nasync function listBackups(', start)
+          source = source[:start] + '''async function saveConfig(env, auth, requestId, body) {
+            const expectedRevision = integerRevision(body.expectedRevision);
+            let config;
+            try {
+              config = validateConfig(body.config);
+            } catch (error) {
+              throw new HttpError(400, error instanceof Error ? error.message : "Configuration was rejected.", "invalid_config");
+            }
+            return withAdminWriteLease(env, async () => {
+              const current = await currentConfig(env);
+              if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before saving.", "revision_conflict");
+              const payload = canonicalStringify(config);
+              const checksum = await sha256Hex(payload);
+              const revision = expectedRevision + 1;
+              const now = new Date().toISOString();
+              const backupId = crypto.randomUUID();
+              const audit = await auditRecord(env, auth, requestId, "config.update", "draft", { fromRevision: current.revision, toRevision: revision, checksum });
+              const results = await env.DB.batch([
+                env.DB.prepare("INSERT INTO backups (id, kind, revision, payload, checksum, created_by, created_at) VALUES (?, 'update', ?, ?, ?, ?, ?)")
+                  .bind(backupId, current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
+                env.DB.prepare("INSERT INTO configs (id, revision, payload, checksum, updated_by, updated_at) VALUES ('draft', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET revision = excluded.revision, payload = excluded.payload, checksum = excluded.checksum, updated_by = excluded.updated_by, updated_at = excluded.updated_at WHERE configs.revision = ?")
+                  .bind(revision, payload, checksum, auth.email, now, expectedRevision),
+                auditStatement(env, audit),
+              ]);
+              if (databaseChanges(results[1]) !== 1) throw new HttpError(409, "The draft changed in another session. Reload before saving.", "revision_conflict");
+              return { revision, config, checksum, updatedBy: auth.email, updatedAt: now };
+            });
+          }
+          ''' + source[end:]
+
+          start = source.index('async function restoreBackup(')
+          end = source.index('\nasync function publishSnapshot(', start)
+          source = source[:start] + '''async function restoreBackup(env, auth, requestId, backupId, body) {
+            if (!/^[0-9a-f-]{36}$/i.test(backupId)) throw new HttpError(404, "Backup was not found.", "not_found");
+            const expectedRevision = integerRevision(body.expectedRevision);
+            return withAdminWriteLease(env, async () => {
+              const current = await currentConfig(env);
+              if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before restoring.", "revision_conflict");
+              const backup = await env.DB.prepare("SELECT id, revision, payload, checksum FROM backups WHERE id = ?").bind(backupId).first();
+              if (!backup) throw new HttpError(404, "Backup was not found.", "not_found");
+              if (!timingSafeEqual(await sha256Hex(String(backup.payload)), backup.checksum)) throw new HttpError(409, "Backup integrity verification failed.", "storage_integrity_error");
+              let config;
+              try {
+                config = validateConfig(JSON.parse(backup.payload));
+              } catch {
+                throw new HttpError(409, "Backup configuration validation failed.", "storage_integrity_error");
+              }
+              const payload = canonicalStringify(config);
+              const checksum = await sha256Hex(payload);
+              const revision = expectedRevision + 1;
+              const now = new Date().toISOString();
+              const audit = await auditRecord(env, auth, requestId, "config.restore", `backup:${backupId}`, {
+                fromRevision: current.revision,
+                backupRevision: Number(backup.revision),
+                toRevision: revision,
+                checksum,
+              });
+              const results = await env.DB.batch([
+                env.DB.prepare("INSERT INTO backups (id, kind, revision, payload, checksum, created_by, created_at) VALUES (?, 'restore', ?, ?, ?, ?, ?)")
+                  .bind(crypto.randomUUID(), current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
+                env.DB.prepare("UPDATE configs SET revision = ?, payload = ?, checksum = ?, updated_by = ?, updated_at = ? WHERE id = 'draft' AND revision = ?")
+                  .bind(revision, payload, checksum, auth.email, now, expectedRevision),
+                auditStatement(env, audit),
+              ]);
+              if (databaseChanges(results[1]) !== 1) throw new HttpError(409, "The draft changed in another session. Reload before restoring.", "revision_conflict");
+              return { revision, config, checksum, updatedBy: auth.email, updatedAt: now };
+            });
+          }
+          ''' + source[end:]
+
+          start = source.index('async function publishSnapshot(')
+          end = source.index('\nasync function listAudit(', start)
+          source = source[:start] + '''async function publishSnapshot(env, auth, requestId, body) {
+            const expectedRevision = integerRevision(body.expectedRevision);
+            if (!timingSafeEqual(String(body.confirmation || ""), PUBLISH_CONFIRMATION)) {
+              throw new HttpError(400, "The publication confirmation phrase is incorrect.", "confirmation_required");
+            }
+            return withAdminWriteLease(env, async () => {
+              const current = await currentConfig(env);
+              if (current.revision === 0) throw new HttpError(409, "Save a draft before publishing.", "draft_required");
+              if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before publishing.", "revision_conflict");
+              const id = crypto.randomUUID();
+              const now = new Date().toISOString();
+              const audit = await auditRecord(env, auth, requestId, "snapshot.publish", `snapshot:${id}`, {
+                revision: current.revision,
+                checksum: current.checksum,
+                publicIntegration: false,
+              });
+              await env.DB.batch([
+                env.DB.prepare("INSERT INTO published_snapshots (id, revision, payload, checksum, published_by, published_at) VALUES (?, ?, ?, ?, ?, ?)")
+                  .bind(id, current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
+                auditStatement(env, audit),
+              ]);
+              return {
+                id,
+                revision: current.revision,
+                checksum: current.checksum,
+                publishedBy: auth.email,
+                publishedAt: now,
+                publicIntegration: false,
+              };
+            });
+          }
+          ''' + source[end:]
+
+          path.write_text(source)
+          PY
+
+      - name: Add concurrency regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > admin-control-plane/source/tests/write-concurrency.test.mjs <<'EOF'
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import { DatabaseSync } from "node:sqlite";
+          import { fileURLToPath } from "node:url";
+          import worker, { SESSION_COOKIE, signSession } from "../worker-no-zero-trust.js";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const origin = "https://admin.example.com";
+
+          class Statement {
+            constructor(db, sql) { this.db = db; this.sql = sql; this.values = []; }
+            bind(...values) { this.values = values; return this; }
+            async first() { return this.db.prepare(this.sql).get(...this.values) || null; }
+            async all() { return { results: this.db.prepare(this.sql).all(...this.values) }; }
+            async run() { const result = this.db.prepare(this.sql).run(...this.values); return { meta: { changes: Number(result.changes) } }; }
+          }
+
+          class TestD1 {
+            constructor() {
+              this.database = new DatabaseSync(":memory:");
+              this.database.exec(fs.readFileSync(path.join(root, "schema.sql"), "utf8"));
+              this.database.exec(fs.readFileSync(path.join(root, "migrations/0002_auth_settings.sql"), "utf8"));
+            }
+            prepare(sql) { return new Statement(this.database, sql); }
+            async batch(statements) {
+              this.database.exec("BEGIN IMMEDIATE");
+              try {
+                const results = [];
+                for (const statement of statements) results.push(await statement.run());
+                this.database.exec("COMMIT");
+                return results;
+              } catch (error) {
+                this.database.exec("ROLLBACK");
+                throw error;
+              }
+            }
+            close() { this.database.close(); }
+          }
+
+          function envFor(db) {
+            return {
+              ADMIN_EMAILS: "owner@example.com",
+              ADMIN_PASSWORD: "A-very-long-owner-password-2026!",
+              ADMIN_ORIGIN: origin,
+              CSRF_SECRET: "csrf-" + "c".repeat(40),
+              AUDIT_SECRET: "audit-" + "a".repeat(40),
+              SESSION_SECRET: "session-" + "s".repeat(40),
+              DB: db,
+              ASSETS: { fetch: async () => new Response("admin") },
+            };
+          }
+
+          async function context(db, ip = "203.0.113.90") {
+            const env = envFor(db);
+            const token = await signSession("owner@example.com", "admin", env);
+            const cookie = `${SESSION_COOKIE}=${token}`;
+            const request = async (pathname, options = {}) => {
+              const headers = new Headers(options.headers || {});
+              headers.set("Cookie", cookie);
+              headers.set("CF-Connecting-IP", ip);
+              return worker.fetch(new Request(`${origin}${pathname}`, { ...options, headers }), env);
+            };
+            const session = await (await request("/api/session")).json();
+            return { env, request, csrf: session.csrfToken };
+          }
+
+          function writeHeaders(csrf) {
+            return {
+              "Content-Type": "application/json",
+              Origin: origin,
+              "Sec-Fetch-Site": "same-origin",
+              "X-CSRF-Token": csrf,
+            };
+          }
+
+          test("concurrent saves with the same revision serialize so the rejected save leaves no orphan backup or audit entry", async () => {
+            const db = new TestD1();
+            try {
+              const { request, csrf } = await context(db);
+              const initial = await (await request("/api/config")).json();
+              const configA = structuredClone(initial.config);
+              const configB = structuredClone(initial.config);
+              configA.site.announcement.text = "Concurrent A";
+              configB.site.announcement.text = "Concurrent B";
+
+              const makeSave = (config) => request("/api/config", {
+                method: "PUT",
+                headers: writeHeaders(csrf),
+                body: JSON.stringify({ expectedRevision: 0, config }),
+              });
+
+              const [first, second] = await Promise.all([makeSave(configA), makeSave(configB)]);
+              assert.deepEqual([first.status, second.status].sort((a, b) => a - b), [200, 409]);
+
+              assert.equal(db.database.prepare("SELECT revision FROM configs WHERE id = 'draft'").get().revision, 1);
+              assert.equal(db.database.prepare("SELECT COUNT(*) AS count FROM backups").get().count, 1);
+              assert.equal(db.database.prepare("SELECT COUNT(*) AS count FROM audit_log").get().count, 1);
+
+              const audit = await request("/api/audit");
+              assert.equal(audit.status, 200);
+              const body = await audit.json();
+              assert.equal(body.integrityVerified, true);
+              assert.equal(body.entries.length, 1);
+              assert.equal(body.entries[0].action, "config.update");
+            } finally {
+              db.close();
+            }
+          });
+
+          test("an expired write lease is safely reclaimed instead of permanently blocking Admin writes", async () => {
+            const db = new TestD1();
+            try {
+              db.database.prepare("INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, 0, 12345, 0)").run("admin-write-lease-v1");
+              const { request, csrf } = await context(db, "203.0.113.91");
+              const initial = await (await request("/api/config")).json();
+              const response = await request("/api/config", {
+                method: "PUT",
+                headers: writeHeaders(csrf),
+                body: JSON.stringify({ expectedRevision: 0, config: initial.config }),
+              });
+              assert.equal(response.status, 200);
+              assert.equal(db.database.prepare("SELECT COUNT(*) AS count FROM rate_limits WHERE key = ?").get("admin-write-lease-v1").count, 0);
+            } finally {
+              db.close();
+            }
+          });
+          EOF
+
+      - name: Run complete Admin suite
+        working-directory: admin-control-plane/source
+        run: node --test tests/*.test.mjs
+
+      - name: Commit verified concurrency hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Hossam eldeen"
+          git config user.email "52554618+Hosyss@users.noreply.github.com"
+          git add admin-control-plane/source/worker-no-zero-trust.js admin-control-plane/source/tests/write-concurrency.test.mjs
+          git diff --cached --quiet && { echo "No concurrency hardening change to commit."; exit 1; }
+          git commit -m "security: serialize protected admin writes"
+          git push origin HEAD:security/admin-control-plane-no-zero-trust-20260831
