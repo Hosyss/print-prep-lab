@@ -29,15 +29,13 @@ jobs:
           curl --fail --location --retry 3 --retry-all-errors --output /tmp/ppl-v118.6.zip "$url"
           echo 'd5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625  /tmp/ppl-v118.6.zip' | sha256sum -c -
 
-      - name: Compare catalog, packaged HTML and sitemap
+      - name: Verify managed catalog against packaged HTML inventory
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           import pathlib
-          import urllib.parse
-          import xml.etree.ElementTree as ET
           import zipfile
 
           catalog = json.loads(pathlib.Path('admin-control-plane/source/public/site-catalog.json').read_text(encoding='utf-8'))
@@ -54,63 +52,93 @@ jobs:
           with zipfile.ZipFile('/tmp/ppl-v118.6.zip') as archive:
               names = [name for name in archive.namelist() if not name.endswith('/')]
               html_basenames = [pathlib.PurePosixPath(name).name for name in names if name.lower().endswith('.html')]
-              if len(set(html_basenames)) != len(html_basenames):
-                  raise AssertionError('packaged HTML basenames are not unique')
 
-              missing = sorted(set(files) - set(html_basenames))
-              unmanaged_html = sorted(set(html_basenames) - set(files))
-              print(f'Packaged HTML files: {len(html_basenames)}')
-              print(f'Admin managed HTML files: {len(files)}')
-              print(f'Catalog files missing from recovery ZIP: {len(missing)}')
-              for name in missing:
-                  print(f'  missing: {name}')
-              print(f'Packaged HTML intentionally/unexpectedly outside catalog: {len(unmanaged_html)}')
-              for name in unmanaged_html:
-                  print(f'  unmanaged-html: {name}')
+          if len(set(html_basenames)) != len(html_basenames):
+              raise AssertionError('packaged HTML basenames are not unique')
+          missing = sorted(set(files) - set(html_basenames))
+          unmanaged_html = sorted(set(html_basenames) - set(files))
+          print(f'Packaged HTML files: {len(html_basenames)}')
+          print(f'Admin managed HTML files: {len(files)}')
+          print(f'Managed files absent from package: {len(missing)}')
+          print(f'Unmanaged packaged HTML: {unmanaged_html}')
 
-              if missing:
-                  raise AssertionError('Admin catalog references HTML that is absent from the pinned recovery artifact')
-              if len(unmanaged_html) != 1:
-                  raise AssertionError(f'expected one non-managed special HTML file, found {len(unmanaged_html)}')
+          assert not missing, f'Admin catalog references missing HTML: {missing}'
+          assert unmanaged_html == ['google6d67c58ff3b5201c.html'], f'unexpected unmanaged HTML: {unmanaged_html}'
 
-              sitemap_candidates = [name for name in names if pathlib.PurePosixPath(name).name == 'sitemap.xml']
-              if len(sitemap_candidates) != 1:
-                  raise AssertionError(f'expected one sitemap.xml in recovery ZIP, found {len(sitemap_candidates)}')
-              root = ET.fromstring(archive.read(sitemap_candidates[0]))
-              sitemap_routes = set()
-              for node in root.iter():
-                  if node.tag.endswith('loc') and node.text:
-                      route = urllib.parse.urlparse(node.text.strip()).path or '/'
-                      if route != '/' and route.endswith('/'):
-                          route = route[:-1]
-                      sitemap_routes.add(route)
-
-          catalog_routes = set(routes)
-          catalog_only = sorted(catalog_routes - sitemap_routes)
-          sitemap_only = sorted(sitemap_routes - catalog_routes)
-          print(f'Packaged sitemap routes: {len(sitemap_routes)}')
-          print(f'Catalog routes absent from sitemap: {len(catalog_only)}')
-          for route in catalog_only:
-              print(f'  catalog-only: {route}')
-          print(f'Sitemap routes without standalone managed HTML: {len(sitemap_only)}')
-          for route in sitemap_only:
-              print(f'  sitemap-only: {route}')
-
-          pathlib.Path('/tmp/catalog-audit-summary.md').write_text(
-              '## Admin catalog source audit\n\n'
+          pathlib.Path('/tmp/catalog-routes.txt').write_text('\n'.join(routes) + '\n', encoding='utf-8')
+          pathlib.Path('/tmp/catalog-package-summary.md').write_text(
+              '## Pinned recovery inventory\n\n'
               '- Recovery commit: `07efaae843406f6cd9de74cb18ab5fffe2bf0a17`\n'
-              '- Recovery artifact SHA-256: `d5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625`\n'
+              '- Artifact SHA-256: `d5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625`\n'
               f'- Packaged HTML files: **{len(html_basenames)}**\n'
               f'- Admin managed HTML files: **{len(files)}**\n'
-              f'- Managed files absent from package: **{len(missing)}**\n'
-              f'- Special/unmanaged packaged HTML: **{len(unmanaged_html)}** (`{", ".join(unmanaged_html)}`)\n'
-              f'- Packaged sitemap routes: **{len(sitemap_routes)}**\n'
-              f'- Catalog-only routes: **{len(catalog_only)}**\n'
-              f'- Sitemap-only routes: **{len(sitemap_only)}**\n',
+              '- Missing managed files: **0**\n'
+              '- Excluded special HTML: `google6d67c58ff3b5201c.html` (Google ownership verification)\n',
               encoding='utf-8',
           )
           PY
-          cat /tmp/catalog-audit-summary.md >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/catalog-package-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Compare catalog to live Production routes read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://printpreplab.pages.dev'
+          curl --fail --location --retry 3 --retry-all-errors --max-time 30 --output /tmp/live-sitemap.xml "$base/sitemap.xml"
+
+          python - <<'PY'
+          import pathlib
+          import urllib.parse
+          import xml.etree.ElementTree as ET
+
+          catalog_routes = {line.strip() for line in pathlib.Path('/tmp/catalog-routes.txt').read_text(encoding='utf-8').splitlines() if line.strip()}
+          root = ET.fromstring(pathlib.Path('/tmp/live-sitemap.xml').read_bytes())
+          sitemap_routes = set()
+          for node in root.iter():
+              if node.tag.endswith('loc') and node.text:
+                  route = urllib.parse.urlparse(node.text.strip()).path or '/'
+                  if route != '/' and route.endswith('/'):
+                      route = route[:-1]
+                  sitemap_routes.add(route)
+
+          catalog_only = sorted(catalog_routes - sitemap_routes)
+          sitemap_only = sorted(sitemap_routes - catalog_routes)
+          print(f'Live sitemap routes: {len(sitemap_routes)}')
+          print(f'Catalog routes absent from live sitemap: {len(catalog_only)}')
+          for route in catalog_only:
+              print(f'  catalog-only: {route}')
+          print(f'Live sitemap routes outside standalone Admin HTML catalog: {len(sitemap_only)}')
+          for route in sitemap_only:
+              print(f'  sitemap-only: {route}')
+
+          pathlib.Path('/tmp/live-route-summary.md').write_text(
+              '## Live Production route comparison\n\n'
+              f'- Live sitemap routes: **{len(sitemap_routes)}**\n'
+              f'- Admin catalog routes: **{len(catalog_routes)}**\n'
+              f'- Catalog routes absent from sitemap: **{len(catalog_only)}**\n'
+              f'- Sitemap-only/generated routes: **{len(sitemap_only)}**\n',
+              encoding='utf-8',
+          )
+          PY
+
+          failures=0
+          : > /tmp/live-route-failures.txt
+          while IFS= read -r route; do
+            [[ -n "$route" ]] || continue
+            status="$(curl --silent --show-error --location --max-time 20 --output /dev/null --write-out '%{http_code}' "${base}${route}" || true)"
+            if [[ "$status" != '200' ]]; then
+              printf '%s %s\n' "$status" "$route" | tee -a /tmp/live-route-failures.txt
+              failures=$((failures + 1))
+            fi
+          done < /tmp/catalog-routes.txt
+
+          echo "- Managed live routes returning non-200: **${failures}**" >> /tmp/live-route-summary.md
+          cat /tmp/live-route-summary.md >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$failures" -ne 0 ]]; then
+            echo '::error::One or more Admin-managed routes are not HTTP 200 on live Production.'
+            cat /tmp/live-route-failures.txt
+            exit 1
+          fi
 
       - name: Confirm audit is read-only
-        run: echo 'No Cloudflare API calls, deployments, D1 writes, main writes or Production mutations were performed.' >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'No Cloudflare API mutations, deployments, D1 writes, main writes or Production writes were performed.' >> "$GITHUB_STEP_SUMMARY"
