@@ -68,7 +68,7 @@ function loginRequest(env, totp, ip = "203.0.113.120") {
   }), env);
 }
 
-test("a valid TOTP step can open only one Admin login session and a fresh step is accepted", async () => {
+test("concurrent reuse of one valid TOTP step creates exactly one Admin session and a fresh step is accepted", async () => {
   const db = new TestD1();
   const env = envFor(db);
   const realNow = Date.now;
@@ -102,14 +102,16 @@ test("a valid TOTP step can open only one Admin login session and a fresh step i
     }), env);
     assert.equal(confirm.status, 200);
 
-    const first = await loginRequest(env, enrollmentCode);
-    assert.equal(first.status, 200);
-    assert.match(first.headers.get("Set-Cookie"), /HttpOnly/);
-
-    const replay = await loginRequest(env, enrollmentCode);
-    assert.equal(replay.status, 401);
-    const replayBody = await replay.json();
-    assert.equal(replayBody.error, "invalid_credentials");
+    const [candidateA, candidateB] = await Promise.all([
+      loginRequest(env, enrollmentCode, "203.0.113.120"),
+      loginRequest(env, enrollmentCode, "203.0.113.121"),
+    ]);
+    const candidates = [candidateA, candidateB];
+    assert.deepEqual(candidates.map((response) => response.status).sort((a, b) => a - b), [200, 401]);
+    const accepted = candidates.find((response) => response.status === 200);
+    const rejected = candidates.find((response) => response.status === 401);
+    assert.match(accepted.headers.get("Set-Cookie"), /HttpOnly/);
+    assert.equal((await rejected.json()).error, "invalid_credentials");
 
     assert.equal(db.database.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action = 'auth.login'").get().count, 1);
     assert.equal(db.database.prepare("SELECT COUNT(*) AS count FROM rate_limits WHERE window_start = ?").get(initialStep).count, 1);
@@ -119,7 +121,7 @@ test("a valid TOTP step can open only one Admin login session and a fresh step i
     } while (await totpCode(secret, Math.floor(nowMs / 30_000)) === enrollmentCode);
     const freshStep = Math.floor(nowMs / 30_000);
     const freshCode = await totpCode(secret, freshStep);
-    const fresh = await loginRequest(env, freshCode);
+    const fresh = await loginRequest(env, freshCode, "203.0.113.122");
     assert.equal(fresh.status, 200);
     assert.equal(db.database.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action = 'auth.login'").get().count, 2);
     assert.equal(db.database.prepare("SELECT COUNT(*) AS count FROM rate_limits WHERE window_start = ?").get(freshStep).count, 1);
