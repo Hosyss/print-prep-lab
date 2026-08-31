@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const indexUrl = new URL("../public/index.html", import.meta.url);
+const adminUrl = new URL("../public/admin.js", import.meta.url);
 const copyUrl = new URL("../public/auth-status-copy.js", import.meta.url);
 const workerUrl = new URL("../worker-no-zero-trust.js", import.meta.url);
 
@@ -12,6 +13,17 @@ test("admin overview describes self-hosted password + TOTP protection", async ()
   assert.match(html, /Time-based authenticator \(TOTP\) MFA/);
   assert.doesNotMatch(html, /Cloudflare Access deny-by-default policy/);
   assert.doesNotMatch(html, /JWT verified again inside the Worker/);
+});
+
+test("self-hosted admin source contains no stale Cloudflare Access status or startup copy", async () => {
+  const source = await readFile(adminUrl, "utf8");
+  assert.match(source, /function setSessionState\(/);
+  assert.match(source, /Session verified/);
+  assert.match(source, /Session check failed/);
+  assert.match(source, /Authenticated/);
+  assert.match(source, /Verify the protected session and the dedicated Admin database/);
+  assert.doesNotMatch(source, /function setAccessState\(/);
+  assert.doesNotMatch(source, /Access verified|Protection check failed|Verify Cloudflare Access and the dedicated database/);
 });
 
 test("session UI provides CSRF-protected sign-out and expiry handling without unsafe browser storage", async () => {
