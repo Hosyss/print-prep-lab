@@ -1,0 +1,53 @@
+name: Admin one-time login rate-limit unlock
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-one-time-rate-limit-unlock.yml
+
+permissions:
+  contents: read
+
+jobs:
+  unlock:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_D1_NAME: print-prep-lab-admin
+    steps:
+      - name: Verify exact dedicated D1 and clear only ephemeral rate limits
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+
+          response="$(curl --silent --show-error --fail \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100")"
+          count="$(jq -r --arg name "$ADMIN_D1_NAME" '[.result[] | select(.name == $name)] | length' <<<"$response")"
+          [[ "$count" == "1" ]] || { echo "::error::Expected exactly one dedicated Admin D1; found ${count}."; exit 1; }
+
+          npm exec --yes wrangler@4.127.1 -- d1 execute "$ADMIN_D1_NAME" --remote --command "DELETE FROM rate_limits;"
+          check="$(npm exec --yes wrangler@4.127.1 -- d1 execute "$ADMIN_D1_NAME" --remote --command "SELECT COUNT(*) AS count FROM rate_limits;" --json)"
+          remaining="$(jq -r '.[0].results[0].count // .[0].result[0].results[0].count // empty' <<<"$check")"
+          [[ "$remaining" == "0" ]] || { echo "::error::Rate-limit table was not cleared."; exit 1; }
+
+          {
+            echo "## Admin login unlock"
+            echo
+            echo "- Dedicated D1 matched exactly once: yes"
+            echo "- Cleared table: rate_limits only"
+            echo "- Remaining rate-limit rows: 0"
+            echo "- Password changed: no"
+            echo "- TOTP changed: no"
+            echo "- Worker secrets changed: no"
+            echo "- Worker source deployed: no"
+            echo "- main / Pages Production changed: no"
+          } >> "$GITHUB_STEP_SUMMARY"
