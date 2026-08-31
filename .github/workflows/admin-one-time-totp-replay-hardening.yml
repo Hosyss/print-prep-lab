@@ -299,3 +299,5 @@ jobs:
           git diff --cached --quiet && { echo "No TOTP replay hardening change to commit."; exit 1; }
           git commit -m "security: reject replayed admin TOTP steps"
           git push origin HEAD:security/admin-control-plane-no-zero-trust-20260831
+
+# Retry after updating the legacy login-rate test to track its exact failure bucket instead of assuming the shared protection table is empty.
