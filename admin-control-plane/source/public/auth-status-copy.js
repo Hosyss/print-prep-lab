@@ -2,6 +2,7 @@
   const chip = document.getElementById("access-status");
   const metric = document.getElementById("metric-access");
   const identity = document.getElementById("admin-identity");
+  const toast = document.getElementById("toast");
   const topbar = document.querySelector(".topbar-status");
   let csrfToken = "";
   let expiryTimer = 0;
@@ -12,6 +13,12 @@
       if (chip.textContent === "Protection check failed") chip.textContent = "Session check failed";
     }
     if (metric && metric.textContent === "Verified") metric.textContent = "Authenticated";
+    if (toast && toast.textContent.includes("Verify Cloudflare Access and the dedicated database.")) {
+      toast.textContent = toast.textContent.replace(
+        "Verify Cloudflare Access and the dedicated database.",
+        "Verify the protected session and the dedicated Admin database.",
+      );
+    }
   };
 
   async function refreshSessionBoundary() {
@@ -84,6 +91,7 @@
   const observer = new MutationObserver(normalize);
   if (chip) observer.observe(chip, { childList: true, characterData: true, subtree: true });
   if (metric) observer.observe(metric, { childList: true, characterData: true, subtree: true });
+  if (toast) observer.observe(toast, { childList: true, characterData: true, subtree: true });
 
   refreshSessionBoundary().catch(() => {
     if (chip) {
