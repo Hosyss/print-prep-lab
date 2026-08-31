@@ -460,15 +460,27 @@ test("browser assets contain no inline execution or raw HTML sinks", () => {
   assert.doesNotMatch(html, /https?:\/\//i);
 });
 
-test("catalog contains exactly 66 managed v118.7 pages", () => {
+test("catalog covers the pinned recovery pages plus all live sitemap content", () => {
   const catalog = JSON.parse(fs.readFileSync(path.join(root, "public/site-catalog.json"), "utf8"));
   assert.equal(catalog.release, "v118.7");
-  assert.equal(catalog.count, 66);
-  assert.equal(catalog.pages.length, 66);
+  assert.equal(catalog.count, 113);
+  assert.equal(catalog.pages.length, 113);
+  assert.equal(new Set(catalog.pages.map((page) => page.route)).size, 113);
+  const recoveryPages = catalog.pages.filter((page) => page.sourceType === "recovery-html");
+  const sitemapPages = catalog.pages.filter((page) => page.sourceType === "production-sitemap");
+  assert.equal(recoveryPages.length, 66);
+  assert.equal(sitemapPages.length, 47);
+  assert.ok(recoveryPages.every((page) => page.file.endsWith(".html")));
+  assert.ok(sitemapPages.every((page) => page.file === "" && page.indexedInProduction === true));
   assert.ok(catalog.pages.some((page) => page.route === "/quote-compare"));
-  assert.ok(catalog.pages.some((page) => page.kind === "tool"));
-  assert.ok(!catalog.pages.some((page) => page.file.startsWith("google")));
-  assert.equal(new Set(catalog.pages.map((page) => page.route)).size, 66);
+  assert.ok(catalog.pages.some((page) => page.route === "/tools/dpi-ppi-calculator"));
+  assert.ok(catalog.pages.some((page) => page.route === "/guides/print-resolution-guide"));
+  assert.ok(catalog.pages.some((page) => page.route === "/sizes/a4"));
+  assert.ok(!catalog.pages.some((page) => String(page.file || "").startsWith("google")));
+  assert.equal(catalog.sourceProvenance.productionSitemapRoutes, 79);
+  assert.equal(catalog.sourceProvenance.recoveryManagedRoutes, 66);
+  assert.equal(catalog.sourceProvenance.unionManagedRoutes, 113);
+  assert.deepEqual(catalog.sourceProvenance.excludedSystemHtml, ["google6d67c58ff3b5201c.html"]);
 });
 
 test("schema contains isolated storage, backups, audit and rate limits", () => {

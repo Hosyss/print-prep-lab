@@ -1,403 +1,1129 @@
 {
   "release": "v118.7",
-  "count": 66,
-  "source": "route-stable v118.6 recovery baseline",
+  "count": 113,
+  "source": "hybrid: pinned v118.6 recovery HTML + current Production sitemap",
   "pages": [
     {
       "route": "/",
       "file": "home-v112.html",
       "title": "Print Prep Lab — Print preparation and prepress workspace",
-      "kind": "hub"
+      "kind": "hub",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/approval-matrix",
       "file": "approval-matrix.html",
       "title": "Print Approval Matrix – Required Sign-offs, Pending Gates & Release Status",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/audit-log",
       "file": "audit-log.html",
       "title": "Print Production Audit Snapshot Log – Local Signal History & SHA-256",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/automation-lab",
       "file": "automation-lab.html",
       "title": "Local Automation & Next Action",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/batch",
       "file": "batch.html",
       "title": "Batch Print Checker – Compare Image Print Readiness",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/calibration-registry",
       "file": "calibration-registry.html",
       "title": "Print Calibration & Device Registry – Media, Profile, Verification & Review Dates",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/capa",
       "file": "capa.html",
       "title": "Print CAPA Tracker – Nonconformance, Root Cause & Corrective Action",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/capacity-planner",
       "file": "capacity-planner.html",
       "title": "Print Production Capacity Planner – Throughput, Setup, Shifts & Deadline",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/change-impact",
       "file": "change-impact.html",
       "title": "Print Change Impact Engine – Detect Stale Cost, Preflight & Production Assumptions",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/color-control",
       "file": "color-control.html",
       "title": "Color Control Board",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/command-center",
       "file": "command-center.html",
       "title": "Print Prep Command Center",
-      "kind": "hub"
+      "kind": "hub",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/compliance-center",
       "file": "compliance-center.html",
       "title": "Compliance & Evidence Center",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/customer-handoff",
       "file": "customer-handoff.html",
       "title": "Customer Handoff",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/digital-twin",
       "file": "digital-twin.html",
       "title": "Digital Production Twin",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/enterprise-dashboard",
       "file": "enterprise-dashboard.html",
       "title": "Enterprise Dashboard",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/file-manifest",
       "file": "file-manifest.html",
       "title": "Print File Manifest – Checksums & Delivery List",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/finishing-intelligence",
       "file": "finishing-intelligence.html",
       "title": "Finishing Intelligence",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/fold-planner",
       "file": "fold-planner.html",
       "title": "Fold Panel Planner – Tri-fold, Z-fold & Half-fold Widths",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/fulfillment-center",
       "file": "fulfillment-center.html",
       "title": "Fulfilment Intelligence",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/glossary",
       "file": "glossary.html",
       "title": "Print Preparation Glossary – PPI, Bleed, Color & PDF",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/imposition-planner",
       "file": "imposition-planner.html",
       "title": "Imposition & Cut Planner – Sheet Margins, N-up, Rotation & Cut Lines",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/inspector",
       "file": "inspector.html",
       "title": "Print File Inspector – Image Metadata for Printing",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/job-brief",
       "file": "job-brief.html",
       "title": "Print Job Brief Builder – Production Handoff",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/job-core",
       "file": "job-core.html",
       "title": "Job Core & Revision Engine",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/job-costing",
       "file": "job-costing.html",
       "title": "Print Job Costing Lab – Unit Cost, Waste, Markup & Break-even",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/jobs",
       "file": "jobs.html",
       "title": "Print Job Command Center",
-      "kind": "hub"
+      "kind": "hub",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/knowledge-base",
       "file": "knowledge-base.html",
       "title": "Production Knowledge Base",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/material-intelligence",
       "file": "material-intelligence.html",
       "title": "Material & Procurement Intelligence",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/operations",
       "file": "operations.html",
       "title": "Print Operations Command Center – Cost, Capacity, QA & Release Signals",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/packaging",
       "file": "packaging.html",
       "title": "Print Packaging & Shipping Planner – Cartons, Gross & Volumetric Weight",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/pallet-planner",
       "file": "pallet-planner.html",
       "title": "Pallet Load Planner – Cartons per Layer, Height & Gross Weight",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/preflight",
       "file": "preflight.html",
       "title": "Print Preflight Checker – Resolution, Bleed & Delivery",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/prepress-lab",
       "file": "prepress-lab.html",
       "title": "Advanced Prepress Lab – Color, Viewing Distance, Paper & Creep",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/procurement",
       "file": "procurement.html",
       "title": "Print Material Procurement Planner – Lead Time, Cover & Reorder Window",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/production-analytics",
       "file": "production-analytics.html",
       "title": "Production Analytics",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/production-archive",
       "file": "production-archive.html",
       "title": "Production Archive",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/proof-sheet",
       "file": "proof-sheet.html",
       "title": "Printable Proof Sheet Builder",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/provider-matrix",
       "file": "provider-matrix.html",
       "title": "Print Provider Capability Matrix – Size, PPI, Bleed & File Format",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/qa-history",
       "file": "qa-history.html",
       "title": "Print QA History – Local Checkpoints, Findings & Sign-off Log",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/queue-planner",
       "file": "queue-planner.html",
       "title": "Multi-job Print Queue Planner – Due Dates, Priority & Lateness",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/quote-compare",
       "file": "quote-compare.html",
       "title": "Print Quote Comparator – Landed Cost & Turnaround",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/readiness-audit",
       "file": "readiness-audit.html",
       "title": "Release Readiness Audit",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/release-center",
       "file": "release-center.html",
       "title": "Release Center 2.0",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/release-packet",
       "file": "release-packet.html",
       "title": "Print Release Packet Builder – Consolidate Preflight, Cost, QA, Risk & Approvals",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/revision-diff",
       "file": "revision-diff.html",
       "title": "Print File Revision Diff – Compare Delivery Manifests & SHA-256",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/risk-register",
       "file": "risk-register.html",
       "title": "Print Production Risk Register – Probability, Impact & Mitigation",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/roll-diameter",
       "file": "roll-diameter.html",
       "title": "Roll Diameter & Length Calculator – Core, Thickness & Wound Media",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/roll-media",
       "file": "roll-media.html",
       "title": "Roll Media Planner – Linear Metres, Across Count & Utilization",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/scenarios",
       "file": "scenarios.html",
       "title": "Print Size Scenario Matrix",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/schedule-optimizer",
       "file": "schedule-optimizer.html",
       "title": "Multi-job Schedule Optimizer",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/search",
       "file": "search.html",
       "title": "Search Print Prep Lab",
-      "kind": "hub"
+      "kind": "hub",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/sheet-planner",
       "file": "sheet-planner.html",
       "title": "Sheet Yield & N-up Planner – Pieces per Sheet",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/signature-planner",
       "file": "signature-planner.html",
       "title": "Advanced Signature Planner",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/specs",
       "file": "specs.html",
       "title": "Print Specification Profiles – PPI, Bleed & Export",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/spine-planner",
       "file": "spine-planner.html",
       "title": "Book Spine & Book-block Thickness Planner – Pages × Paper Caliper",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/stock-coverage",
       "file": "stock-coverage.html",
       "title": "Print Stock Coverage Planner – Available, Reserved, Safety & Reorder",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/studio",
       "file": "studio.html",
       "title": "Print Job Studio – Plan Crop, PPI & Bleed",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/supplier-intelligence",
       "file": "supplier-intelligence.html",
       "title": "Supplier Intelligence",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/timeline",
       "file": "timeline.html",
       "title": "Print Job Timeline Planner – Backward Schedule, Slack & Release Gates",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/tools/print-readiness-checker",
       "file": "print-readiness-v111.html",
       "title": "Print Readiness Checker",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/troubleshoot",
       "file": "troubleshoot.html",
       "title": "Print Troubleshooting Center – Diagnose Common Problems",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/vault",
       "file": "vault.html",
       "title": "Workspace Vault – Backup Local Print Plans",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/vendor-handoff",
       "file": "vendor-handoff.html",
       "title": "Vendor Handoff",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/wall-layout",
       "file": "wall-layout.html",
       "title": "Wall & Gallery Layout Planner – Frames & Spacing",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": true
     },
     {
       "route": "/waste-ledger",
       "file": "waste-ledger.html",
       "title": "Print Waste & Yield Ledger – First-pass Yield, Spoilage & Material Cost",
-      "kind": "tool"
+      "kind": "tool",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
     },
     {
       "route": "/workspace",
       "file": "workspace.html",
       "title": "Print Preparation Workspace",
-      "kind": "hub"
+      "kind": "hub",
+      "sourceType": "recovery-html",
+      "sourceRelease": "v118.6",
+      "indexedInProduction": false
+    },
+    {
+      "route": "/about",
+      "file": "",
+      "title": "About Our Print Preparation Tools | Print Prep Lab",
+      "kind": "trust",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "About Print Prep Lab",
+      "baselineDescription": "Who publishes Print Prep Lab, why the project exists and how its calculators turn image dimensions into inspectable print decisions."
+    },
+    {
+      "route": "/contact",
+      "file": "",
+      "title": "Contact Print Prep Lab | Print Prep Lab",
+      "kind": "policy",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Contact & Calculation Reports",
+      "baselineDescription": "Report a calculation issue, missing print size or site problem to Print Prep Lab."
+    },
+    {
+      "route": "/editorial-policy",
+      "file": "",
+      "title": "Editorial Policy and Review Process | Print Prep Lab",
+      "kind": "trust",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Editorial Policy",
+      "baselineDescription": "How Print Prep Lab creates, tests, reviews, dates and corrects its calculators, reference pages and educational guides."
+    },
+    {
+      "route": "/guides",
+      "file": "",
+      "title": "Image Resolution and Print Preparation Guides | Print Prep Lab",
+      "kind": "hub",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Print Preparation Guides",
+      "baselineDescription": "Learn print resolution, DPI versus PPI, maximum image size, bleed, safe area, aspect ratio and cropping."
+    },
+    {
+      "route": "/guides/a4-vs-us-letter-printing",
+      "file": "",
+      "title": "A4 vs US Letter: Size, Pixels and Layout Differences | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "A4 vs US Letter for Printing and Layout",
+      "baselineDescription": "Compare A4 and US Letter in millimetres, inches, pixels and aspect ratio, then adapt a full-page layout without accidental crop or reflow."
+    },
+    {
+      "route": "/guides/aspect-ratio-cropping-print",
+      "file": "",
+      "title": "Photo Print Aspect Ratios and Cropping Explained | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Why Photos Crop at Different Print Sizes",
+      "baselineDescription": "Compare common camera and print aspect ratios, see which sizes fit, and learn when to crop, add borders or choose another print."
+    },
+    {
+      "route": "/guides/best-file-format-for-printing",
+      "file": "",
+      "title": "Best File Format for Printing: PDF, TIFF, JPEG or PNG | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Choose the Right File Format for a Print Job",
+      "baselineDescription": "Compare PDF, TIFF, JPEG, PNG and editable source files by layout, compression, transparency, color and printer requirements."
+    },
+    {
+      "route": "/guides/bleed-trim-safe-area",
+      "file": "",
+      "title": "Bleed, Trim and Safe Area: A Practical Print Guide | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Bleed, Trim and Safe Area Explained",
+      "baselineDescription": "Understand bleed, trim size and safe area, including common margins and a step-by-step setup workflow for print files."
+    },
+    {
+      "route": "/guides/choose-best-photo-print-size",
+      "file": "",
+      "title": "How to Choose the Best Photo Print Size for Your Image | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Choose the Best Print Size for a Photo",
+      "baselineDescription": "Compare aspect ratio, crop loss, effective PPI and physical size to choose a standard photo print without guessing from megapixels alone."
+    },
+    {
+      "route": "/guides/dpi-vs-ppi",
+      "file": "",
+      "title": "DPI vs PPI: What Matters for Printing? | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "DPI vs PPI Explained for Print",
+      "baselineDescription": "Learn the practical difference between image PPI and printer DPI, and which number to use when preparing a file for print."
+    },
+    {
+      "route": "/guides/export-images-for-large-format-printing",
+      "file": "",
+      "title": "How to Export Images for Large-Format Printing | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Prepare and Export an Image for a Large Print",
+      "baselineDescription": "Choose dimensions, viewing-distance resolution, crop, sharpening, color and export settings for posters and wall prints without inventing pixels."
+    },
+    {
+      "route": "/guides/how-large-can-i-print-my-image",
+      "file": "",
+      "title": "How Large Can I Print My Image? A Pixel-Based Guide | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "How Large Can You Print an Image Without Losing Quality?",
+      "baselineDescription": "Use pixel dimensions and PPI to estimate a photo's maximum print size, then check the file at 150, 240 and 300 PPI."
+    },
+    {
+      "route": "/guides/mat-frame-sizing-guide",
+      "file": "",
+      "title": "How to Measure a Mat Opening and Frame for Artwork | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Measure a Mat and Frame Without Hiding the Artwork",
+      "baselineDescription": "Plan artwork overlap, visible window, mat borders, bottom weighting and approximate frame footprint before ordering or cutting a custom mount."
+    },
+    {
+      "route": "/guides/print-file-preflight-checklist",
+      "file": "",
+      "title": "Print File Preflight Checklist: 12 Checks Before You Export | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "A Practical Print File Preflight Checklist",
+      "baselineDescription": "Check trim, crop, effective PPI, bleed, safe area, color, file format and proofing in the right order before sending artwork to print."
+    },
+    {
+      "route": "/guides/print-resolution-guide",
+      "file": "",
+      "title": "Print Resolution Guide: 150 vs 240 vs 300 PPI | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "What Resolution Do You Need for Printing?",
+      "baselineDescription": "Compare 150, 240 and 300 PPI for different print sizes and viewing distances, with formulas and practical examples."
+    },
+    {
+      "route": "/guides/rgb-vs-cmyk-printing",
+      "file": "",
+      "title": "RGB vs CMYK for Printing: Profiles and Conversion | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Choose RGB or CMYK Without Guessing the Print Workflow",
+      "baselineDescription": "Understand document profiles, output profiles, gamut, soft proofing and when a printer expects RGB, CMYK or a supplied PDF color condition."
+    },
+    {
+      "route": "/guides/saddle-stitch-booklet-page-count",
+      "file": "",
+      "title": "Saddle-Stitch Booklet Page Count and Imposition Guide | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Plan Pages and Sheets for a Saddle-Stitch Booklet",
+      "baselineDescription": "Calculate booklet page multiples, physical sheets, basic printer spreads and the limits of creep estimates before sending a saddle-stitch file."
+    },
+    {
+      "route": "/guides/tiled-poster-printing-guide",
+      "file": "",
+      "title": "How to Tile and Print a Large Poster on Small Sheets | Print Prep Lab",
+      "kind": "guide",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Tile a Large Poster Across Small Printer Sheets",
+      "baselineDescription": "Plan printable tile size, overlap, sheet count, scaling and assembly for a large poster printed on A4, Letter or another desktop sheet."
+    },
+    {
+      "route": "/methodology",
+      "file": "",
+      "title": "Print Calculation Methodology | Print Prep Lab",
+      "kind": "trust",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Calculation Methodology",
+      "baselineDescription": "The unit conversions, formulas, rounding rules, crop model and quality labels used throughout Print Prep Lab."
+    },
+    {
+      "route": "/privacy",
+      "file": "",
+      "title": "Privacy Policy | Print Prep Lab",
+      "kind": "policy",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Privacy Policy",
+      "baselineDescription": "How Print Prep Lab handles images, calculator inputs, analytics, cookies and advertising services."
+    },
+    {
+      "route": "/sizes",
+      "file": "",
+      "title": "Paper and Photo Print Sizes in Pixels | Print Prep Lab",
+      "kind": "hub",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Paper and Photo Size Reference",
+      "baselineDescription": "Browse ISO paper, US paper and photo print sizes with dimensions, aspect ratios and pixel requirements at common PPI values."
+    },
+    {
+      "route": "/sizes/11x14-photo",
+      "file": "",
+      "title": "11×14 Photo Size in Pixels at 300 PPI | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "11×14 Photo Size: Pixels, Resolution and Crop",
+      "baselineDescription": "An 11×14 print needs 3300×4200 pixels at 300 PPI. See other PPI values and preview how common photos will crop."
+    },
+    {
+      "route": "/sizes/12x18-photo",
+      "file": "",
+      "title": "12×18 Photo Size in Pixels at 300 PPI | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "12×18 Photo Size: Pixels, Resolution and Ratio",
+      "baselineDescription": "A 12×18 print needs 3600×5400 pixels at 300 PPI and preserves the common 3:2 camera aspect ratio."
+    },
+    {
+      "route": "/sizes/16x20-photo",
+      "file": "",
+      "title": "16×20 Photo Size in Pixels at 300 PPI | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "16×20 Photo Size: Pixels, Resolution and Crop",
+      "baselineDescription": "A 16×20 print needs 4800 × 6000 pixels at 300 PPI. Compare practical resolutions, viewing-distance context and its 4:5 crop ratio."
+    },
+    {
+      "route": "/sizes/4x6-photo",
+      "file": "",
+      "title": "4×6 Photo Size in Pixels at 300 PPI | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "4×6 Photo Size: Pixels, Inches and Aspect Ratio",
+      "baselineDescription": "A 4×6 photo needs 1200 × 1800 pixels at 300 PPI. See other quality levels, its 2:3 aspect ratio, crop guidance and bleed size."
+    },
+    {
+      "route": "/sizes/5x7-photo",
+      "file": "",
+      "title": "5×7 Photo Size in Pixels at 300 PPI | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "5×7 Photo Size: Pixels, Inches and Aspect Ratio",
+      "baselineDescription": "A 5×7 photo needs 1500 × 2100 pixels at 300 PPI. See dimensions, other PPI values and the likely crop from a 3:2 camera image."
+    },
+    {
+      "route": "/sizes/8x10-photo",
+      "file": "",
+      "title": "8×10 Photo Size in Pixels at 300 PPI | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "8×10 Photo Size: Pixels, Inches and Crop Ratio",
+      "baselineDescription": "An 8×10 photo needs 2400 × 3000 pixels at 300 PPI. See its 4:5 ratio, other PPI values and the crop from common 3:2 images."
+    },
+    {
+      "route": "/sizes/a2",
+      "file": "",
+      "title": "A2 Size in Pixels, Inches, Cm & Mm | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "A2 Size in Pixels and Print Dimensions",
+      "baselineDescription": "Find A2 dimensions and exact pixel sizes at common resolutions for posters, art prints and large-format layouts."
+    },
+    {
+      "route": "/sizes/a3",
+      "file": "",
+      "title": "A3 Size in Pixels, Inches, Cm & Mm | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "A3 Size in Pixels and Print Dimensions",
+      "baselineDescription": "A3 is 297 × 420 mm and 3508 × 4961 px at 300 PPI. See inches, centimetres, multiple resolutions, poster guidance and bleed size."
+    },
+    {
+      "route": "/sizes/a4",
+      "file": "",
+      "title": "A4 Size in Pixels, Inches, Cm & Mm | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "A4 Size in Pixels and Print Dimensions",
+      "baselineDescription": "A4 is 210 × 297 mm and 2480 × 3508 px at 300 PPI. See inches, centimetres, multiple resolutions, bleed and A4 vs US Letter."
+    },
+    {
+      "route": "/sizes/a5",
+      "file": "",
+      "title": "A5 Size in Pixels, Inches, Cm & Mm | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "A5 Size in Pixels and Print Dimensions",
+      "baselineDescription": "A5 is 148 × 210 mm and 1748 × 2480 px at 300 PPI. See inches, centimetres, PPI values, A5 vs A4 and 3 mm bleed."
+    },
+    {
+      "route": "/sizes/us-legal",
+      "file": "",
+      "title": "US Legal Size in Pixels, Inches, Cm & Mm | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "US Legal Size in Pixels and Print Dimensions",
+      "baselineDescription": "Find 8.5×14 inch US Legal dimensions and exact pixel sizes at 72, 96, 150, 240 and 300 PPI."
+    },
+    {
+      "route": "/sizes/us-letter",
+      "file": "",
+      "title": "US Letter Size in Pixels, Inches, Cm & Mm | Print Prep Lab",
+      "kind": "size",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "US Letter Size in Pixels and Print Dimensions",
+      "baselineDescription": "US Letter is 8.5 × 11 inches and 2550 × 3300 px at 300 PPI. See other resolutions, millimetres, Letter vs A4 and bleed size."
+    },
+    {
+      "route": "/sources",
+      "file": "",
+      "title": "Standards and Reference Sources | Print Prep Lab",
+      "kind": "trust",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Sources & Reference Policy",
+      "baselineDescription": "The source hierarchy used for physical standards, unit definitions, image-resolution concepts and print-production guidance."
+    },
+    {
+      "route": "/terms",
+      "file": "",
+      "title": "Terms of Use | Print Prep Lab",
+      "kind": "policy",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Terms of Use",
+      "baselineDescription": "Terms covering Print Prep Lab calculators, print guidance, external services and advertising."
+    },
+    {
+      "route": "/tools",
+      "file": "",
+      "title": "Printing Calculators for Image Size, PPI, Crop and Bleed | Print Prep Lab",
+      "kind": "hub",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Free Print Preparation Tools",
+      "baselineDescription": "Check image quality, convert pixels and print sizes, calculate PPI, preview cropping and add bleed—all in your browser."
+    },
+    {
+      "route": "/tools/aspect-ratio-crop-preview",
+      "file": "",
+      "title": "Aspect Ratio Crop Preview for Photo Prints | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Preview How Your Photo Will Crop",
+      "baselineDescription": "Compare an image ratio with common photo and paper formats, estimate crop loss and choose the orientation that preserves more of the image."
+    },
+    {
+      "route": "/tools/best-print-size-finder",
+      "file": "",
+      "title": "Best Print Size Finder – Match Photo Pixels to Print Sizes | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Find the Best Standard Print Size for Your Image",
+      "baselineDescription": "Compare one image against standard photo, ISO and US print sizes, ranked by effective PPI, crop loss and usable printed area."
+    },
+    {
+      "route": "/tools/bleed-safe-area-calculator",
+      "file": "",
+      "title": "Bleed & Safe Area Calculator for Print | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Calculate Bleed, Trim and Safe Area",
+      "baselineDescription": "Calculate full artwork size, trim size and safe area in millimetres and pixels using editable bleed, margin and PPI values."
+    },
+    {
+      "route": "/tools/dpi-ppi-calculator",
+      "file": "",
+      "title": "DPI & PPI Calculator for Print Resolution | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Calculate Image PPI for Printing",
+      "baselineDescription": "Calculate the effective pixels per inch of an image at a specific physical print size and see which dimension limits quality."
+    },
+    {
+      "route": "/tools/mat-frame-calculator",
+      "file": "",
+      "title": "Mat & Frame Size Calculator for Artwork and Photos | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Calculate a Mat Opening and Finished Frame Size",
+      "baselineDescription": "Plan the visible mat window, outer mat board and approximate outside frame dimensions from your artwork, overlap, borders and moulding width."
+    },
+    {
+      "route": "/tools/paper-size-pixels-calculator",
+      "file": "",
+      "title": "Paper Size in Pixels Calculator – A Series & US Sizes | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Calculate Any Paper Size in Pixels",
+      "baselineDescription": "Choose an ISO, US or photo format and calculate its pixel dimensions at any PPI, in portrait or landscape orientation."
+    },
+    {
+      "route": "/tools/pixels-to-print-size",
+      "file": "",
+      "title": "Pixels to Print Size Calculator (Inches, Cm & PPI) | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Convert Pixels to Print Size",
+      "baselineDescription": "Convert image dimensions in pixels into physical print dimensions in inches and centimetres at 150, 240, 300 or any custom PPI."
+    },
+    {
+      "route": "/tools/poster-tiling-calculator",
+      "file": "",
+      "title": "Poster Tiling Calculator – Split a Poster Across Pages | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Split a Large Poster Across Printable Sheets",
+      "baselineDescription": "Plan a tiled poster across A-series, US or photo sheets using real printer margins, overlap, orientation and a target raster resolution."
+    },
+    {
+      "route": "/tools/print-size-to-pixels",
+      "file": "",
+      "title": "Print Size to Pixels Calculator – 150, 240 & 300 PPI | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Convert Print Size to Pixels",
+      "baselineDescription": "Find the pixel dimensions needed for a print measured in inches, centimetres or millimetres at your chosen PPI."
+    },
+    {
+      "route": "/tools/saddle-stitch-booklet-calculator",
+      "file": "",
+      "title": "Saddle-Stitch Booklet Page & Sheet Calculator | Print Prep Lab",
+      "kind": "tool",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "Plan Booklet Pages, Sheets and Printer Spreads",
+      "baselineDescription": "Round a booklet to a valid page count, calculate physical sheets and preview saddle-stitch printer spreads without rearranging the source document."
+    },
+    {
+      "route": "/workflow",
+      "file": "",
+      "title": "Professional Print Preparation Workflow from Image to Export | Print Prep Lab",
+      "kind": "trust",
+      "sourceType": "production-sitemap",
+      "sourceRelease": "main",
+      "indexedInProduction": true,
+      "baselineH1": "A Professional Print Workflow, from Source File to Proof",
+      "baselineDescription": "Follow one complete workflow for crop, effective PPI, document geometry, color, file format, preflight and proof before sending artwork to print."
     }
-  ]
+  ],
+  "sourceProvenance": {
+    "recoveryCommit": "07efaae843406f6cd9de74cb18ab5fffe2bf0a17",
+    "recoveryArtifactSha256": "d5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625",
+    "productionOrigin": "https://printpreplab.pages.dev",
+    "productionSitemapRoutes": 79,
+    "recoveryManagedRoutes": 66,
+    "unionManagedRoutes": 113,
+    "excludedSystemHtml": [
+      "google6d67c58ff3b5201c.html"
+    ]
+  }
 }
