@@ -1,0 +1,80 @@
+name: Admin one-time snapshot copy clarity
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-one-time-snapshot-copy-clarity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  clarify:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/admin-control-plane-no-zero-trust-20260831
+          fetch-depth: 0
+
+      - name: Clarify snapshot UX without changing behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          html_path = Path('admin-control-plane/source/public/index.html')
+          html = html_path.read_text()
+          replacements = {
+            'Snapshots &amp; backups': 'Backups &amp; safe snapshots',
+            '<h2>Publish current draft</h2>': '<h2>Create an Admin-only safety snapshot</h2>',
+            '<p>Creates an immutable snapshot in the Admin D1 only. The public site remains disconnected.</p>': '<p>This saves a locked safety copy inside the private Admin database only. It does <strong>not</strong> publish or change the public website.</p>',
+            '<button id="publish-snapshot" class="button danger" type="button">Create protected snapshot</button>': '<button id="publish-snapshot" class="button danger" type="button">Create Admin-only snapshot</button>',
+          }
+          for old, new in replacements.items():
+            if html.count(old) != 1:
+              raise SystemExit(f'Expected one HTML match for {old!r}, found {html.count(old)}')
+            html = html.replace(old, new)
+          html_path.write_text(html)
+
+          js_path = Path('admin-control-plane/source/public/admin.js')
+          js = js_path.read_text()
+          replacements = {
+            'release: ["Snapshots & backups", "Create isolated snapshots and restore integrity-checked server backups."],': 'release: ["Backups & safe snapshots", "Restore protected backups or create a safety snapshot that cannot change the public site."],',
+            'toast("Protected snapshot created. The public site was not changed.");': 'toast("Admin-only safety snapshot created. The public site was not changed.");',
+          }
+          for old, new in replacements.items():
+            if js.count(old) != 1:
+              raise SystemExit(f'Expected one JS match for {old!r}, found {js.count(old)}')
+            js = js.replace(old, new)
+          js_path.write_text(js)
+          PY
+
+      - name: Assert the safe meaning is explicit
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'Create an Admin-only safety snapshot' admin-control-plane/source/public/index.html
+          grep -q 'does <strong>not</strong> publish or change the public website' admin-control-plane/source/public/index.html
+          grep -q 'Create Admin-only snapshot' admin-control-plane/source/public/index.html
+          ! grep -q '<h2>Publish current draft</h2>' admin-control-plane/source/public/index.html
+
+      - name: Run complete Admin suite
+        working-directory: admin-control-plane/source
+        run: node --test tests/*.test.mjs
+
+      - name: Commit verified UX clarification
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Hossam eldeen"
+          git config user.email "52554618+Hosyss@users.noreply.github.com"
+          git add admin-control-plane/source/public/index.html admin-control-plane/source/public/admin.js
+          git diff --cached --quiet && { echo "No UI change to commit."; exit 1; }
+          git commit -m "ux: clarify admin-only snapshot safety"
+          git push origin HEAD:security/admin-control-plane-no-zero-trust-20260831
