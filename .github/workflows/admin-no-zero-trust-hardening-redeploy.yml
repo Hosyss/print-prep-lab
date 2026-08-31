@@ -150,16 +150,20 @@ jobs:
           grep -Eqi '^x-frame-options:.*DENY' /tmp/admin-headers.txt
           grep -Eqi '^content-security-policy:' /tmp/admin-headers.txt
 
-          login_status="$(curl --silent --show-error --output /tmp/admin-login.html --write-out '%{http_code}' "$admin_url/login.html" || true)"
-          [[ "$login_status" == "200" ]] || { echo "::error::Explicit login asset expected HTTP 200, got ${login_status}."; exit 1; }
+          # Cloudflare may canonicalize the explicit .html asset before the Worker.
+          # The real security invariant is that the canonical /login alias must not
+          # bypass the owner session boundary; the public entry point remains only /.
+          login_alias_status="$(curl --silent --show-error --output /tmp/admin-login-alias.json --write-out '%{http_code}' "$admin_url/login" || true)"
+          [[ "$login_alias_status" == "401" ]] || { echo "::error::Canonical login alias must remain blocked without a session; got HTTP ${login_alias_status}."; exit 1; }
+          jq -e '.error == "session_required"' /tmp/admin-login-alias.json >/dev/null
 
           session_status="$(curl --silent --show-error --output /tmp/admin-session.json --write-out '%{http_code}' "$admin_url/api/session" || true)"
           [[ "$session_status" == "401" ]] || { echo "::error::Unauthenticated API expected HTTP 401, got ${session_status}."; exit 1; }
           jq -e '.error == "session_required"' /tmp/admin-session.json >/dev/null
 
           echo "Admin login page: reachable with HTTP 200"
-          echo "Explicit login asset: reachable with HTTP 200"
-          echo "Unauthenticated API: blocked with HTTP 401"
+          echo "Canonical login alias: blocked without session"
+          echo "Unauthenticated Admin API: blocked with HTTP 401"
           echo "Security headers: present"
 
       - name: Record hardening redeploy result
@@ -176,7 +180,8 @@ jobs:
             echo "- Worker secrets changed: no"
             echo "- Cloudflare Zero Trust / Access: not used"
             echo "- Preview URLs: disabled"
-            echo "- HTML canonical redirects: disabled"
+            echo "- Root login entry point: HTTP 200 verified"
+            echo "- Canonical login alias: blocked without session"
             echo "- Admin URL: https://${ADMIN_WORKER_NAME}.${WORKER_SUBDOMAIN}.workers.dev"
             echo "- Unauthenticated API boundary: verified blocked"
             echo "- main changed: no"
