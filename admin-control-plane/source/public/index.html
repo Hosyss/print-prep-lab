@@ -7,6 +7,7 @@
     <title>Print Prep Lab Admin</title>
     <link rel="stylesheet" href="/admin.css">
     <script src="/admin.js" defer></script>
+    <script src="/auth-status-copy.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#admin-main">Skip to admin content</a>
@@ -66,9 +67,9 @@
         <section id="view-overview" class="view-panel" data-view="overview">
           <div class="metric-grid">
             <article class="metric-card">
-              <span>Access</span>
+              <span>Session</span>
               <strong id="metric-access">Checking</strong>
-              <small>JWT verified again inside the Worker</small>
+              <small>Password + TOTP session verified inside the Worker</small>
             </article>
             <article class="metric-card">
               <span>Managed pages</span>
@@ -97,10 +98,10 @@
               </div>
               <ul class="check-list">
                 <li><span aria-hidden="true">✓</span> Dedicated Worker and D1 database</li>
-                <li><span aria-hidden="true">✓</span> Cloudflare Access deny-by-default policy</li>
-                <li><span aria-hidden="true">✓</span> Owner email allowlist and MFA policy</li>
-                <li><span aria-hidden="true">✓</span> Worker-side JWT, origin and CSRF validation</li>
-                <li><span aria-hidden="true">✓</span> Backups and hash-chained audit trail</li>
+                <li><span aria-hidden="true">✓</span> Owner email allowlist and strong password</li>
+                <li><span aria-hidden="true">✓</span> Time-based authenticator (TOTP) MFA</li>
+                <li><span aria-hidden="true">✓</span> HttpOnly signed session, origin and CSRF validation</li>
+                <li><span aria-hidden="true">✓</span> Rate limits, backups and hash-chained audit trail</li>
               </ul>
             </article>
             <article class="panel-card warning-card">
@@ -109,7 +110,7 @@
               <p>A published snapshot is stored inside the protected Admin database. It cannot alter Print Prep Lab until a separate read-only integration is reviewed and approved.</p>
               <div class="boundary-row"><span>Executable code</span><strong>Blocked</strong></div>
               <div class="boundary-row"><span>Calculator formulas</span><strong>Blocked</strong></div>
-              <div class="boundary-row"><span>Secrets and Access policy</span><strong>Blocked</strong></div>
+              <div class="boundary-row"><span>Secrets and authentication policy</span><strong>Blocked</strong></div>
             </article>
           </div>
         </section>
