@@ -681,14 +681,14 @@ async function handleApi(request, env, auth, requestId, url, origin) {
       email: auth.email,
       csrfToken: await csrfToken(auth, env),
       expiresAt: new Date(auth.expiresAt * 1000).toISOString(),
-      accessVerified: true,
+      sessionVerified: true,
       mfaEnforcement: "password-plus-totp",
       publicIntegration: false,
     });
   }
   if (url.pathname === "/api/health" && request.method === "GET") {
     await env.DB.prepare("SELECT 1 AS ok").first();
-    return jsonResponse({ ok: true, accessVerified: true, database: "reachable", auth: "password-plus-totp", publicIntegration: false });
+    return jsonResponse({ ok: true, sessionVerified: true, database: "reachable", auth: "password-plus-totp", publicIntegration: false });
   }
   if (url.pathname === "/api/config" && request.method === "GET") return jsonResponse(await currentConfig(env));
   if (url.pathname === "/api/config" && request.method === "PUT") return jsonResponse(await saveConfig(env, auth, requestId, await readJson(request)));
