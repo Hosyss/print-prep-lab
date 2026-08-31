@@ -150,9 +150,6 @@ jobs:
           grep -Eqi '^x-frame-options:.*DENY' /tmp/admin-headers.txt
           grep -Eqi '^content-security-policy:' /tmp/admin-headers.txt
 
-          # Cloudflare may canonicalize the explicit .html asset before the Worker.
-          # The real security invariant is that the canonical /login alias must not
-          # bypass the owner session boundary; the public entry point remains only /.
           login_alias_status="$(curl --silent --show-error --output /tmp/admin-login-alias.json --write-out '%{http_code}' "$admin_url/login" || true)"
           [[ "$login_alias_status" == "401" ]] || { echo "::error::Canonical login alias must remain blocked without session; got HTTP ${login_alias_status}."; exit 1; }
           jq -e '.error == "session_required"' /tmp/admin-login-alias.json >/dev/null
@@ -189,4 +186,4 @@ jobs:
             echo "- Public Print Prep Lab integration: still disabled"
           } >> "$GITHUB_STEP_SUMMARY"
 
-# Trigger: deploy failed-login-only rate limiting after successful gate.
+# Trigger: deploy clearer Admin-only snapshot wording after successful gate.
