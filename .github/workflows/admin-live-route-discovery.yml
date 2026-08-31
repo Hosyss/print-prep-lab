@@ -120,4 +120,5 @@ jobs:
           retention-days: 1
 
       - name: Confirm discovery is read-only
-        run: echo 'Read-only discovery only: no Cloudflare API mutations, no deployment, no D1 writes, no main/Production writes.' >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo 'Read-only discovery only: no Cloudflare API mutations, no deployment, no D1 writes, no main/Production writes.' >> "$GITHUB_STEP_SUMMARY"
