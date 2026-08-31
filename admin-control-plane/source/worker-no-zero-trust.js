@@ -16,6 +16,11 @@ const ADMIN_SESSION_SECONDS = 30 * 60;
 const SETUP_SESSION_SECONDS = 10 * 60;
 const LOGIN_WINDOW_SECONDS = 10 * 60;
 const LOGIN_ATTEMPT_LIMIT = 5;
+const ADMIN_WRITE_LEASE_KEY = "admin-write-lease-v1";
+const ADMIN_WRITE_LEASE_WINDOW = 0;
+const ADMIN_WRITE_LEASE_SECONDS = 15;
+const ADMIN_WRITE_LEASE_ATTEMPTS = 80;
+const ADMIN_WRITE_LEASE_DELAY_MS = 25;
 
 const DEFAULT_CONFIG = Object.freeze({
   brand: { name: "Print Prep Lab", defaultLocale: "en", secondaryLocale: "ar" },
@@ -368,6 +373,36 @@ function databaseChanges(result) {
   return Number(result?.meta?.changes ?? result?.changes ?? 0);
 }
 
+function adminWriteLeaseToken() {
+  const value = crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
+  return value || 1;
+}
+
+async function withAdminWriteLease(env, operation) {
+  const token = adminWriteLeaseToken();
+  for (let attempt = 0; attempt < ADMIN_WRITE_LEASE_ATTEMPTS; attempt += 1) {
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = now + ADMIN_WRITE_LEASE_SECONDS;
+    const result = await env.DB.prepare(
+      "INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, ?, ?, ?) ON CONFLICT(key, window_start) DO UPDATE SET count = excluded.count, expires_at = excluded.expires_at WHERE rate_limits.expires_at <= ?",
+    ).bind(ADMIN_WRITE_LEASE_KEY, ADMIN_WRITE_LEASE_WINDOW, token, expiresAt, now).run();
+    if (databaseChanges(result) === 1) {
+      try {
+        return await operation();
+      } finally {
+        try {
+          await env.DB.prepare("DELETE FROM rate_limits WHERE key = ? AND window_start = ? AND count = ?")
+            .bind(ADMIN_WRITE_LEASE_KEY, ADMIN_WRITE_LEASE_WINDOW, token).run();
+        } catch {
+          // Lease expiry provides bounded recovery if cleanup cannot complete.
+        }
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, ADMIN_WRITE_LEASE_DELAY_MS));
+  }
+  throw new HttpError(503, "Another protected administrative write is finishing. Try again shortly.", "admin_write_busy", { "Retry-After": "1" });
+}
+
 async function auditRecord(env, auth, requestId, action, resource, metadata) {
   const previous = await env.DB.prepare("SELECT entry_hash FROM audit_log ORDER BY rowid DESC LIMIT 1").first();
   const record = {
@@ -484,15 +519,17 @@ async function totpRow(env) {
 }
 
 async function createTotpSetup(env) {
-  const existing = await totpRow(env);
-  if (existing?.verified_at) throw new HttpError(409, "TOTP is already configured.", "totp_already_configured");
-  if (existing) return decryptTotpSecret(existing, env);
-  const secret = base32Encode(crypto.getRandomValues(new Uint8Array(20)));
-  const encrypted = await encryptTotpSecret(secret, env);
-  await env.DB.prepare(
-    "INSERT INTO auth_settings (id, ciphertext, iv, created_at, verified_at) VALUES ('totp', ?, ?, ?, NULL)",
-  ).bind(encrypted.ciphertext, encrypted.iv, new Date().toISOString()).run();
-  return secret;
+  return withAdminWriteLease(env, async () => {
+    const existing = await totpRow(env);
+    if (existing?.verified_at) throw new HttpError(409, "TOTP is already configured.", "totp_already_configured");
+    if (existing) return decryptTotpSecret(existing, env);
+    const secret = base32Encode(crypto.getRandomValues(new Uint8Array(20)));
+    const encrypted = await encryptTotpSecret(secret, env);
+    await env.DB.prepare(
+      "INSERT INTO auth_settings (id, ciphertext, iv, created_at, verified_at) VALUES ('totp', ?, ?, ?, NULL)",
+    ).bind(encrypted.ciphertext, encrypted.iv, new Date().toISOString()).run();
+    return secret;
+  });
 }
 
 async function handleLogin(request, env, origin, requestId) {
@@ -517,8 +554,10 @@ async function handleLogin(request, env, origin, requestId) {
     }
     await clearFailedLogin(loginBucket, env);
     const auth = { email };
-    const audit = await auditRecord(env, auth, requestId, "auth.login", "session", { mfa: "totp" });
-    await auditStatement(env, audit).run();
+    await withAdminWriteLease(env, async () => {
+      const audit = await auditRecord(env, auth, requestId, "auth.login", "session", { mfa: "totp" });
+      await auditStatement(env, audit).run();
+    });
     const token = await signSession(email, "admin", env);
     return jsonResponse(
       { ok: true, authenticated: true, mfa: "totp" },
@@ -554,21 +593,26 @@ async function handleTotpConfirm(request, env, origin, requestId) {
   requireJsonWrite(request, origin);
   const auth = await authenticate(request, env, "totp-setup");
   const body = await readJson(request);
-  const row = await totpRow(env);
-  if (!row || row.verified_at) throw new HttpError(409, "TOTP setup is not available.", "totp_setup_unavailable");
-  if (!await verifyTotp(await decryptTotpSecret(row, env), String(body.totp || ""))) {
-    throw new HttpError(401, "Authenticator code was rejected.", "invalid_totp");
-  }
-  const verifiedAt = new Date().toISOString();
-  await env.DB.prepare("UPDATE auth_settings SET verified_at = ? WHERE id = 'totp' AND verified_at IS NULL").bind(verifiedAt).run();
-  const audit = await auditRecord(env, auth, requestId, "auth.totp.enroll", "totp", { verifiedAt });
-  await auditStatement(env, audit).run();
-  const token = await signSession(auth.email, "admin", env);
-  return jsonResponse(
-    { ok: true, authenticated: true, mfa: "totp" },
-    200,
-    { "Set-Cookie": sessionCookie(token, ADMIN_SESSION_SECONDS) },
-  );
+  return withAdminWriteLease(env, async () => {
+    const row = await totpRow(env);
+    if (!row || row.verified_at) throw new HttpError(409, "TOTP setup is not available.", "totp_setup_unavailable");
+    if (!await verifyTotp(await decryptTotpSecret(row, env), String(body.totp || ""))) {
+      throw new HttpError(401, "Authenticator code was rejected.", "invalid_totp");
+    }
+    const verifiedAt = new Date().toISOString();
+    const audit = await auditRecord(env, auth, requestId, "auth.totp.enroll", "totp", { verifiedAt });
+    const results = await env.DB.batch([
+      env.DB.prepare("UPDATE auth_settings SET verified_at = ? WHERE id = 'totp' AND verified_at IS NULL").bind(verifiedAt),
+      auditStatement(env, audit),
+    ]);
+    if (databaseChanges(results[0]) !== 1) throw new HttpError(409, "TOTP setup is not available.", "totp_setup_unavailable");
+    const token = await signSession(auth.email, "admin", env);
+    return jsonResponse(
+      { ok: true, authenticated: true, mfa: "totp" },
+      200,
+      { "Set-Cookie": sessionCookie(token, ADMIN_SESSION_SECONDS) },
+    );
+  });
 }
 
 async function saveConfig(env, auth, requestId, body) {
@@ -579,23 +623,25 @@ async function saveConfig(env, auth, requestId, body) {
   } catch (error) {
     throw new HttpError(400, error instanceof Error ? error.message : "Configuration was rejected.", "invalid_config");
   }
-  const current = await currentConfig(env);
-  if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before saving.", "revision_conflict");
-  const payload = canonicalStringify(config);
-  const checksum = await sha256Hex(payload);
-  const revision = expectedRevision + 1;
-  const now = new Date().toISOString();
-  const backupId = crypto.randomUUID();
-  const audit = await auditRecord(env, auth, requestId, "config.update", "draft", { fromRevision: current.revision, toRevision: revision, checksum });
-  const results = await env.DB.batch([
-    env.DB.prepare("INSERT INTO backups (id, kind, revision, payload, checksum, created_by, created_at) VALUES (?, 'update', ?, ?, ?, ?, ?)")
-      .bind(backupId, current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
-    env.DB.prepare("INSERT INTO configs (id, revision, payload, checksum, updated_by, updated_at) VALUES ('draft', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET revision = excluded.revision, payload = excluded.payload, checksum = excluded.checksum, updated_by = excluded.updated_by, updated_at = excluded.updated_at WHERE configs.revision = ?")
-      .bind(revision, payload, checksum, auth.email, now, expectedRevision),
-    auditStatement(env, audit),
-  ]);
-  if (databaseChanges(results[1]) !== 1) throw new HttpError(409, "The draft changed in another session. Reload before saving.", "revision_conflict");
-  return { revision, config, checksum, updatedBy: auth.email, updatedAt: now };
+  return withAdminWriteLease(env, async () => {
+    const current = await currentConfig(env);
+    if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before saving.", "revision_conflict");
+    const payload = canonicalStringify(config);
+    const checksum = await sha256Hex(payload);
+    const revision = expectedRevision + 1;
+    const now = new Date().toISOString();
+    const backupId = crypto.randomUUID();
+    const audit = await auditRecord(env, auth, requestId, "config.update", "draft", { fromRevision: current.revision, toRevision: revision, checksum });
+    const results = await env.DB.batch([
+      env.DB.prepare("INSERT INTO backups (id, kind, revision, payload, checksum, created_by, created_at) VALUES (?, 'update', ?, ?, ?, ?, ?)")
+        .bind(backupId, current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
+      env.DB.prepare("INSERT INTO configs (id, revision, payload, checksum, updated_by, updated_at) VALUES ('draft', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET revision = excluded.revision, payload = excluded.payload, checksum = excluded.checksum, updated_by = excluded.updated_by, updated_at = excluded.updated_at WHERE configs.revision = ?")
+        .bind(revision, payload, checksum, auth.email, now, expectedRevision),
+      auditStatement(env, audit),
+    ]);
+    if (databaseChanges(results[1]) !== 1) throw new HttpError(409, "The draft changed in another session. Reload before saving.", "revision_conflict");
+    return { revision, config, checksum, updatedBy: auth.email, updatedAt: now };
+  });
 }
 
 async function listBackups(env) {
@@ -614,36 +660,38 @@ async function listBackups(env) {
 async function restoreBackup(env, auth, requestId, backupId, body) {
   if (!/^[0-9a-f-]{36}$/i.test(backupId)) throw new HttpError(404, "Backup was not found.", "not_found");
   const expectedRevision = integerRevision(body.expectedRevision);
-  const current = await currentConfig(env);
-  if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before restoring.", "revision_conflict");
-  const backup = await env.DB.prepare("SELECT id, revision, payload, checksum FROM backups WHERE id = ?").bind(backupId).first();
-  if (!backup) throw new HttpError(404, "Backup was not found.", "not_found");
-  if (!timingSafeEqual(await sha256Hex(String(backup.payload)), backup.checksum)) throw new HttpError(409, "Backup integrity verification failed.", "storage_integrity_error");
-  let config;
-  try {
-    config = validateConfig(JSON.parse(backup.payload));
-  } catch {
-    throw new HttpError(409, "Backup configuration validation failed.", "storage_integrity_error");
-  }
-  const payload = canonicalStringify(config);
-  const checksum = await sha256Hex(payload);
-  const revision = expectedRevision + 1;
-  const now = new Date().toISOString();
-  const audit = await auditRecord(env, auth, requestId, "config.restore", `backup:${backupId}`, {
-    fromRevision: current.revision,
-    backupRevision: Number(backup.revision),
-    toRevision: revision,
-    checksum,
+  return withAdminWriteLease(env, async () => {
+    const current = await currentConfig(env);
+    if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before restoring.", "revision_conflict");
+    const backup = await env.DB.prepare("SELECT id, revision, payload, checksum FROM backups WHERE id = ?").bind(backupId).first();
+    if (!backup) throw new HttpError(404, "Backup was not found.", "not_found");
+    if (!timingSafeEqual(await sha256Hex(String(backup.payload)), backup.checksum)) throw new HttpError(409, "Backup integrity verification failed.", "storage_integrity_error");
+    let config;
+    try {
+      config = validateConfig(JSON.parse(backup.payload));
+    } catch {
+      throw new HttpError(409, "Backup configuration validation failed.", "storage_integrity_error");
+    }
+    const payload = canonicalStringify(config);
+    const checksum = await sha256Hex(payload);
+    const revision = expectedRevision + 1;
+    const now = new Date().toISOString();
+    const audit = await auditRecord(env, auth, requestId, "config.restore", `backup:${backupId}`, {
+      fromRevision: current.revision,
+      backupRevision: Number(backup.revision),
+      toRevision: revision,
+      checksum,
+    });
+    const results = await env.DB.batch([
+      env.DB.prepare("INSERT INTO backups (id, kind, revision, payload, checksum, created_by, created_at) VALUES (?, 'restore', ?, ?, ?, ?, ?)")
+        .bind(crypto.randomUUID(), current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
+      env.DB.prepare("UPDATE configs SET revision = ?, payload = ?, checksum = ?, updated_by = ?, updated_at = ? WHERE id = 'draft' AND revision = ?")
+        .bind(revision, payload, checksum, auth.email, now, expectedRevision),
+      auditStatement(env, audit),
+    ]);
+    if (databaseChanges(results[1]) !== 1) throw new HttpError(409, "The draft changed in another session. Reload before restoring.", "revision_conflict");
+    return { revision, config, checksum, updatedBy: auth.email, updatedAt: now };
   });
-  const results = await env.DB.batch([
-    env.DB.prepare("INSERT INTO backups (id, kind, revision, payload, checksum, created_by, created_at) VALUES (?, 'restore', ?, ?, ?, ?, ?)")
-      .bind(crypto.randomUUID(), current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
-    env.DB.prepare("UPDATE configs SET revision = ?, payload = ?, checksum = ?, updated_by = ?, updated_at = ? WHERE id = 'draft' AND revision = ?")
-      .bind(revision, payload, checksum, auth.email, now, expectedRevision),
-    auditStatement(env, audit),
-  ]);
-  if (databaseChanges(results[1]) !== 1) throw new HttpError(409, "The draft changed in another session. Reload before restoring.", "revision_conflict");
-  return { revision, config, checksum, updatedBy: auth.email, updatedAt: now };
 }
 
 async function publishSnapshot(env, auth, requestId, body) {
@@ -651,29 +699,31 @@ async function publishSnapshot(env, auth, requestId, body) {
   if (!timingSafeEqual(String(body.confirmation || ""), PUBLISH_CONFIRMATION)) {
     throw new HttpError(400, "The publication confirmation phrase is incorrect.", "confirmation_required");
   }
-  const current = await currentConfig(env);
-  if (current.revision === 0) throw new HttpError(409, "Save a draft before publishing.", "draft_required");
-  if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before publishing.", "revision_conflict");
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-  const audit = await auditRecord(env, auth, requestId, "snapshot.publish", `snapshot:${id}`, {
-    revision: current.revision,
-    checksum: current.checksum,
-    publicIntegration: false,
+  return withAdminWriteLease(env, async () => {
+    const current = await currentConfig(env);
+    if (current.revision === 0) throw new HttpError(409, "Save a draft before publishing.", "draft_required");
+    if (current.revision !== expectedRevision) throw new HttpError(409, "The draft changed in another session. Reload before publishing.", "revision_conflict");
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const audit = await auditRecord(env, auth, requestId, "snapshot.publish", `snapshot:${id}`, {
+      revision: current.revision,
+      checksum: current.checksum,
+      publicIntegration: false,
+    });
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO published_snapshots (id, revision, payload, checksum, published_by, published_at) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(id, current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
+      auditStatement(env, audit),
+    ]);
+    return {
+      id,
+      revision: current.revision,
+      checksum: current.checksum,
+      publishedBy: auth.email,
+      publishedAt: now,
+      publicIntegration: false,
+    };
   });
-  await env.DB.batch([
-    env.DB.prepare("INSERT INTO published_snapshots (id, revision, payload, checksum, published_by, published_at) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(id, current.revision, canonicalStringify(current.config), current.checksum, auth.email, now),
-    auditStatement(env, audit),
-  ]);
-  return {
-    id,
-    revision: current.revision,
-    checksum: current.checksum,
-    publishedBy: auth.email,
-    publishedAt: now,
-    publicIntegration: false,
-  };
 }
 
 async function listAudit(env) {
