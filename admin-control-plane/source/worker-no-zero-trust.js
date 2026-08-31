@@ -183,18 +183,25 @@ async function hmacHex(secret, value, hash = "SHA-256") {
   return bytesToHex(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
 }
 
+async function sessionCredentialBinding(env) {
+  const sessionSecret = requireSecret(env.SESSION_SECRET, "SESSION_SECRET");
+  const password = requirePassword(env.ADMIN_PASSWORD);
+  return (await hmacHex(sessionSecret, `credential-binding:v1:${password}`)).slice(0, 32);
+}
+
 async function signSession(email, purpose, env, nowSeconds = Math.floor(Date.now() / 1000)) {
   const ttl = purpose === "totp-setup" ? SETUP_SESSION_SECONDS : ADMIN_SESSION_SECONDS;
   const payload = {
-    v: 1,
+    v: 2,
     email,
     purpose,
+    credentialBinding: await sessionCredentialBinding(env),
     iat: nowSeconds,
     exp: nowSeconds + ttl,
     jti: crypto.randomUUID(),
   };
   const encoded = bytesToBase64Url(encoder.encode(JSON.stringify(payload)));
-  const signature = await hmacHex(requireSecret(env.SESSION_SECRET, "SESSION_SECRET"), `session:v1:${encoded}`);
+  const signature = await hmacHex(requireSecret(env.SESSION_SECRET, "SESSION_SECRET"), `session:v2:${encoded}`);
   return `${encoded}.${signature}`;
 }
 
@@ -203,7 +210,7 @@ async function verifySessionToken(token, env, expectedPurpose, nowSeconds = Math
   if (parts.length !== 2 || !/^[0-9a-f]{64}$/.test(parts[1])) {
     throw new HttpError(401, "Admin session is required.", "session_required");
   }
-  const expected = await hmacHex(requireSecret(env.SESSION_SECRET, "SESSION_SECRET"), `session:v1:${parts[0]}`);
+  const expected = await hmacHex(requireSecret(env.SESSION_SECRET, "SESSION_SECRET"), `session:v2:${parts[0]}`);
   if (!timingSafeEqual(parts[1], expected)) throw new HttpError(401, "Admin session was rejected.", "invalid_session");
   let payload;
   try {
@@ -211,10 +218,15 @@ async function verifySessionToken(token, env, expectedPurpose, nowSeconds = Math
   } catch {
     throw new HttpError(401, "Admin session was rejected.", "invalid_session");
   }
-  if (payload?.v !== 1 || payload?.purpose !== expectedPurpose || !Number.isInteger(payload?.iat) || !Number.isInteger(payload?.exp)) {
+  if (payload?.v !== 2 || payload?.purpose !== expectedPurpose || !Number.isInteger(payload?.iat) || !Number.isInteger(payload?.exp)) {
     throw new HttpError(401, "Admin session was rejected.", "invalid_session");
   }
-  if (payload.iat > nowSeconds + 30 || payload.exp <= nowSeconds || payload.exp - payload.iat > ADMIN_SESSION_SECONDS + 30) {
+  const expectedCredentialBinding = await sessionCredentialBinding(env);
+  if (!timingSafeEqual(String(payload.credentialBinding || ""), expectedCredentialBinding)) {
+    throw new HttpError(401, "Admin session was revoked by a credential change.", "invalid_session");
+  }
+  const maxTtl = expectedPurpose === "totp-setup" ? SETUP_SESSION_SECONDS : ADMIN_SESSION_SECONDS;
+  if (payload.iat > nowSeconds + 30 || payload.exp <= nowSeconds || payload.exp - payload.iat > maxTtl + 30) {
     throw new HttpError(401, "Admin session expired.", "invalid_session");
   }
   const email = String(payload.email || "").trim().toLowerCase();
