@@ -433,19 +433,35 @@ async function requireCsrf(request, auth, env) {
   if (!supplied || !timingSafeEqual(supplied, expected)) throw new HttpError(403, "CSRF verification failed.", "csrf_rejected");
 }
 
-async function loginRateLimit(request, env) {
+async function loginRateBucket(request, env) {
   if (!env.DB?.prepare) throw new HttpError(503, "Admin database is not configured.", "runtime_not_configured");
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  const key = await hmacHex(requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"), `login:v1:${ip}`);
+  const key = await hmacHex(requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"), `login:v2:${ip}`);
   const now = Math.floor(Date.now() / 1000);
   const windowStart = Math.floor(now / LOGIN_WINDOW_SECONDS) * LOGIN_WINDOW_SECONDS;
+  return { key, now, windowStart, expiresAt: windowStart + LOGIN_WINDOW_SECONDS * 2 };
+}
+
+async function enforceLoginRateLimit(request, env) {
+  const bucket = await loginRateBucket(request, env);
+  const row = await env.DB.prepare("SELECT count FROM rate_limits WHERE key = ? AND window_start = ?")
+    .bind(bucket.key, bucket.windowStart).first();
+  if (Number(row?.count || 0) >= LOGIN_ATTEMPT_LIMIT) {
+    const retryAfter = Math.max(1, bucket.windowStart + LOGIN_WINDOW_SECONDS - bucket.now);
+    throw new HttpError(429, "Too many failed sign-in attempts. Try again later.", "rate_limited", { "Retry-After": String(retryAfter) });
+  }
+  return bucket;
+}
+
+async function recordFailedLogin(bucket, env) {
   await env.DB.prepare(
     "INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, ?, 1, ?) ON CONFLICT(key, window_start) DO UPDATE SET count = count + 1, expires_at = excluded.expires_at",
-  ).bind(key, windowStart, windowStart + LOGIN_WINDOW_SECONDS * 2).run();
-  const row = await env.DB.prepare("SELECT count FROM rate_limits WHERE key = ? AND window_start = ?").bind(key, windowStart).first();
-  if (Number(row?.count || 0) > LOGIN_ATTEMPT_LIMIT) {
-    throw new HttpError(429, "Too many sign-in attempts. Try again later.", "rate_limited", { "Retry-After": String(LOGIN_WINDOW_SECONDS) });
-  }
+  ).bind(bucket.key, bucket.windowStart, bucket.expiresAt).run();
+}
+
+async function clearFailedLogin(bucket, env) {
+  await env.DB.prepare("DELETE FROM rate_limits WHERE key = ? AND window_start = ?")
+    .bind(bucket.key, bucket.windowStart).run();
 }
 
 async function rateLimit(request, env, auth, write) {
@@ -480,20 +496,25 @@ async function createTotpSetup(env) {
 
 async function handleLogin(request, env, origin, requestId) {
   requireJsonWrite(request, origin);
-  await loginRateLimit(request, env);
+  const loginBucket = await enforceLoginRateLimit(request, env);
   const body = await readJson(request);
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
   const validIdentity = allowedEmails(env.ADMIN_EMAILS).has(email);
   const validPassword = timingSafeEqual(password, requirePassword(env.ADMIN_PASSWORD));
-  if (!validIdentity || !validPassword) throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");
+  if (!validIdentity || !validPassword) {
+    await recordFailedLogin(loginBucket, env);
+    throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");
+  }
 
   const row = await totpRow(env);
   if (row?.verified_at) {
     if (!body.totp) throw new HttpError(401, "Authenticator code is required.", "totp_required");
     if (!await verifyTotp(await decryptTotpSecret(row, env), String(body.totp))) {
+      await recordFailedLogin(loginBucket, env);
       throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");
     }
+    await clearFailedLogin(loginBucket, env);
     const auth = { email };
     const audit = await auditRecord(env, auth, requestId, "auth.login", "session", { mfa: "totp" });
     await auditStatement(env, audit).run();
@@ -505,6 +526,7 @@ async function handleLogin(request, env, origin, requestId) {
     );
   }
 
+  await clearFailedLogin(loginBucket, env);
   const token = await signSession(email, "totp-setup", env);
   return jsonResponse(
     { ok: true, authenticated: false, setupRequired: true },
