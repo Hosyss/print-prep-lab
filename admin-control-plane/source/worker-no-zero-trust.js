@@ -303,13 +303,18 @@ async function totpCode(secret, step) {
   return String(number % 1_000_000).padStart(6, "0");
 }
 
-async function verifyTotp(secret, code, nowMs = Date.now()) {
-  if (!/^\d{6}$/.test(String(code || ""))) return false;
-  const step = Math.floor(nowMs / 30_000);
+async function verifyTotpStep(secret, code, nowMs = Date.now()) {
+  if (!/^\d{6}$/.test(String(code || ""))) return null;
+  const currentStep = Math.floor(nowMs / 30_000);
   for (const delta of [-1, 0, 1]) {
-    if (timingSafeEqual(await totpCode(secret, step + delta), String(code))) return true;
+    const candidateStep = currentStep + delta;
+    if (timingSafeEqual(await totpCode(secret, candidateStep), String(code))) return candidateStep;
   }
-  return false;
+  return null;
+}
+
+async function verifyTotp(secret, code, nowMs = Date.now()) {
+  return Number.isInteger(await verifyTotpStep(secret, code, nowMs));
 }
 
 async function aesKey(env) {
@@ -512,6 +517,17 @@ async function clearFailedLogin(bucket, env) {
     .bind(bucket.key, bucket.windowStart).run();
 }
 
+async function claimTotpStep(env, email, step) {
+  if (!Number.isInteger(step) || step < 0) throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");
+  const key = await hmacHex(requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"), `totp-replay:v1:${email}`);
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = Math.max(now + 120, (step + 3) * 30);
+  const result = await env.DB.prepare(
+    "INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, ?, 1, ?) ON CONFLICT(key, window_start) DO NOTHING",
+  ).bind(key, step, expiresAt).run();
+  return databaseChanges(result) === 1;
+}
+
 async function rateLimit(request, env, auth, write) {
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const identityKey = await hmacHex(requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"), `rate:v3:${auth.email}:${ip}:${write ? "write" : "read"}`);
@@ -560,16 +576,21 @@ async function handleLogin(request, env, origin, requestId) {
   const row = await totpRow(env);
   if (row?.verified_at) {
     if (!body.totp) throw new HttpError(401, "Authenticator code is required.", "totp_required");
-    if (!await verifyTotp(await decryptTotpSecret(row, env), String(body.totp))) {
+    const secret = await decryptTotpSecret(row, env);
+    const matchedStep = await verifyTotpStep(secret, String(body.totp));
+    if (!Number.isInteger(matchedStep)) {
       await recordFailedLogin(loginBucket, env);
       throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");
     }
-    await clearFailedLogin(loginBucket, env);
     const auth = { email };
     await withAdminWriteLease(env, async () => {
+      if (!await claimTotpStep(env, email, matchedStep)) {
+        throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");
+      }
       const audit = await auditRecord(env, auth, requestId, "auth.login", "session", { mfa: "totp" });
       await auditStatement(env, audit).run();
     });
+    await clearFailedLogin(loginBucket, env);
     const token = await signSession(email, "admin", env);
     return jsonResponse(
       { ok: true, authenticated: true, mfa: "totp" },
@@ -877,5 +898,6 @@ export {
   signSession,
   verifySessionToken,
   totpCode,
+  verifyTotpStep,
   verifyTotp,
 };
