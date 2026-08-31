@@ -1,0 +1,123 @@
+name: Admin live route discovery
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-live-route-discovery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out isolated Admin branch
+        uses: actions/checkout@v4
+
+      - name: Build read-only live route inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import html
+          import json
+          import pathlib
+          import re
+          import urllib.parse
+          import urllib.request
+          import xml.etree.ElementTree as ET
+
+          base = 'https://printpreplab.pages.dev'
+          catalog = json.loads(pathlib.Path('admin-control-plane/source/public/site-catalog.json').read_text(encoding='utf-8'))
+          existing = {page['route']: page for page in catalog['pages']}
+
+          def get(url):
+              req = urllib.request.Request(url, headers={'User-Agent': 'PrintPrepLabAdminAudit/1.0'})
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  return response.status, response.read(), response.headers.get('content-type', '')
+
+          _, sitemap_body, _ = get(base + '/sitemap.xml')
+          root = ET.fromstring(sitemap_body)
+          routes = []
+          for node in root.iter():
+              if node.tag.endswith('loc') and node.text:
+                  route = urllib.parse.urlparse(node.text.strip()).path or '/'
+                  if route != '/' and route.endswith('/'):
+                      route = route[:-1]
+                  routes.append(route)
+
+          def text_match(pattern, text):
+              m = re.search(pattern, text, flags=re.I | re.S)
+              if not m:
+                  return ''
+              value = re.sub(r'<[^>]+>', ' ', m.group(1))
+              value = html.unescape(re.sub(r'\s+', ' ', value)).strip()
+              return value
+
+          inventory = []
+          for route in sorted(set(routes)):
+              status, body, content_type = get(base + route)
+              decoded = body.decode('utf-8', errors='replace')
+              title = text_match(r'<title[^>]*>(.*?)</title>', decoded)
+              h1 = text_match(r'<h1[^>]*>(.*?)</h1>', decoded)
+              description = ''
+              m = re.search(r'<meta[^>]+name=["\']description["\'][^>]+content=["\'](.*?)["\']', decoded, flags=re.I | re.S)
+              if not m:
+                  m = re.search(r'<meta[^>]+content=["\'](.*?)["\'][^>]+name=["\']description["\']', decoded, flags=re.I | re.S)
+              if m:
+                  description = html.unescape(re.sub(r'\s+', ' ', m.group(1))).strip()
+              if route.startswith('/tools/'):
+                  kind = 'tool'
+              elif route.startswith('/guides/'):
+                  kind = 'guide'
+              elif route.startswith('/sizes/'):
+                  kind = 'size'
+              elif route in {'/tools', '/guides', '/sizes', '/'}:
+                  kind = 'hub'
+              elif route in {'/privacy', '/terms', '/contact'}:
+                  kind = 'policy'
+              else:
+                  kind = 'trust'
+              inventory.append({
+                  'route': route,
+                  'title': title or h1 or route,
+                  'h1': h1,
+                  'description': description,
+                  'kind': kind,
+                  'status': status,
+                  'contentType': content_type,
+                  'alreadyManaged': route in existing,
+                  'source': 'live-production-sitemap',
+              })
+
+          missing = [item for item in inventory if not item['alreadyManaged']]
+          pathlib.Path('/tmp/live-route-inventory.json').write_text(json.dumps({
+              'productionOrigin': base,
+              'sitemapCount': len(inventory),
+              'existingAdminCount': len(existing),
+              'missingFromAdminCount': len(missing),
+              'missingFromAdmin': missing,
+              'sitemapInventory': inventory,
+          }, ensure_ascii=False, indent=2), encoding='utf-8')
+          print(f'Live sitemap routes: {len(inventory)}')
+          print(f'Routes missing from Admin: {len(missing)}')
+          for item in missing:
+              print(f"{item['kind']}\t{item['route']}\t{item['title']}")
+          PY
+
+      - name: Upload discovery artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-live-route-inventory
+          path: /tmp/live-route-inventory.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Confirm discovery is read-only
+        run: echo 'Read-only discovery only: no Cloudflare API mutations, no deployment, no D1 writes, no main/Production writes.' >> "$GITHUB_STEP_SUMMARY"
