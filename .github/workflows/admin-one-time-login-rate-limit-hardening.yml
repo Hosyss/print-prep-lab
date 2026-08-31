@@ -1,0 +1,251 @@
+name: Admin one-time failed-login rate-limit hardening
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-one-time-login-rate-limit-hardening.yml
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/admin-control-plane-no-zero-trust-20260831
+          fetch-depth: 0
+
+      - name: Patch failed-login-only rate limiting and add runtime regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('admin-control-plane/source/worker-no-zero-trust.js')
+          source = source_path.read_text()
+
+          old_rate = '''async function loginRateLimit(request, env) {
+            if (!env.DB?.prepare) throw new HttpError(503, "Admin database is not configured.", "runtime_not_configured");
+            const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+            const key = await hmacHex(requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"), `login:v1:${ip}`);
+            const now = Math.floor(Date.now() / 1000);
+            const windowStart = Math.floor(now / LOGIN_WINDOW_SECONDS) * LOGIN_WINDOW_SECONDS;
+            await env.DB.prepare(
+              "INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, ?, 1, ?) ON CONFLICT(key, window_start) DO UPDATE SET count = count + 1, expires_at = excluded.expires_at",
+            ).bind(key, windowStart, windowStart + LOGIN_WINDOW_SECONDS * 2).run();
+            const row = await env.DB.prepare("SELECT count FROM rate_limits WHERE key = ? AND window_start = ?").bind(key, windowStart).first();
+            if (Number(row?.count || 0) > LOGIN_ATTEMPT_LIMIT) {
+              throw new HttpError(429, "Too many sign-in attempts. Try again later.", "rate_limited", { "Retry-After": String(LOGIN_WINDOW_SECONDS) });
+            }
+          }
+          '''
+          new_rate = '''async function loginRateBucket(request, env) {
+            if (!env.DB?.prepare) throw new HttpError(503, "Admin database is not configured.", "runtime_not_configured");
+            const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+            const key = await hmacHex(requireSecret(env.AUDIT_SECRET, "AUDIT_SECRET"), `login:v2:${ip}`);
+            const now = Math.floor(Date.now() / 1000);
+            const windowStart = Math.floor(now / LOGIN_WINDOW_SECONDS) * LOGIN_WINDOW_SECONDS;
+            return { key, now, windowStart, expiresAt: windowStart + LOGIN_WINDOW_SECONDS * 2 };
+          }
+
+          async function enforceLoginRateLimit(request, env) {
+            const bucket = await loginRateBucket(request, env);
+            const row = await env.DB.prepare("SELECT count FROM rate_limits WHERE key = ? AND window_start = ?")
+              .bind(bucket.key, bucket.windowStart).first();
+            if (Number(row?.count || 0) >= LOGIN_ATTEMPT_LIMIT) {
+              const retryAfter = Math.max(1, bucket.windowStart + LOGIN_WINDOW_SECONDS - bucket.now);
+              throw new HttpError(429, "Too many failed sign-in attempts. Try again later.", "rate_limited", { "Retry-After": String(retryAfter) });
+            }
+            return bucket;
+          }
+
+          async function recordFailedLogin(bucket, env) {
+            await env.DB.prepare(
+              "INSERT INTO rate_limits (key, window_start, count, expires_at) VALUES (?, ?, 1, ?) ON CONFLICT(key, window_start) DO UPDATE SET count = count + 1, expires_at = excluded.expires_at",
+            ).bind(bucket.key, bucket.windowStart, bucket.expiresAt).run();
+          }
+
+          async function clearFailedLogin(bucket, env) {
+            await env.DB.prepare("DELETE FROM rate_limits WHERE key = ? AND window_start = ?")
+              .bind(bucket.key, bucket.windowStart).run();
+          }
+          '''
+          if source.count(old_rate) != 1:
+              raise SystemExit('Expected exactly one legacy loginRateLimit block.')
+          source = source.replace(old_rate, new_rate)
+
+          replacements = [
+              ('  await loginRateLimit(request, env);\n', '  const loginBucket = await enforceLoginRateLimit(request, env);\n'),
+              ('  if (!validIdentity || !validPassword) throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");\n',
+               '  if (!validIdentity || !validPassword) {\n    await recordFailedLogin(loginBucket, env);\n    throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");\n  }\n'),
+              ('    if (!await verifyTotp(await decryptTotpSecret(row, env), String(body.totp))) {\n      throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");\n    }\n    const auth = { email };\n',
+               '    if (!await verifyTotp(await decryptTotpSecret(row, env), String(body.totp))) {\n      await recordFailedLogin(loginBucket, env);\n      throw new HttpError(401, "The sign-in details were rejected.", "invalid_credentials");\n    }\n    await clearFailedLogin(loginBucket, env);\n    const auth = { email };\n'),
+              ('\n  const token = await signSession(email, "totp-setup", env);\n  return jsonResponse(\n',
+               '\n  await clearFailedLogin(loginBucket, env);\n  const token = await signSession(email, "totp-setup", env);\n  return jsonResponse(\n'),
+          ]
+          for old, new in replacements:
+              if source.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one source replacement, found {source.count(old)} for {old[:60]!r}')
+              source = source.replace(old, new)
+
+          source_path.write_text(source)
+
+          test_path = Path('admin-control-plane/source/tests/login-rate-limit.test.mjs')
+          test_path.write_text(r'''import test from "node:test";
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import { DatabaseSync } from "node:sqlite";
+          import { fileURLToPath } from "node:url";
+          import worker, { totpCode } from "../worker-no-zero-trust.js";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const origin = "https://print-prep-lab-admin.test-account.workers.dev";
+
+          class TestD1Statement {
+            constructor(database, sql) { this.database = database; this.sql = sql; this.values = []; }
+            bind(...values) { this.values = values; return this; }
+            async first() { return this.database.prepare(this.sql).get(...this.values) || null; }
+            async all() { return { results: this.database.prepare(this.sql).all(...this.values) }; }
+            async run() {
+              const result = this.database.prepare(this.sql).run(...this.values);
+              return { meta: { changes: Number(result.changes) } };
+            }
+          }
+
+          class TestD1 {
+            constructor() {
+              this.database = new DatabaseSync(":memory:");
+              this.database.exec(fs.readFileSync(path.join(root, "schema.sql"), "utf8"));
+              this.database.exec(fs.readFileSync(path.join(root, "migrations/0002_auth_settings.sql"), "utf8"));
+            }
+            prepare(sql) { return new TestD1Statement(this.database, sql); }
+            async batch(statements) {
+              this.database.exec("BEGIN IMMEDIATE");
+              try {
+                const results = [];
+                for (const statement of statements) results.push(await statement.run());
+                this.database.exec("COMMIT");
+                return results;
+              } catch (error) {
+                this.database.exec("ROLLBACK");
+                throw error;
+              }
+            }
+            close() { this.database.close(); }
+          }
+
+          function envFor(database) {
+            return {
+              ADMIN_EMAILS: "owner@example.com",
+              ADMIN_PASSWORD: "A-very-long-owner-password-2026!",
+              CSRF_SECRET: "c".repeat(40),
+              AUDIT_SECRET: "a".repeat(40),
+              SESSION_SECRET: "s".repeat(40),
+              DB: database,
+            };
+          }
+
+          function loginRequest(body, ip = "203.0.113.40") {
+            return new Request(`${origin}/api/auth/login`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Origin: origin,
+                "Sec-Fetch-Site": "same-origin",
+                "CF-Connecting-IP": ip,
+              },
+              body: JSON.stringify(body),
+            });
+          }
+
+          function cookiePair(value) { return String(value || "").split(";", 1)[0]; }
+
+          async function enrollTotp(database, env) {
+            const first = await worker.fetch(loginRequest({ email: "owner@example.com", password: env.ADMIN_PASSWORD }, "203.0.113.30"), env);
+            assert.equal(first.status, 202);
+            const setupCookie = cookiePair(first.headers.get("Set-Cookie"));
+            const setup = await worker.fetch(new Request(`${origin}/api/auth/totp/setup`, { headers: { Cookie: setupCookie } }), env);
+            assert.equal(setup.status, 200);
+            const { secret } = await setup.json();
+            const code = await totpCode(secret, Math.floor(Date.now() / 30_000));
+            const confirm = await worker.fetch(new Request(`${origin}/api/auth/totp/confirm`, {
+              method: "POST",
+              headers: { Cookie: setupCookie, "Content-Type": "application/json", Origin: origin, "Sec-Fetch-Site": "same-origin" },
+              body: JSON.stringify({ totp: code }),
+            }), env);
+            assert.equal(confirm.status, 200);
+            return secret;
+          }
+
+          test("valid password requests waiting for TOTP do not consume the failed-login budget", async () => {
+            const database = new TestD1();
+            const env = envFor(database);
+            try {
+              await enrollTotp(database, env);
+              for (let attempt = 0; attempt < 8; attempt += 1) {
+                const response = await worker.fetch(loginRequest({ email: "owner@example.com", password: env.ADMIN_PASSWORD }), env);
+                assert.equal(response.status, 401);
+                assert.equal((await response.json()).error, "totp_required");
+              }
+              const rows = database.database.prepare("SELECT COUNT(*) AS count FROM rate_limits").get();
+              assert.equal(Number(rows.count), 0);
+            } finally {
+              database.close();
+            }
+          });
+
+          test("only failed credentials consume the login budget and successful MFA clears prior failures", async () => {
+            const database = new TestD1();
+            const env = envFor(database);
+            try {
+              const secret = await enrollTotp(database, env);
+              const ip = "203.0.113.50";
+              for (let attempt = 0; attempt < 3; attempt += 1) {
+                const response = await worker.fetch(loginRequest({ email: "owner@example.com", password: "wrong-password" }, ip), env);
+                assert.equal(response.status, 401);
+                assert.equal((await response.json()).error, "invalid_credentials");
+              }
+
+              const currentCode = await totpCode(secret, Math.floor(Date.now() / 30_000));
+              const success = await worker.fetch(loginRequest({ email: "owner@example.com", password: env.ADMIN_PASSWORD, totp: currentCode }, ip), env);
+              assert.equal(success.status, 200);
+              assert.equal(database.database.prepare("SELECT COUNT(*) AS count FROM rate_limits").get().count, 0);
+
+              for (let attempt = 0; attempt < 5; attempt += 1) {
+                const response = await worker.fetch(loginRequest({ email: "owner@example.com", password: "wrong-password" }, ip), env);
+                assert.equal(response.status, 401);
+              }
+              const blocked = await worker.fetch(loginRequest({ email: "owner@example.com", password: "wrong-password" }, ip), env);
+              assert.equal(blocked.status, 429);
+              assert.equal((await blocked.json()).error, "rate_limited");
+              const retryAfter = Number(blocked.headers.get("Retry-After"));
+              assert.ok(Number.isInteger(retryAfter) && retryAfter >= 1 && retryAfter <= 600);
+            } finally {
+              database.close();
+            }
+          });
+          '''.replace(/^          /gm, ''))
+          PY
+
+      - name: Run complete Admin test suite
+        working-directory: admin-control-plane/source
+        run: node --test tests/*.test.mjs
+
+      - name: Commit verified source and regression test
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Hossam eldeen"
+          git config user.email "52554618+Hosyss@users.noreply.github.com"
+          git add admin-control-plane/source/worker-no-zero-trust.js admin-control-plane/source/tests/login-rate-limit.test.mjs
+          git diff --cached --quiet && { echo "No source change to commit."; exit 1; }
+          git commit -m "security: count only failed admin login attempts"
+          git push origin HEAD:security/admin-control-plane-no-zero-trust-20260831
