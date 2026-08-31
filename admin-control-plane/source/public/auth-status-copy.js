@@ -1,6 +1,7 @@
 (() => {
   const chip = document.getElementById("access-status");
   const metric = document.getElementById("metric-access");
+  const identity = document.getElementById("admin-identity");
   const topbar = document.querySelector(".topbar-status");
   let csrfToken = "";
   let expiryTimer = 0;
@@ -66,6 +67,7 @@
 
   function installSignOut() {
     if (!topbar || document.getElementById("admin-sign-out")) return;
+    if (identity && window.matchMedia("(max-width: 620px)").matches) identity.hidden = true;
     const button = document.createElement("button");
     button.id = "admin-sign-out";
     button.type = "button";
