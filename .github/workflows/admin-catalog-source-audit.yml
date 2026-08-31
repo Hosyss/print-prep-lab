@@ -1,0 +1,113 @@
+name: Admin catalog source audit
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-catalog-source-audit.yml
+      - admin-control-plane/source/public/site-catalog.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out isolated Admin branch
+        uses: actions/checkout@v4
+
+      - name: Download pinned v118.6 recovery artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://raw.githubusercontent.com/Hosyss/print-prep-lab/07efaae843406f6cd9de74cb18ab5fffe2bf0a17/release-artifacts/v118.6/print-prep-lab-pages-20260830-v118-6-runtime-mobile-arabic-recovery.zip'
+          curl --fail --location --retry 3 --retry-all-errors --output /tmp/ppl-v118.6.zip "$url"
+          echo 'd5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625  /tmp/ppl-v118.6.zip' | sha256sum -c -
+
+      - name: Compare managed catalog to packaged HTML inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import pathlib
+          import urllib.parse
+          import xml.etree.ElementTree as ET
+          import zipfile
+
+          catalog = json.loads(pathlib.Path('admin-control-plane/source/public/site-catalog.json').read_text(encoding='utf-8'))
+          pages = catalog.get('pages', [])
+          assert catalog.get('count') == len(pages) == 66, f"catalog count mismatch: {catalog.get('count')} / {len(pages)}"
+
+          files = [str(page.get('file', '')) for page in pages]
+          routes = [str(page.get('route', '')) for page in pages]
+          assert len(set(files)) == 66, 'catalog file names are not unique'
+          assert len(set(routes)) == 66, 'catalog routes are not unique'
+          assert all(name.endswith('.html') and '/' not in name for name in files), 'catalog contains a non-HTML or nested file'
+          assert all(route.startswith('/') and '://' not in route for route in routes), 'catalog contains an unsafe route'
+
+          with zipfile.ZipFile('/tmp/ppl-v118.6.zip') as archive:
+              names = [name for name in archive.namelist() if not name.endswith('/')]
+              html_names = [name for name in names if name.lower().endswith('.html')]
+              html_basenames = [pathlib.PurePosixPath(name).name for name in html_names]
+              if len(html_basenames) != 66:
+                  raise AssertionError(f'expected 66 packaged HTML pages, found {len(html_basenames)}')
+              if len(set(html_basenames)) != 66:
+                  raise AssertionError('packaged HTML basenames are not unique')
+
+              missing = sorted(set(files) - set(html_basenames))
+              extra = sorted(set(html_basenames) - set(files))
+              if missing or extra:
+                  print('Catalog files missing from recovery ZIP:', missing)
+                  print('Recovery ZIP HTML files missing from catalog:', extra)
+                  raise AssertionError('Admin catalog does not exactly match the pinned v118.6 HTML inventory')
+
+              sitemap_candidates = [name for name in names if pathlib.PurePosixPath(name).name == 'sitemap.xml']
+              if len(sitemap_candidates) != 1:
+                  raise AssertionError(f'expected one sitemap.xml in recovery ZIP, found {len(sitemap_candidates)}')
+              root = ET.fromstring(archive.read(sitemap_candidates[0]))
+              locs = []
+              for node in root.iter():
+                  if node.tag.endswith('loc') and node.text:
+                      path = urllib.parse.urlparse(node.text.strip()).path or '/'
+                      if path != '/' and path.endswith('/'):
+                          path = path[:-1]
+                      locs.append(path)
+              sitemap_routes = set(locs)
+              catalog_routes = set(routes)
+              catalog_only = sorted(catalog_routes - sitemap_routes)
+              sitemap_only = sorted(sitemap_routes - catalog_routes)
+
+          print(f'Pinned recovery HTML pages: {len(html_basenames)}')
+          print(f'Admin managed pages: {len(files)}')
+          print('HTML inventory match: exact')
+          print(f'Packaged sitemap routes: {len(sitemap_routes)}')
+          print(f'Catalog routes absent from sitemap: {len(catalog_only)}')
+          for route in catalog_only:
+              print(f'  catalog-only: {route}')
+          print(f'Sitemap routes not represented as standalone managed HTML: {len(sitemap_only)}')
+          for route in sitemap_only:
+              print(f'  sitemap-only: {route}')
+
+          pathlib.Path('/tmp/catalog-audit-summary.md').write_text(
+              '## Admin catalog source audit\n\n'
+              '- Recovery commit: `07efaae843406f6cd9de74cb18ab5fffe2bf0a17`\n'
+              '- Recovery artifact SHA-256: `d5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625`\n'
+              f'- Packaged HTML pages: **{len(html_basenames)}**\n'
+              f'- Admin managed pages: **{len(files)}**\n'
+              '- HTML inventory: **exact match**\n'
+              f'- Packaged sitemap routes: **{len(sitemap_routes)}**\n'
+              f'- Catalog-only routes: **{len(catalog_only)}**\n'
+              f'- Sitemap-only routes: **{len(sitemap_only)}**\n',
+              encoding='utf-8',
+          )
+          PY
+          cat /tmp/catalog-audit-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Confirm audit is read-only
+        run: echo 'No Cloudflare API calls, deployments, D1 writes, main writes or Production mutations were performed.' >> "$GITHUB_STEP_SUMMARY"
