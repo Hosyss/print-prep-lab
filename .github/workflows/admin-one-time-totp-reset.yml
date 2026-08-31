@@ -1,0 +1,114 @@
+name: Admin one-time TOTP reset
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-one-time-totp-reset.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-admin-one-time-totp-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_D1_NAME: print-prep-lab-admin
+
+    steps:
+      - name: Check out isolated Admin branch
+        uses: actions/checkout@v4
+
+      - name: Enforce exact one-time reset boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/security/admin-control-plane-no-zero-trust-20260831"
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -f admin-control-plane/source/migrations/0002_auth_settings.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS auth_settings' admin-control-plane/source/migrations/0002_auth_settings.sql
+
+      - name: Resolve exactly one dedicated Admin D1
+        id: d1
+        shell: bash
+        run: |
+          set -euo pipefail
+          outfile="$(mktemp)"
+          status="$(curl --silent --show-error --output "$outfile" --write-out '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100" || true)"
+          [[ "$status" == "200" ]] || { echo "::error::D1 discovery failed with HTTP ${status}."; exit 1; }
+          jq -e '.success == true' "$outfile" >/dev/null
+          count="$(jq -r --arg name "$ADMIN_D1_NAME" '[.result[] | select(.name == $name)] | length' "$outfile")"
+          d1_id="$(jq -r --arg name "$ADMIN_D1_NAME" '[.result[] | select(.name == $name)][0].uuid // ""' "$outfile")"
+          rm -f "$outfile"
+          [[ "$count" == "1" ]] || { echo "::error::Expected exactly one dedicated Admin D1, found ${count}."; exit 1; }
+          [[ "$d1_id" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "::error::Dedicated Admin D1 UUID is invalid."; exit 1; }
+          echo "id=$d1_id" >> "$GITHUB_OUTPUT"
+
+      - name: Delete only the current TOTP enrollment row
+        shell: bash
+        env:
+          D1_ID: ${{ steps.d1.outputs.id }}
+        run: |
+          set -euo pipefail
+          payload='{"sql":"DELETE FROM auth_settings WHERE id = '\''totp'\'';"}'
+          outfile="$(mktemp)"
+          status="$(curl --silent --show-error --output "$outfile" --write-out '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$payload" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${D1_ID}/query" || true)"
+          [[ "$status" == "200" ]] || { echo "::error::TOTP reset failed with HTTP ${status}."; cat "$outfile"; exit 1; }
+          jq -e '.success == true' "$outfile" >/dev/null
+          rm -f "$outfile"
+          echo "Current TOTP enrollment row deleted."
+
+      - name: Verify TOTP enrollment is absent
+        shell: bash
+        env:
+          D1_ID: ${{ steps.d1.outputs.id }}
+        run: |
+          set -euo pipefail
+          payload='{"sql":"SELECT COUNT(*) AS count FROM auth_settings WHERE id = '\''totp'\'';"}'
+          outfile="$(mktemp)"
+          status="$(curl --silent --show-error --output "$outfile" --write-out '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$payload" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${D1_ID}/query" || true)"
+          [[ "$status" == "200" ]] || { echo "::error::TOTP reset verification failed with HTTP ${status}."; exit 1; }
+          jq -e '.success == true' "$outfile" >/dev/null
+          remaining="$(jq -r '[.result[]?.results[]? | .count] | first // -1' "$outfile")"
+          rm -f "$outfile"
+          [[ "$remaining" == "0" ]] || { echo "::error::TOTP enrollment still exists after reset."; exit 1; }
+          echo "TOTP reset verified: no enrollment row remains."
+
+      - name: Record one-time reset result
+        shell: bash
+        run: |
+          {
+            echo "## Print Prep Lab Admin one-time TOTP reset"
+            echo
+            echo "- Dedicated Admin D1 only: yes"
+            echo "- Deleted record: auth_settings.id = totp only"
+            echo "- ADMIN_PASSWORD changed: no"
+            echo "- Worker secrets changed: no"
+            echo "- Worker redeployed: no"
+            echo "- main changed: no"
+            echo "- Pages Production changed: no"
+            echo "- Reset verification: passed"
+          } >> "$GITHUB_STEP_SUMMARY"
