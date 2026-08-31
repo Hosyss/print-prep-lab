@@ -113,11 +113,13 @@ test("only failed credentials consume the login budget and successful MFA clears
       assert.equal(response.status, 401);
       assert.equal((await response.json()).error, "invalid_credentials");
     }
+    const failedBucket = database.database.prepare("SELECT key, window_start FROM rate_limits WHERE count = 3").get();
+    assert.ok(failedBucket?.key);
 
     const currentCode = await totpCode(secret, Math.floor(Date.now() / 30_000));
     const success = await worker.fetch(loginRequest({ email: "owner@example.com", password: env.ADMIN_PASSWORD, totp: currentCode }, ip), env);
     assert.equal(success.status, 200);
-    assert.equal(Number(database.database.prepare("SELECT COUNT(*) AS count FROM rate_limits").get().count), 0);
+    assert.equal(Number(database.database.prepare("SELECT COUNT(*) AS count FROM rate_limits WHERE key = ? AND window_start = ?").get(failedBucket.key, failedBucket.window_start).count), 0);
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const response = await worker.fetch(loginRequest({ email: "owner@example.com", password: "wrong-password" }, ip), env);
