@@ -65,6 +65,8 @@ test("renders production security, publisher, advertising and consent signals", 
   assert.match(response.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
   assert.equal(response.headers.get("strict-transport-security"), "max-age=31536000; includeSubDomains");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=0, must-revalidate");
+  assert.equal(response.headers.get("cdn-cache-control"), "public, max-age=600, stale-while-revalidate=86400");
 
   const html = await response.text();
   assert.doesNotMatch(html, developmentPreviewMeta);

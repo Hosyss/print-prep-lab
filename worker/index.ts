@@ -63,6 +63,8 @@ function withSecurityHeaders(response: Response, request: Request): Response {
     const canonicalLink = `<${canonicalUrl}>; rel="canonical"`;
     const existingLink = headers.get("Link");
     headers.set("Link", existingLink ? `${existingLink}, ${canonicalLink}` : canonicalLink);
+    headers.set("Cache-Control", "public, max-age=0, must-revalidate");
+    headers.set("CDN-Cache-Control", "public, max-age=600, stale-while-revalidate=86400");
   }
 
   return new Response(response.body, {
