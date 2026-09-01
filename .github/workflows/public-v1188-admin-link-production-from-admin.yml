@@ -2,6 +2,7 @@ name: Print Prep Lab v118.8 Admin link production deploy from Admin gate
 # One-shot reviewed Production gate for the isolated Admin entry.
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - security/admin-control-plane-no-zero-trust-20260831
@@ -29,9 +30,9 @@ jobs:
 
     steps:
       - name: Check out immutable reviewed release commit
+        uses: actions/checkout@v4
         with:
           ref: 60d6a680f5f9c11667bb1d860b9e7f097e185a78
-        uses: actions/checkout@v4
 
       - name: Verify exact release boundary
         shell: bash
@@ -61,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          response="$(curl --silent --show-error --fail +            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" +            -H "Content-Type: application/json" +            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}")"
+          response="$(curl --silent --show-error --fail -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}")"
           branch="$(jq -r '.result.production_branch // empty' <<<"$response")"
           test -n "$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
@@ -72,7 +73,7 @@ jobs:
           PRODUCTION_BRANCH: ${{ steps.pages.outputs.branch }}
         run: |
           set -euo pipefail
-          npx --yes wrangler@4.92.0 pages deploy /tmp/ppl-v1188 +            --project-name "$PAGES_PROJECT" +            --branch "$PRODUCTION_BRANCH" +            --commit-hash "$RELEASE_SHA" +            --commit-message "v118.8 performance recovery and isolated Admin entry"
+          npx --yes wrangler@4.92.0 pages deploy /tmp/ppl-v1188 --project-name "$PAGES_PROJECT" --branch "$PRODUCTION_BRANCH" --commit-hash "$RELEASE_SHA" --commit-message "v118.8 performance recovery and isolated Admin entry"
 
       - name: Verify Production and Admin boundary
         shell: bash
