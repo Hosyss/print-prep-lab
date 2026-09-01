@@ -1,0 +1,112 @@
+name: Print Prep Lab v118.8 Admin link production deploy
+
+on:
+  push:
+    branches:
+      - audit/print-prep-v1188-adsense-performance-20260901
+    paths:
+      - .github/workflows/public-v1188-admin-link-production.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-v1188-admin-link-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/audit/print-prep-v1188-adsense-performance-20260901'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: printpreplab
+      ADMIN_ORIGIN: https://print-prep-lab-admin.buildtools.workers.dev
+
+    steps:
+      - name: Check out reviewed release branch
+        uses: actions/checkout@v4
+
+      - name: Verify exact release boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/audit/print-prep-v1188-adsense-performance-20260901"
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -x release-artifacts/v118.8/build-v1188.sh
+          grep -Fq '/admin https://print-prep-lab-admin.buildtools.workers.dev 302' public/_redirects
+          grep -Fq 'X-Robots-Tag' worker/index.ts
+
+      - name: Build deterministic v118.8 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash release-artifacts/v118.8/build-v1188.sh
+          echo '16f83e640fdd0486c79fa827f4d7b2059ebfdc7a5ef0cb9e49e1e1893b49b340  release-artifacts/v118.8/print-prep-lab-pages-20260901-v118-8-performance-source-recovery.zip' | sha256sum --check
+          mkdir -p /tmp/ppl-v1188
+          unzip -q release-artifacts/v118.8/print-prep-lab-pages-20260901-v118-8-performance-source-recovery.zip -d /tmp/ppl-v1188
+          node --check /tmp/ppl-v1188/_worker.js
+          grep -Fq 'Location: "https://print-prep-lab-admin.buildtools.workers.dev"' /tmp/ppl-v1188/_worker.js
+          grep -Fq '/admin https://print-prep-lab-admin.buildtools.workers.dev 302' /tmp/ppl-v1188/_redirects
+
+      - name: Resolve the configured Production branch
+        id: pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --silent --show-error --fail +            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" +            -H "Content-Type: application/json" +            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}")"
+          branch="$(jq -r '.result.production_branch // empty' <<<"$response")"
+          test -n "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy reviewed artifact to Production
+        shell: bash
+        env:
+          PRODUCTION_BRANCH: ${{ steps.pages.outputs.branch }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.92.0 pages deploy /tmp/ppl-v1188 +            --project-name "$PAGES_PROJECT" +            --branch "$PRODUCTION_BRANCH" +            --commit-hash "$GITHUB_SHA" +            --commit-message "v118.8 performance recovery and isolated Admin entry"
+
+      - name: Verify Production and Admin boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          public_origin='https://printpreplab.pages.dev'
+          status=''
+          for attempt in $(seq 1 20); do
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$public_origin/" || true)"
+            [[ "$status" == "200" ]] && break
+            sleep 3
+          done
+          [[ "$status" == "200" ]]
+
+          curl --silent --show-error --dump-header /tmp/admin-link-headers.txt --output /dev/null "$public_origin/admin"
+          grep -Eqi '^HTTP/.* 302' /tmp/admin-link-headers.txt
+          grep -Fqi "location: ${ADMIN_ORIGIN}" /tmp/admin-link-headers.txt
+          grep -Eqi '^cache-control:.*no-store' /tmp/admin-link-headers.txt
+          grep -Eqi '^x-robots-tag:.*noindex' /tmp/admin-link-headers.txt
+
+          curl --silent --show-error --dump-header /tmp/admin-origin-headers.txt --output /tmp/admin-login.html "$ADMIN_ORIGIN/"
+          grep -Eqi '^HTTP/.* 200' /tmp/admin-origin-headers.txt
+          grep -Eqi '^cache-control:.*no-store' /tmp/admin-origin-headers.txt
+          grep -q 'Protected administration' /tmp/admin-login.html
+
+          curl --silent --show-error --fail "$public_origin/ppl-workflow-v1187.js" >/dev/null
+          curl --silent --show-error --fail "$public_origin/robots.txt" >/dev/null
+          curl --silent --show-error --fail "$public_origin/sitemap.xml" >/dev/null
+
+          {
+            echo "## Print Prep Lab v118.8 Production deployment"
+            echo
+            echo "- Production origin: $public_origin"
+            echo "- Admin entry: $public_origin/admin"
+            echo "- Admin destination: $ADMIN_ORIGIN"
+            echo "- Admin redirect: HTTP 302, no-store, noindex"
+            echo "- Admin login page: reachable"
+            echo "- Public content write API added: no"
+            echo "- Admin secrets exposed: no"
+            echo "- AdSense runtime enabled: no"
+          } >> "$GITHUB_STEP_SUMMARY"
