@@ -1,4 +1,5 @@
 name: Print Prep Lab v118.8 Admin link production deploy
+# One-shot reviewed Production gate for the isolated Admin entry.
 
 on:
   push:
