@@ -21,6 +21,7 @@ find "${staging}" -maxdepth 1 -type f -name '*.html' -print0 \
   | xargs -0 perl -pi -e 's/ppl-workflow-v1186\.(js|css)/ppl-workflow-v1187.$1/g'
 perl -pi -e 's/ppl-workflow-v1186/ppl-workflow-v1187/g' "${staging}/_worker.js"
 perl -pi -e 's/headers\.set\("Cache-Control", "public, max-age=0, must-revalidate"\);/headers.set("Cache-Control", "public, max-age=0, must-revalidate");\n    headers.set("CDN-Cache-Control", "public, max-age=600, stale-while-revalidate=86400");/' "${staging}/_worker.js"
+perl -0pi -e 's/if \(redirectResponse\) return redirectResponse;/if (redirectResponse) return redirectResponse;\n      if (url.pathname === "\/admin" || url.pathname === "\/admin\/") return new Response(null, { status: 302, headers: { Location: "https:\/\/print-prep-lab-admin.buildtools.workers.dev", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow, noarchive" } });/' "${staging}/_worker.js"
 
 node - "${staging}/_routes.json" <<'NODE'
 const fs = require('node:fs');

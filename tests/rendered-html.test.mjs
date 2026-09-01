@@ -135,6 +135,16 @@ test("keeps the public Admin entry isolated from the Pages origin", async () => 
       "/admin/ https://print-prep-lab-admin.buildtools.workers.dev 302",
   );
   assert.doesNotMatch(redirects, /200|:splat|\/api\//);
+
+  const worker = await loadWorker();
+  for (const path of ["/admin", "/admin/"]) {
+    const response = await requestPath(worker, path);
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), "https://print-prep-lab-admin.buildtools.workers.dev");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+    assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
+  }
 });
 
 test("renders all seven calculators with original use cases, examples, notes and FAQs", async () => {

@@ -45,7 +45,7 @@
 ## Artifact
 
 - File: `print-prep-lab-pages-20260901-v118-8-performance-source-recovery.zip`
-- SHA-256: `74a8a9f89e8b6a3e316b3e09af4d74e53869b58bfd7ff2f9791d87102f9e18ba`
+- SHA-256: `16f83e640fdd0486c79fa827f4d7b2059ebfdc7a5ef0cb9e49e1e1893b49b340`
 - Size: approximately 1.5 MiB.
 
 ## Release boundary

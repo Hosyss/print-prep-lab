@@ -20,6 +20,7 @@ interface ExecutionContext {
 }
 
 const CANONICAL_ORIGIN = "https://printpreplab.pages.dev";
+const ADMIN_ORIGIN = "https://print-prep-lab-admin.buildtools.workers.dev";
 const LEGACY_HOSTS = new Set(["print-prep-lab.hosys.chatgpt.site"]);
 const GOOGLE_VERIFICATION_PATH = "/google6d67c58ff3b5201c.html";
 const GOOGLE_VERIFICATION_BODY = "google-site-verification: google6d67c58ff3b5201c.html";
@@ -102,6 +103,18 @@ const worker = {
     const url = new URL(request.url);
     const redirectResponse = legacyRedirect(url);
     if (redirectResponse) return redirectResponse;
+
+    if (url.pathname === "/admin" || url.pathname === "/admin/") {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: ADMIN_ORIGIN,
+          "Cache-Control": "no-store",
+          "Referrer-Policy": "no-referrer",
+          "X-Robots-Tag": "noindex, nofollow, noarchive",
+        },
+      });
+    }
 
     if (url.pathname === GOOGLE_VERIFICATION_PATH) {
       return withSecurityHeaders(new Response(GOOGLE_VERIFICATION_BODY, {
