@@ -1,0 +1,143 @@
+name: Admin runtime read-only audit
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-runtime-readonly-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-admin-runtime-readonly-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_D1_NAME: print-prep-lab-admin
+
+    steps:
+      - name: Enforce isolated read-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/security/admin-control-plane-no-zero-trust-20260831"
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+
+      - name: Discover the existing Admin D1
+        id: d1
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --silent --show-error --fail \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100")"
+          jq -e '.success == true' <<<"$response" >/dev/null
+          count="$(jq -r --arg name "$ADMIN_D1_NAME" '[.result[] | select(.name == $name)] | length' <<<"$response")"
+          d1_id="$(jq -r --arg name "$ADMIN_D1_NAME" '[.result[] | select(.name == $name)][0].uuid // ""' <<<"$response")"
+          [[ "$count" == "1" ]] || { echo "::error::Expected exactly one Admin D1, found ${count}."; exit 1; }
+          [[ "$d1_id" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "::error::Admin D1 UUID is invalid."; exit 1; }
+          echo "id=$d1_id" >> "$GITHUB_OUTPUT"
+
+      - name: Query non-sensitive Admin health metrics only
+        id: metrics
+        shell: bash
+        env:
+          D1_ID: ${{ steps.d1.outputs.id }}
+        run: |
+          set -euo pipefail
+          sql="SELECT
+            COALESCE((SELECT revision FROM configs WHERE id = 'draft'), 0) AS draft_revision,
+            (SELECT COUNT(*) FROM backups) AS backups_count,
+            (SELECT COUNT(*) FROM published_snapshots) AS snapshots_count,
+            (SELECT COUNT(*) FROM audit_log) AS audit_count,
+            (SELECT COUNT(*) FROM (
+              SELECT
+                rowid,
+                previous_hash,
+                LAG(entry_hash) OVER (ORDER BY rowid) AS expected_previous,
+                ROW_NUMBER() OVER (ORDER BY rowid) AS sequence_number
+              FROM audit_log
+            ) WHERE
+              (sequence_number = 1 AND previous_hash <> 'GENESIS')
+              OR (sequence_number > 1 AND previous_hash <> expected_previous)
+            ) AS audit_link_mismatches,
+            COALESCE((SELECT CASE WHEN verified_at IS NOT NULL THEN 1 ELSE 0 END FROM auth_settings WHERE id = 'totp'), 0) AS mfa_verified;"
+
+          # Guardrail: this workflow is intentionally SELECT-only.
+          normalized="$(tr '[:lower:]' '[:upper:]' <<<"$sql")"
+          if grep -Eq '\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|VACUUM|PRAGMA|ATTACH|DETACH)\b' <<<"$normalized"; then
+            echo "::error::Non-read-only SQL detected."
+            exit 1
+          fi
+
+          payload="$(jq -n --arg sql "$sql" '{sql:$sql}')"
+          response="$(curl --silent --show-error --fail \
+            -X POST \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "$payload" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database/${D1_ID}/query")"
+          jq -e '.success == true' <<<"$response" >/dev/null
+          row="$(jq -c '.result[0].results[0]' <<<"$response")"
+          test "$row" != "null"
+
+          draft_revision="$(jq -r '.draft_revision' <<<"$row")"
+          backups_count="$(jq -r '.backups_count' <<<"$row")"
+          snapshots_count="$(jq -r '.snapshots_count' <<<"$row")"
+          audit_count="$(jq -r '.audit_count' <<<"$row")"
+          audit_link_mismatches="$(jq -r '.audit_link_mismatches' <<<"$row")"
+          mfa_verified="$(jq -r '.mfa_verified' <<<"$row")"
+
+          [[ "$draft_revision" =~ ^[0-9]+$ ]]
+          [[ "$backups_count" =~ ^[0-9]+$ ]]
+          [[ "$snapshots_count" =~ ^[0-9]+$ ]]
+          [[ "$audit_count" =~ ^[0-9]+$ ]]
+          [[ "$audit_link_mismatches" =~ ^[0-9]+$ ]]
+          [[ "$audit_link_mismatches" == "0" ]] || { echo "::error::Audit chain link mismatch detected."; exit 1; }
+          [[ "$mfa_verified" == "1" ]] || { echo "::error::TOTP enrollment is not verified."; exit 1; }
+
+          echo "draft_revision=$draft_revision" >> "$GITHUB_OUTPUT"
+          echo "backups_count=$backups_count" >> "$GITHUB_OUTPUT"
+          echo "snapshots_count=$snapshots_count" >> "$GITHUB_OUTPUT"
+          echo "audit_count=$audit_count" >> "$GITHUB_OUTPUT"
+          echo "audit_link_mismatches=$audit_link_mismatches" >> "$GITHUB_OUTPUT"
+          echo "mfa_verified=$mfa_verified" >> "$GITHUB_OUTPUT"
+
+          echo "Admin D1 read-only health query succeeded."
+          echo "MFA verified: yes"
+          echo "Draft revision: ${draft_revision}"
+          echo "Backups: ${backups_count}"
+          echo "Protected snapshots: ${snapshots_count}"
+          echo "Audit entries: ${audit_count}"
+          echo "Audit chain link mismatches: ${audit_link_mismatches}"
+
+      - name: Record read-only audit summary
+        shell: bash
+        run: |
+          {
+            echo "## Print Prep Lab Admin runtime audit"
+            echo
+            echo "- Mode: read-only"
+            echo "- TOTP enrollment verified: yes"
+            echo "- Draft revision: ${{ steps.metrics.outputs.draft_revision }}"
+            echo "- Backups: ${{ steps.metrics.outputs.backups_count }}"
+            echo "- Protected snapshots: ${{ steps.metrics.outputs.snapshots_count }}"
+            echo "- Audit entries: ${{ steps.metrics.outputs.audit_count }}"
+            echo "- Audit chain link mismatches: ${{ steps.metrics.outputs.audit_link_mismatches }}"
+            echo "- D1 writes performed: no"
+            echo "- Worker secrets read or changed: no"
+            echo "- main changed: no"
+            echo "- Pages Production changed: no"
+          } >> "$GITHUB_STEP_SUMMARY"

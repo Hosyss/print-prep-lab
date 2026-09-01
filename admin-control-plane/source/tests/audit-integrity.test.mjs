@@ -1,0 +1,109 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
+import worker, { SESSION_COOKIE, signSession } from "../worker-no-zero-trust.js";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const origin = "https://admin.example.com";
+
+class Statement {
+  constructor(db, sql) { this.db = db; this.sql = sql; this.values = []; }
+  bind(...values) { this.values = values; return this; }
+  async first() { return this.db.prepare(this.sql).get(...this.values) || null; }
+  async all() { return { results: this.db.prepare(this.sql).all(...this.values) }; }
+  async run() { const r = this.db.prepare(this.sql).run(...this.values); return { meta: { changes: Number(r.changes) } }; }
+}
+class TestD1 {
+  constructor() {
+    this.database = new DatabaseSync(":memory:");
+    this.database.exec(fs.readFileSync(path.join(root, "schema.sql"), "utf8"));
+    this.database.exec(fs.readFileSync(path.join(root, "migrations/0002_auth_settings.sql"), "utf8"));
+  }
+  prepare(sql) { return new Statement(this.database, sql); }
+  async batch(statements) {
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      const out = [];
+      for (const statement of statements) out.push(await statement.run());
+      this.database.exec("COMMIT");
+      return out;
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+  close() { this.database.close(); }
+}
+
+function envFor(db) {
+  return {
+    ADMIN_EMAILS: "owner@example.com",
+    ADMIN_PASSWORD: "A-very-long-owner-password-2026!",
+    ADMIN_ORIGIN: origin,
+    CSRF_SECRET: "csrf-" + "c".repeat(40),
+    AUDIT_SECRET: "audit-" + "a".repeat(40),
+    SESSION_SECRET: "session-" + "s".repeat(40),
+    DB: db,
+    ASSETS: { fetch: async () => new Response("admin") },
+  };
+}
+
+test("audit API verifies the complete HMAC chain and rejects tampering", async () => {
+  const db = new TestD1();
+  const env = envFor(db);
+  const token = await signSession("owner@example.com", "admin", env);
+  const cookie = `${SESSION_COOKIE}=${token}`;
+  const request = async (pathname, options = {}) => {
+    const headers = new Headers(options.headers || {});
+    headers.set("Cookie", cookie);
+    headers.set("CF-Connecting-IP", "203.0.113.80");
+    return worker.fetch(new Request(`${origin}${pathname}`, { ...options, headers }), env);
+  };
+  try {
+    const session = await (await request("/api/session")).json();
+    const initial = await (await request("/api/config")).json();
+    const headers = {
+      "Content-Type": "application/json",
+      Origin: origin,
+      "Sec-Fetch-Site": "same-origin",
+      "X-CSRF-Token": session.csrfToken,
+    };
+    const first = await request("/api/config", {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ expectedRevision: 0, config: initial.config }),
+    });
+    assert.equal(first.status, 200);
+    const secondConfig = structuredClone(initial.config);
+    secondConfig.site.announcement.text = "Audit integrity regression";
+    const second = await request("/api/config", {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ expectedRevision: 1, config: secondConfig }),
+    });
+    assert.equal(second.status, 200);
+
+    const intact = await request("/api/audit");
+    assert.equal(intact.status, 200);
+    const intactBody = await intact.json();
+    assert.equal(intactBody.integrityVerified, true);
+    assert.equal(intactBody.entries.length, 2);
+
+    db.database.prepare("UPDATE audit_log SET metadata = ? WHERE rowid = 1").run('{"tampered":true}');
+    const tampered = await request("/api/audit");
+    assert.equal(tampered.status, 500);
+    assert.equal((await tampered.json()).error, "audit_integrity_error");
+  } finally {
+    db.close();
+  }
+});
+
+test("audit chaining uses insertion order rather than timestamp plus UUID ordering", () => {
+  const source = fs.readFileSync(path.join(root, "worker-no-zero-trust.js"), "utf8");
+  assert.match(source, /SELECT entry_hash FROM audit_log ORDER BY rowid DESC LIMIT 1/);
+  assert.doesNotMatch(source, /SELECT entry_hash FROM audit_log ORDER BY occurred_at DESC, id DESC LIMIT 1/);
+  assert.match(source, /ORDER BY rowid ASC LIMIT \?/);
+});

@@ -1,0 +1,189 @@
+name: Admin no-Zero-Trust hardening redeploy
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-no-zero-trust-hardening-redeploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-admin-no-zero-trust-hardening-redeploy
+  cancel-in-progress: false
+
+jobs:
+  redeploy:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      ADMIN_WORKER_NAME: print-prep-lab-admin
+      ADMIN_D1_NAME: print-prep-lab-admin
+
+    steps:
+      - name: Check out isolated Admin branch
+        uses: actions/checkout@v4
+
+      - name: Enforce exact branch and hardening config
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/security/admin-control-plane-no-zero-trust-20260831"
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -f admin-control-plane/source/wrangler-no-zero-trust.toml
+          grep -Eq '^preview_urls[[:space:]]*=[[:space:]]*false$' admin-control-plane/source/wrangler-no-zero-trust.toml
+          grep -Eq '^html_handling[[:space:]]*=[[:space:]]*"none"$' admin-control-plane/source/wrangler-no-zero-trust.toml
+          grep -Eq '^not_found_handling[[:space:]]*=[[:space:]]*"single-page-application"$' admin-control-plane/source/wrangler-no-zero-trust.toml
+          ! grep -Eq 'cloudflareaccess\.com|CF_ACCESS_|Cf-Access-Jwt-Assertion|CF_Authorization' admin-control-plane/source/worker-no-zero-trust.js
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install isolated Admin dependencies
+        working-directory: admin-control-plane/source
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Re-run full Admin quality gate before redeploy
+        working-directory: admin-control-plane/source
+        run: |
+          set -euo pipefail
+          node --check worker-no-zero-trust.js
+          node --check public/login.js
+          npm test
+
+      - name: Discover existing dedicated resources without creating anything
+        id: resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          cf_get() {
+            local label="$1"
+            local path="$2"
+            local outfile status detail
+            outfile="$(mktemp)"
+            status="$(curl --silent --show-error --output "$outfile" --write-out '%{http_code}' \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4${path}" || true)"
+            if [[ "$status" != "200" ]]; then
+              detail="$(jq -r '[.errors[]? | ((.code // "unknown")|tostring) + ": " + (.message // "unspecified Cloudflare error")] | join("; ")' "$outfile" 2>/dev/null || true)"
+              [[ -n "$detail" ]] || detail="Cloudflare returned no parseable error message"
+              echo "::error::${label} failed with HTTP ${status}: ${detail}" >&2
+              rm -f "$outfile"
+              return 1
+            fi
+            jq -e '.success == true' "$outfile" >/dev/null
+            cat "$outfile"
+            rm -f "$outfile"
+          }
+
+          d1="$(cf_get "D1 database list" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/d1/database?per_page=100")"
+          workers="$(cf_get "Workers scripts list" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts")"
+          subdomain="$(cf_get "Workers subdomain read" "/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain")"
+
+          d1_count="$(jq -r --arg name "$ADMIN_D1_NAME" '[.result[] | select(.name == $name)] | length' <<<"$d1")"
+          d1_id="$(jq -r --arg name "$ADMIN_D1_NAME" '[.result[] | select(.name == $name)][0].uuid // ""' <<<"$d1")"
+          worker_count="$(jq -r --arg name "$ADMIN_WORKER_NAME" '[.result[] | select((.id // .name) == $name)] | length' <<<"$workers")"
+          worker_subdomain="$(jq -r '.result.subdomain // ""' <<<"$subdomain")"
+
+          [[ "$d1_count" == "1" ]] || { echo "::error::Expected exactly one dedicated Admin D1, found ${d1_count}."; exit 1; }
+          [[ "$worker_count" == "1" ]] || { echo "::error::Expected exactly one dedicated Admin Worker, found ${worker_count}."; exit 1; }
+          [[ "$d1_id" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "::error::Dedicated Admin D1 UUID is invalid."; exit 1; }
+          [[ "$worker_subdomain" =~ ^[a-z0-9-]+$ ]] || { echo "::error::Workers subdomain is invalid."; exit 1; }
+
+          echo "d1_id=$d1_id" >> "$GITHUB_OUTPUT"
+          echo "worker_subdomain=$worker_subdomain" >> "$GITHUB_OUTPUT"
+          echo "Existing dedicated D1: confirmed"
+          echo "Existing dedicated Worker: confirmed"
+
+      - name: Build runtime config for existing isolated resources
+        id: runtime
+        working-directory: admin-control-plane/source
+        shell: bash
+        env:
+          D1_ID: ${{ steps.resources.outputs.d1_id }}
+          WORKER_SUBDOMAIN: ${{ steps.resources.outputs.worker_subdomain }}
+        run: |
+          set -euo pipefail
+          cp wrangler-no-zero-trust.toml wrangler-hardening-runtime.toml
+          sed -i "s/REPLACE_AFTER_CREATING_D1/${D1_ID}/" wrangler-hardening-runtime.toml
+          printf '\nADMIN_ORIGIN = "https://%s.%s.workers.dev"\n' "$ADMIN_WORKER_NAME" "$WORKER_SUBDOMAIN" >> wrangler-hardening-runtime.toml
+          grep -q "database_id = \"${D1_ID}\"" wrangler-hardening-runtime.toml
+          grep -q '^workers_dev = true$' wrangler-hardening-runtime.toml
+          grep -q '^preview_urls = false$' wrangler-hardening-runtime.toml
+          grep -q '^html_handling = "none"$' wrangler-hardening-runtime.toml
+          ! grep -q 'REPLACE_AFTER_CREATING_D1' wrangler-hardening-runtime.toml
+          echo "config=wrangler-hardening-runtime.toml" >> "$GITHUB_OUTPUT"
+
+      - name: Redeploy only the existing isolated Admin Worker
+        working-directory: admin-control-plane/source
+        env:
+          CONFIG: ${{ steps.runtime.outputs.config }}
+        run: npx wrangler deploy --config "$CONFIG"
+
+      - name: Verify hardened live boundary
+        shell: bash
+        env:
+          WORKER_SUBDOMAIN: ${{ steps.resources.outputs.worker_subdomain }}
+        run: |
+          set -euo pipefail
+          admin_url="https://${ADMIN_WORKER_NAME}.${WORKER_SUBDOMAIN}.workers.dev"
+
+          root_status=""
+          for attempt in $(seq 1 15); do
+            root_status="$(curl --silent --show-error --output /tmp/admin-root.html --dump-header /tmp/admin-headers.txt --write-out '%{http_code}' "$admin_url/" || true)"
+            [[ "$root_status" == "200" ]] && break
+            sleep 2
+          done
+          [[ "$root_status" == "200" ]] || { echo "::error::Admin login page expected HTTP 200, got ${root_status}."; exit 1; }
+          grep -q 'Protected administration' /tmp/admin-root.html
+          grep -Eqi '^cache-control:.*no-store' /tmp/admin-headers.txt
+          grep -Eqi '^x-frame-options:.*DENY' /tmp/admin-headers.txt
+          grep -Eqi '^content-security-policy:' /tmp/admin-headers.txt
+
+          login_alias_status="$(curl --silent --show-error --output /tmp/admin-login-alias.json --write-out '%{http_code}' "$admin_url/login" || true)"
+          [[ "$login_alias_status" == "401" ]] || { echo "::error::Canonical login alias must remain blocked without session; got HTTP ${login_alias_status}."; exit 1; }
+          jq -e '.error == "session_required"' /tmp/admin-login-alias.json >/dev/null
+
+          session_status="$(curl --silent --show-error --output /tmp/admin-session.json --write-out '%{http_code}' "$admin_url/api/session" || true)"
+          [[ "$session_status" == "401" ]] || { echo "::error::Unauthenticated API expected HTTP 401, got ${session_status}."; exit 1; }
+          jq -e '.error == "session_required"' /tmp/admin-session.json >/dev/null
+
+          echo "Admin login page: reachable with HTTP 200"
+          echo "Canonical login alias: blocked without session"
+          echo "Unauthenticated Admin API: blocked with HTTP 401"
+          echo "Security headers: present"
+
+      - name: Record hardening redeploy result
+        shell: bash
+        env:
+          WORKER_SUBDOMAIN: ${{ steps.resources.outputs.worker_subdomain }}
+        run: |
+          {
+            echo "## Print Prep Lab Admin hardening redeploy"
+            echo
+            echo "- Existing dedicated Worker reused: yes"
+            echo "- Existing dedicated D1 reused: yes"
+            echo "- D1 migrations run: no"
+            echo "- Worker secrets changed: no"
+            echo "- Cloudflare Zero Trust / Access: not used"
+            echo "- Preview URLs: disabled"
+            echo "- Root login entry point: HTTP 200 verified"
+            echo "- Canonical login alias: blocked without session"
+            echo "- Admin URL: https://${ADMIN_WORKER_NAME}.${WORKER_SUBDOMAIN}.workers.dev"
+            echo "- Unauthenticated API boundary: verified blocked"
+            echo "- main changed: no"
+            echo "- Pages Production changed: no"
+            echo "- Public Print Prep Lab integration: still disabled"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+# Trigger: deploy account-wide post-password distributed TOTP attempt budget after successful 43-test quality gate.
