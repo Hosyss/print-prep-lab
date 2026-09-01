@@ -1,0 +1,63 @@
+name: Admin one-time pin Actions dependencies
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-one-time-pin-actions.yml
+
+permissions:
+  contents: write
+
+jobs:
+  pin:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out isolated Admin branch with pinned checkout v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: security/admin-control-plane-no-zero-trust-20260831
+          fetch-depth: 0
+
+      - name: Validate pinned setup-node v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Pin active Admin workflows to immutable action commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            .github/workflows/admin-no-zero-trust-gate.yml
+            .github/workflows/admin-no-zero-trust-hardening-redeploy.yml
+            .github/workflows/admin-no-zero-trust-cloudflare-preflight.yml
+            .github/workflows/admin-catalog-source-audit.yml
+          )
+          for file in "${files[@]}"; do
+            test -f "$file"
+            sed -i 's#actions/checkout@v4#actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1#' "$file"
+            sed -i 's#actions/setup-node@v4#actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0#' "$file"
+          done
+          ! grep -HnE 'actions/(checkout|setup-node)@v4' "${files[@]}"
+          grep -Hn 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' "${files[@]}"
+          grep -Hn 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020' .github/workflows/admin-no-zero-trust-gate.yml .github/workflows/admin-no-zero-trust-hardening-redeploy.yml
+          node --version
+
+      - name: Commit verified immutable action pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Hossam eldeen"
+          git config user.email "52554618+Hosyss@users.noreply.github.com"
+          git add \
+            .github/workflows/admin-no-zero-trust-gate.yml \
+            .github/workflows/admin-no-zero-trust-hardening-redeploy.yml \
+            .github/workflows/admin-no-zero-trust-cloudflare-preflight.yml \
+            .github/workflows/admin-catalog-source-audit.yml
+          git diff --cached --quiet && { echo "No action pin changes to commit."; exit 1; }
+          git commit -m "security: pin Admin workflow Actions to immutable commits"
+          git push origin HEAD:security/admin-control-plane-no-zero-trust-20260831

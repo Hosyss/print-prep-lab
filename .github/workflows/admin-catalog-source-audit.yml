@@ -1,0 +1,143 @@
+name: Admin catalog source audit
+
+on:
+  push:
+    branches:
+      - security/admin-control-plane-no-zero-trust-20260831
+    paths:
+      - .github/workflows/admin-catalog-source-audit.yml
+      - admin-control-plane/source/public/site-catalog.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.ref == 'refs/heads/security/admin-control-plane-no-zero-trust-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out isolated Admin branch
+        uses: actions/checkout@v4
+
+      - name: Download and verify pinned v118.6 recovery artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://raw.githubusercontent.com/Hosyss/print-prep-lab/07efaae843406f6cd9de74cb18ab5fffe2bf0a17/release-artifacts/v118.6/print-prep-lab-pages-20260830-v118-6-runtime-mobile-arabic-recovery.zip'
+          curl --fail --location --retry 3 --retry-all-errors --output /tmp/ppl-v118.6.zip "$url"
+          echo 'd5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625  /tmp/ppl-v118.6.zip' | sha256sum -c -
+
+      - name: Verify 113-route catalog provenance and recovery inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import pathlib
+          import zipfile
+
+          catalog = json.loads(pathlib.Path('admin-control-plane/source/public/site-catalog.json').read_text(encoding='utf-8'))
+          pages = catalog.get('pages', [])
+          assert catalog.get('release') == 'v118.7'
+          assert catalog.get('count') == len(pages) == 113
+          routes = [str(page.get('route', '')) for page in pages]
+          assert len(set(routes)) == 113, 'Admin catalog routes are not unique'
+          assert all(route.startswith('/') and '://' not in route for route in routes), 'Admin catalog contains an unsafe route'
+
+          recovery = [page for page in pages if page.get('sourceType') == 'recovery-html']
+          production = [page for page in pages if page.get('sourceType') == 'production-sitemap']
+          assert len(recovery) == 66, f'expected 66 recovery HTML entries, found {len(recovery)}'
+          assert len(production) == 47, f'expected 47 Production sitemap additions, found {len(production)}'
+          assert all(page.get('file', '').endswith('.html') for page in recovery)
+          assert all(page.get('file') == '' and page.get('indexedInProduction') is True for page in production)
+
+          provenance = catalog.get('sourceProvenance', {})
+          assert provenance.get('recoveryCommit') == '07efaae843406f6cd9de74cb18ab5fffe2bf0a17'
+          assert provenance.get('recoveryArtifactSha256') == 'd5b5ff59645402c06e86fe009d6474d8c2fcfc124ef3af29295f68428f9f6625'
+          assert provenance.get('productionOrigin') == 'https://printpreplab.pages.dev'
+          assert provenance.get('productionSitemapRoutes') == 79
+          assert provenance.get('recoveryManagedRoutes') == 66
+          assert provenance.get('unionManagedRoutes') == 113
+          assert provenance.get('excludedSystemHtml') == ['google6d67c58ff3b5201c.html']
+
+          with zipfile.ZipFile('/tmp/ppl-v118.6.zip') as archive:
+              html_files = sorted(pathlib.PurePosixPath(name).name for name in archive.namelist() if name.lower().endswith('.html'))
+          recovery_files = sorted(page['file'] for page in recovery)
+          missing = sorted(set(recovery_files) - set(html_files))
+          unmanaged = sorted(set(html_files) - set(recovery_files))
+          assert not missing, f'recovery-backed Admin files missing from pinned artifact: {missing}'
+          assert unmanaged == ['google6d67c58ff3b5201c.html'], f'unexpected HTML outside managed recovery catalog: {unmanaged}'
+
+          pathlib.Path('/tmp/admin-routes.txt').write_text('\n'.join(routes) + '\n', encoding='utf-8')
+          print('Admin union routes: 113')
+          print('Pinned recovery-backed routes: 66')
+          print('Live-sitemap-only additions: 47')
+          print('Excluded system HTML: google6d67c58ff3b5201c.html')
+          PY
+
+      - name: Verify live sitemap is fully represented in Admin
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://printpreplab.pages.dev'
+          curl --fail --location --retry 3 --retry-all-errors --max-time 30 --output /tmp/live-sitemap.xml "$base/sitemap.xml"
+          python - <<'PY'
+          import json
+          import pathlib
+          import urllib.parse
+          import xml.etree.ElementTree as ET
+
+          catalog = json.loads(pathlib.Path('admin-control-plane/source/public/site-catalog.json').read_text(encoding='utf-8'))
+          admin_routes = {page['route'] for page in catalog['pages']}
+          root = ET.fromstring(pathlib.Path('/tmp/live-sitemap.xml').read_bytes())
+          sitemap_routes = set()
+          for node in root.iter():
+              if node.tag.endswith('loc') and node.text:
+                  route = urllib.parse.urlparse(node.text.strip()).path or '/'
+                  if route != '/' and route.endswith('/'):
+                      route = route[:-1]
+                  sitemap_routes.add(route)
+          assert len(sitemap_routes) == 79, f'live sitemap route count changed: {len(sitemap_routes)}'
+          missing = sorted(sitemap_routes - admin_routes)
+          assert not missing, f'live sitemap routes missing from Admin: {missing}'
+          indexed_flags = {page['route'] for page in catalog['pages'] if page.get('indexedInProduction') is True}
+          assert sitemap_routes == indexed_flags, 'indexedInProduction flags do not exactly match the live sitemap'
+          print('Live sitemap routes: 79')
+          print('Live sitemap routes missing from Admin: 0')
+          PY
+
+      - name: Verify all 113 managed routes are reachable read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://printpreplab.pages.dev'
+          failures=0
+          : > /tmp/admin-route-failures.txt
+          while IFS= read -r route; do
+            [[ -n "$route" ]] || continue
+            status="$(curl --silent --show-error --location --max-time 20 --output /dev/null --write-out '%{http_code}' "${base}${route}" || true)"
+            if [[ "$status" != '200' ]]; then
+              printf '%s %s\n' "$status" "$route" | tee -a /tmp/admin-route-failures.txt
+              failures=$((failures + 1))
+            fi
+          done < /tmp/admin-routes.txt
+          [[ "$failures" -eq 0 ]] || { echo '::error::One or more managed routes are not HTTP 200 on live Production.'; exit 1; }
+          echo 'All 113 Admin-managed routes returned HTTP 200.'
+
+      - name: Record read-only audit result
+        run: |
+          {
+            echo '## Print Prep Lab Admin catalog source audit'
+            echo
+            echo '- Managed union routes: **113**'
+            echo '- Pinned v118.6 recovery HTML routes: **66**'
+            echo '- Current Production sitemap routes: **79**'
+            echo '- Additional sitemap routes added to Admin: **47**'
+            echo '- Missing live sitemap routes: **0**'
+            echo '- Managed routes returning non-200: **0**'
+            echo '- Excluded system verification HTML: `google6d67c58ff3b5201c.html`'
+            echo '- Cloudflare mutations: **none**'
+            echo '- main / Production writes: **none**'
+          } >> "$GITHUB_STEP_SUMMARY"
