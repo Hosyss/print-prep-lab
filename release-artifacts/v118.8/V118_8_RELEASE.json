@@ -10,6 +10,7 @@
     "restore v118.7 as a reproducible GitHub recovery artifact",
     "cache versioned public assets immutably",
     "cache HTML at the Cloudflare edge for ten minutes while keeping browsers revalidation-safe",
+    "provide a same-site /admin entry point that redirects to the isolated password-and-TOTP Admin Worker",
     "preserve all v118.6 calculation, content, Arabic and routing behavior"
   ],
   "performance": {
@@ -17,11 +18,19 @@
     "edge_html_cache": "public, max-age=600, stale-while-revalidate=86400",
     "versioned_asset_cache": "public, max-age=31536000, immutable"
   },
+  "admin_integration": {
+    "public_entry_path": "/admin",
+    "destination": "https://print-prep-lab-admin.buildtools.workers.dev",
+    "mode": "external 302 redirect only",
+    "public_content_write_path": false,
+    "secrets_exposed_to_public_site": false
+  },
   "assets": {
     "ppl-workflow-v1187.js": "8fa925a6d9eaf7ff5f2ba87110217d82f87a9c1a5352f288dbf4ca4185de0e74",
     "ppl-workflow-v1187.css": "f8a091bc5904107b5096eb9bc82a6bb53dd13d968c5825843e7673a83611ea13",
     "_worker.js": "d7226330498e7710dee5150a18492315258de8b6aa29453fd0630143cb35d005",
     "_routes.json": "17b26fec03100208faa62532005f8621a7d31766cde8821f91f5387faf29ac75",
-    "_headers": "ca56f9ae240b78bb1ab640f0f3aa7c5d2de36b3d0b0652b82572f3be5a7b9a88"
+    "_headers": "ca56f9ae240b78bb1ab640f0f3aa7c5d2de36b3d0b0652b82572f3be5a7b9a88",
+    "_redirects": "8923005ed7f7d6c402c8fccc411f8425001ed29fc690ccb717da8721496c890f"
   }
 }

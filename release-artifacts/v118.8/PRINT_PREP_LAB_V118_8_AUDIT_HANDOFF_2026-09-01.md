@@ -25,6 +25,7 @@
 - Update all static and bundled route references from the v118.6 workflow assets to v118.7.
 - Add immutable one-year caching for versioned v118.6/v118.7 public assets.
 - Add a ten-minute Cloudflare edge HTML cache with stale-while-revalidate while browsers continue to revalidate HTML.
+- Add `/admin` and `/admin/` as external 302 entry points to the isolated password-and-TOTP Admin Worker; no public write API or secret is introduced.
 - Keep AdSense runtime disabled while preserving the publisher meta tag and authorized `ads.txt`.
 - Preserve all existing calculator, editorial, Arabic, routing, noindex and local-data behavior.
 - Add deterministic cache-header assertions to the source test suite.
@@ -44,7 +45,7 @@
 ## Artifact
 
 - File: `print-prep-lab-pages-20260901-v118-8-performance-source-recovery.zip`
-- SHA-256: `4cae78a2b79e46fb96e456bd756374d21dddc38351260cd19312220b36a293a0`
+- SHA-256: `74a8a9f89e8b6a3e316b3e09af4d74e53869b58bfd7ff2f9791d87102f9e18ba`
 - Size: approximately 1.5 MiB.
 
 ## Release boundary

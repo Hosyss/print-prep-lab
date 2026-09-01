@@ -127,6 +127,16 @@ test("serves a clean robots file, a complete sitemap and an authorized ads.txt",
   assert.equal((await indexNowResponse.text()).trim(), "516c1331b746fbca4fb273e523b64e3e");
 });
 
+test("keeps the public Admin entry isolated from the Pages origin", async () => {
+  const redirects = (await readFile(new URL("../public/_redirects", import.meta.url), "utf8")).trim();
+  assert.equal(
+    redirects,
+    "/admin https://print-prep-lab-admin.buildtools.workers.dev 302\n" +
+      "/admin/ https://print-prep-lab-admin.buildtools.workers.dev 302",
+  );
+  assert.doesNotMatch(redirects, /200|:splat|\/api\//);
+});
+
 test("renders all seven calculators with original use cases, examples, notes and FAQs", async () => {
   const worker = await loadWorker();
   const toolPaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/tools/"));

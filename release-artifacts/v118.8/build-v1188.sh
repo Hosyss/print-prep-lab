@@ -12,6 +12,10 @@ unzip -q "${baseline}" -d "${staging}"
 cp "${release_dir}/ppl-workflow-v1187.js" "${staging}/ppl-workflow-v1187.js"
 cp "${release_dir}/ppl-workflow-v1187.css" "${staging}/ppl-workflow-v1187.css"
 cp "${release_dir}/V118_8_RELEASE.json" "${staging}/V118_8_RELEASE.json"
+cat > "${staging}/_redirects" <<'EOF'
+/admin https://print-prep-lab-admin.buildtools.workers.dev 302
+/admin/ https://print-prep-lab-admin.buildtools.workers.dev 302
+EOF
 
 find "${staging}" -maxdepth 1 -type f -name '*.html' -print0 \
   | xargs -0 perl -pi -e 's/ppl-workflow-v1186\.(js|css)/ppl-workflow-v1187.$1/g'
