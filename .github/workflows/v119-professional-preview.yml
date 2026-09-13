@@ -1,0 +1,91 @@
+name: Print Prep Lab v119 professional preview
+
+on:
+  push:
+    branches:
+      - design/v119-professional-redesign-20260914
+    paths:
+      - 'release-artifacts/v119.0/**'
+      - '.github/workflows/v119-professional-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-v119-professional-preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: printpreplab
+      PREVIEW_BRANCH: v119-preview
+      PREVIEW_ORIGIN: https://v119-preview.printpreplab.pages.dev
+
+    steps:
+      - name: Check out design branch
+        uses: actions/checkout@v4
+
+      - name: Verify preview boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/design/v119-professional-redesign-20260914'
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -f release-artifacts/v119.0/ppl-design-v119.css
+          test -f release-artifacts/v119.0/build-v119.sh
+
+      - name: Build v119 preview artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash release-artifacts/v119.0/build-v119.sh
+          mkdir -p /tmp/ppl-v119
+          unzip -q release-artifacts/v119.0/print-prep-lab-pages-v119-professional-preview.zip -d /tmp/ppl-v119
+          test -s /tmp/ppl-v119/ppl-workflow-v119.css
+          grep -Fq 'Run the job from one clear operations board.' /tmp/ppl-v119/operations.html
+          grep -Fq 'google.com, pub-3369551572403499' /tmp/ppl-v119/ads.txt
+
+      - name: Deploy preview only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.92.0 pages deploy /tmp/ppl-v119 \
+            --project-name "$PAGES_PROJECT" \
+            --branch "$PREVIEW_BRANCH" \
+            --commit-hash "$GITHUB_SHA" \
+            --commit-message 'v119 professional design preview'
+
+      - name: Verify preview visual routes and boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 24); do
+            code="$(curl --silent --show-error --output /tmp/ops.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/operations" || true)"
+            [[ "$code" == '200' ]] && grep -Fq 'Run the job from one clear operations board.' /tmp/ops.html && break
+            sleep 3
+          done
+          [[ "$code" == '200' ]]
+          grep -Fq 'ppl-workflow-v119.css' /tmp/ops.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/ppl-workflow-v119.css" | grep -Fq -- '--v119-sidebar:218px'
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools/print-readiness-checker" >/tmp/readiness.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/ads.txt" | grep -Fq 'pub-3369551572403499'
+          curl --silent --show-error --dump-header /tmp/admin-headers.txt --output /dev/null "$PREVIEW_ORIGIN/admin"
+          grep -Eqi '^HTTP/.* 302' /tmp/admin-headers.txt
+          grep -Fqi 'location: https://print-prep-lab-admin.buildtools.workers.dev' /tmp/admin-headers.txt
+
+          {
+            echo '## Print Prep Lab v119 design preview'
+            echo
+            echo "- Preview: $PREVIEW_ORIGIN"
+            echo "- Operations: $PREVIEW_ORIGIN/operations"
+            echo "- Readiness tool: $PREVIEW_ORIGIN/tools/print-readiness-checker"
+            echo '- Production changed: no'
+            echo '- Admin origin changed: no'
+            echo '- Secrets/D1 changed: no'
+          } >> "$GITHUB_STEP_SUMMARY"
