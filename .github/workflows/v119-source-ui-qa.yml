@@ -73,9 +73,13 @@ jobs:
             [[ "$code" == '200' ]]
           done
 
+          curl --silent --fail http://127.0.0.1:4174/tools >/tmp/tools-source.html
+          grep -Fq 'أدوات تجهيز الطباعة لقرارات إنتاج حقيقية.' /tmp/tools-source.html
+          grep -Fq 'data-source-lang' /tmp/tools-source.html
+
           shot(){
             local route="$1" out="$2" viewport="${3:-1920,1080}"
-            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$viewport" --wait-for-timeout 900 \
+            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$viewport" --wait-for-timeout 1100 \
               "http://127.0.0.1:4174${route}" "/tmp/v119-source-qa/${out}"
           }
           shot /tools tools-index.png
@@ -84,6 +88,9 @@ jobs:
           shot /guides/how-large-can-i-print-my-image guide-detail.png
           shot /sizes sizes-index.png
           shot /tools tools-mobile.png 390,844
+          shot '/tools?lang=ar' tools-rtl.png 1440,1000
+          shot '/sizes?lang=ar' sizes-rtl.png 1440,1000
+          shot '/tools?lang=ar' tools-rtl-mobile.png 390,844
 
       - name: Upload source UI QA
         if: always()
