@@ -30,7 +30,9 @@ perl -pi -e 's/ppl-workflow-v1186\.js/ppl-workflow-v1187.js/g; s/ppl-workflow-v1
 
 python3 - "${staging}" <<'PY'
 from pathlib import Path
+import re
 import sys
+
 root = Path(sys.argv[1])
 replacements = {
     'â†’': '→', 'â†': '←', 'âœ“': '✓', 'آ·': '·',
@@ -50,6 +52,67 @@ for p in root.glob('*.html'):
         p.write_text(s, encoding='utf-8')
         changed += 1
 print(f'normalized legacy punctuation: {hits} replacements across {changed} html files')
+
+# One coherent navigation state across the professional surface. Pages that do
+# not have a dedicated sidebar destination are grouped by the job decision they
+# belong to instead of incorrectly highlighting Home.
+groups = {
+    '/command-center': {'command-center', 'enterprise-dashboard'},
+    '/jobs': {'jobs', 'job-brief'},
+    '/tools/print-readiness-checker': {'print-readiness-v111'},
+    '/job-costing': {'job-costing', 'quote-compare'},
+    '/supplier-intelligence': {'supplier-intelligence', 'procurement', 'provider-matrix'},
+    '/release-center': {'release-center', 'release-packet', 'approval-matrix', 'customer-handoff', 'vendor-handoff', 'compliance-center'},
+    '/production-analytics': {'production-analytics', 'audit-log'},
+    '/vault': {'vault', 'file-manifest', 'production-archive'},
+    '/operations': {
+        'operations', 'capacity-planner', 'imposition-planner', 'qa-history', 'change-impact',
+        'roll-media', 'packaging', 'risk-register', 'timeline', 'queue-planner', 'stock-coverage',
+        'waste-ledger', 'revision-diff', 'calibration-registry', 'capa', 'fold-planner',
+        'spine-planner', 'roll-diameter', 'pallet-planner', 'job-core', 'digital-twin',
+        'automation-lab', 'schedule-optimizer', 'material-intelligence', 'signature-planner',
+        'color-control', 'finishing-intelligence', 'fulfillment-center', 'readiness-audit',
+        'sheet-planner', 'preflight', 'specs'
+    },
+    '/workspace#workspace-tools': {
+        'workspace', 'inspector', 'proof-sheet', 'scenarios', 'prepress-lab', 'wall-layout',
+        'troubleshoot', 'glossary', 'search', 'studio', 'batch', 'knowledge-base'
+    },
+}
+route_for = {name: href for href, names in groups.items() for name in names}
+custom_page_class = {'job-costing': 'ppl-page-costing', 'workspace': 'ppl-page-workspace'}
+updated_nav = 0
+for p in root.glob('*.html'):
+    stem = p.stem
+    if stem == 'home-v112':
+        continue
+    s = p.read_text(encoding='utf-8')
+    nav_start = s.find('<nav class="ppl-side-nav">')
+    if nav_start < 0:
+        continue
+    nav_end = s.find('</nav>', nav_start)
+    if nav_end < 0:
+        continue
+    nav_end += len('</nav>')
+    nav = s[nav_start:nav_end]
+    nav = nav.replace('<a class="active" href="', '<a href="')
+    href = route_for.get(stem, '/workspace#workspace-tools')
+    needle = f'<a href="{href}">'
+    if needle not in nav:
+        href = '/workspace#workspace-tools'
+        needle = f'<a href="{href}">'
+    if needle in nav:
+        nav = nav.replace(needle, f'<a class="active" href="{href}">', 1)
+        updated_nav += 1
+    s = s[:nav_start] + nav + s[nav_end:]
+
+    page_class = custom_page_class.get(stem, f'ppl-page-{stem}')
+    body_match = re.search(r'<body class="([^"]*)">', s)
+    if body_match and page_class not in body_match.group(1).split():
+        classes = f'{body_match.group(1)} {page_class}'.strip()
+        s = s[:body_match.start()] + f'<body class="{classes}">' + s[body_match.end():]
+    p.write_text(s, encoding='utf-8')
+print(f'updated sidebar state on {updated_nav} static professional pages')
 PY
 
 python3 - "${staging}/operations.html" <<'PY'
@@ -65,33 +128,7 @@ s = s.replace(
     'Read the browser-local signals created across Print Prep Lab and expose what is missing before release: file identity, preflight, cost, capacity, imposition, quote assumptions and QA blockers. The board does not create evidence that was never recorded.',
     'Bring together the signals already recorded across Print Prep Lab — file identity, preflight, cost, capacity, imposition, quotes and QA — so you can see what is ready, what is missing and what still needs review before release.'
 )
-s = s.replace('<a class="active" href="/">', '<a href="/">', 1)
-s = s.replace('<a href="/operations"><svg', '<a class="active" href="/operations"><svg', 1)
 p.write_text(s, encoding='utf-8')
-PY
-
-python3 - "${staging}/job-costing.html" "${staging}/workspace.html" <<'PY'
-from pathlib import Path
-import sys
-
-def activate(path, href, page_class):
-    p = Path(path)
-    s = p.read_text(encoding='utf-8')
-    s = s.replace('<a class="active" href="/">', '<a href="/">', 1)
-    needle = f'<a href="{href}"><svg'
-    replacement = f'<a class="active" href="{href}"><svg'
-    if needle not in s and replacement not in s:
-        raise SystemExit(f'could not find sidebar target {href} in {p.name}')
-    s = s.replace(needle, replacement, 1)
-    if page_class not in s:
-        body = '<body class="ppl-v108-page">'
-        if body not in s:
-            raise SystemExit(f'could not mark page body in {p.name}')
-        s = s.replace(body, f'<body class="ppl-v108-page {page_class}">', 1)
-    p.write_text(s, encoding='utf-8')
-
-activate(sys.argv[1], '/job-costing', 'ppl-page-costing')
-activate(sys.argv[2], '/workspace#workspace-tools', 'ppl-page-workspace')
 PY
 
 perl -0pi -e 's/if \(redirectResponse\) return redirectResponse;/if (redirectResponse) return redirectResponse;\n      if (url.pathname === "\/admin" || url.pathname === "\/admin\/") return new Response(null, { status: 302, headers: { Location: "https:\/\/print-prep-lab-admin.buildtools.workers.dev", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow, noarchive" } });/' "${staging}/_worker.js"
@@ -125,6 +162,10 @@ grep -Fq 'class="active" href="/job-costing"' "${staging}/job-costing.html"
 grep -Fq 'ppl-page-costing' "${staging}/job-costing.html"
 grep -Fq 'class="active" href="/workspace#workspace-tools"' "${staging}/workspace.html"
 grep -Fq 'ppl-page-workspace' "${staging}/workspace.html"
+grep -Fq 'class="active" href="/supplier-intelligence"' "${staging}/supplier-intelligence.html"
+grep -Fq 'class="active" href="/release-center"' "${staging}/release-center.html"
+grep -Fq 'class="active" href="/production-analytics"' "${staging}/production-analytics.html"
+grep -Fq 'class="active" href="/command-center"' "${staging}/command-center.html"
 grep -Fq 'ppl-workflow-v119.css' "${staging}/operations.html"
 grep -Fq 'google.com, pub-3369551572403499' "${staging}/ads.txt"
 
