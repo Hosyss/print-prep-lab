@@ -10,8 +10,9 @@ staging="$(mktemp -d)"
 trap 'rm -rf -- "${staging}"' EXIT
 
 unzip -q "${baseline}" -d "${staging}"
+cp "${release_dir}/ppl-home-v119.html" "${staging}/home-v112.html"
 cp "${workflow_dir}/ppl-workflow-v1187.js" "${staging}/ppl-workflow-v1187.js"
-cat "${workflow_dir}/ppl-workflow-v1187.css" "${release_dir}/ppl-design-v119.css" > "${staging}/ppl-workflow-v119.css"
+cat "${workflow_dir}/ppl-workflow-v1187.css" "${release_dir}/ppl-design-v119.css" "${release_dir}/ppl-home-v119.css" > "${staging}/ppl-workflow-v119.css"
 cp "${repo_root}/public/ads.txt" "${staging}/ads.txt"
 
 cat > "${staging}/_redirects" <<'EOF'
@@ -66,6 +67,7 @@ cat >> "${staging}/_headers" <<'EOF'
 EOF
 
 node --check "${staging}/_worker.js"
+grep -Fq 'Print preparation, without the guesswork.' "${staging}/home-v112.html"
 grep -Fq 'Run the job from one clear operations board.' "${staging}/operations.html"
 grep -Fq 'ppl-workflow-v119.css' "${staging}/operations.html"
 grep -Fq 'google.com, pub-3369551572403499' "${staging}/ads.txt"
