@@ -1,0 +1,222 @@
+name: Print Prep Lab v119 guarded production release
+
+on:
+  push:
+    branches:
+      - release/v119-professional-production-20260914
+    paths:
+      - '.github/workflows/v119-production-release.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: print-prep-lab-v119-production-release
+  cancel-in-progress: false
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: printpreplab
+      PUBLIC_ORIGIN: https://printpreplab.pages.dev
+      ADMIN_ORIGIN: https://print-prep-lab-admin.buildtools.workers.dev
+      APPROVED_SOURCE_SHA: 28e07295d503769c5d9146866c7a605d3e45e0c5
+      APPROVED_PREVIEW_RUN: '34843003701'
+      APPROVED_ARTIFACT_SHA256: f945b1bab11465010c4dbcd15129d0e16e4d852973681c1ce2a48a79462df8c3
+
+    steps:
+      - name: Check out one-shot release branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Verify exact reviewed release boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/release/v119-professional-production-20260914'
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test "$(git rev-parse HEAD^)" = "$APPROVED_SOURCE_SHA"
+          changed="$(git diff --name-only HEAD^ HEAD)"
+          test "$changed" = '.github/workflows/v119-production-release.yml'
+
+      - name: Download the exact approved preview artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: v119-professional-preview-build
+          path: /tmp/v119-approved
+          github-token: ${{ github.token }}
+          repository: Hosyss/print-prep-lab
+          run-id: 34843003701
+
+      - name: Verify approved artifact identity and boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact='/tmp/v119-approved/print-prep-lab-pages-v119-professional-preview.zip'
+          test -s "$artifact"
+          echo "${APPROVED_ARTIFACT_SHA256}  ${artifact}" | sha256sum --check
+          rm -rf /tmp/ppl-v119-production
+          mkdir -p /tmp/ppl-v119-production
+          unzip -q "$artifact" -d /tmp/ppl-v119-production
+          test -s /tmp/ppl-v119-production/_worker.js
+          test -s /tmp/ppl-v119-production/ppl-workflow-v119.css
+          grep -Fq 'Print preparation, without the guesswork.' /tmp/ppl-v119-production/home-v112.html
+          grep -Fq 'Run the job from one clear operations board.' /tmp/ppl-v119-production/operations.html
+          grep -Fq 'Tools' /tmp/ppl-v119-production/home-v112.html
+          grep -Fq 'Methodology' /tmp/ppl-v119-production/home-v112.html
+          grep -Fq 'About' /tmp/ppl-v119-production/home-v112.html
+          grep -Fq 'google.com, pub-3369551572403499' /tmp/ppl-v119-production/ads.txt
+          grep -Fq '/admin https://print-prep-lab-admin.buildtools.workers.dev 302' /tmp/ppl-v119-production/_redirects
+
+      - name: Resolve Production branch and snapshot current deployment
+        id: pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          project="$(curl --silent --show-error --fail \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}")"
+          branch="$(jq -r '.result.production_branch // empty' <<<"$project")"
+          test -n "$branch"
+          test "$branch" != 'v119-preview'
+
+          deployments="$(curl --silent --show-error --fail \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}/deployments?env=production&per_page=1")"
+          previous="$(jq -r '.result[0].id // empty' <<<"$deployments")"
+          previous_url="$(jq -r '.result[0].url // empty' <<<"$deployments")"
+          test -n "$previous"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "previous_deployment=$previous" >> "$GITHUB_OUTPUT"
+          echo "previous_url=$previous_url" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy approved v119 artifact to Production
+        shell: bash
+        env:
+          PRODUCTION_BRANCH: ${{ steps.pages.outputs.branch }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4.131.1 pages deploy /tmp/ppl-v119-production \
+            --project-name "$PAGES_PROJECT" \
+            --branch "$PRODUCTION_BRANCH" \
+            --commit-hash "$APPROVED_SOURCE_SHA" \
+            --commit-message "v119 professional production release from approved preview run ${APPROVED_PREVIEW_RUN}"
+
+      - name: Verify Production, AdSense files and Admin boundary
+        id: verify
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ready=0
+          for attempt in $(seq 1 30); do
+            code="$(curl --silent --show-error --output /tmp/prod-home.html --write-out '%{http_code}' "$PUBLIC_ORIGIN/" || true)"
+            if [[ "$code" == '200' ]] && grep -Fq 'Print preparation, without the guesswork.' /tmp/prod-home.html; then
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          test "$ready" = '1'
+
+          curl --silent --show-error --fail "$PUBLIC_ORIGIN/ppl-workflow-v119.css" >/tmp/prod-v119.css
+          grep -Fq -- '--v119-sidebar:218px' /tmp/prod-v119.css
+
+          curl --silent --show-error --fail "$PUBLIC_ORIGIN/operations" >/tmp/prod-operations.html
+          grep -Fq 'Run the job from one clear operations board.' /tmp/prod-operations.html
+
+          curl --silent --show-error --fail "$PUBLIC_ORIGIN/tools" >/tmp/prod-tools.html
+          grep -Fq 'Print preparation tools for real production decisions.' /tmp/prod-tools.html
+          grep -Fq 'أدوات تجهيز الطباعة لقرارات إنتاج حقيقية.' /tmp/prod-tools.html
+
+          for route in /tools/print-readiness-checker /job-costing /workspace /guides /sizes /tools/dpi-ppi-calculator /guides/how-large-can-i-print-my-image; do
+            code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$PUBLIC_ORIGIN${route}" || true)"
+            echo "${route} -> ${code}"
+            test "$code" = '200'
+          done
+
+          curl --silent --show-error --fail "$PUBLIC_ORIGIN/ads.txt" >/tmp/prod-ads.txt
+          grep -Fq 'google.com, pub-3369551572403499' /tmp/prod-ads.txt
+          curl --silent --show-error --fail "$PUBLIC_ORIGIN/robots.txt" >/tmp/prod-robots.txt
+          curl --silent --show-error --fail "$PUBLIC_ORIGIN/sitemap.xml" >/tmp/prod-sitemap.xml
+          grep -Fq 'https://printpreplab.pages.dev/tools' /tmp/prod-sitemap.xml
+
+          curl --silent --show-error --dump-header /tmp/prod-admin-headers.txt --output /dev/null "$PUBLIC_ORIGIN/admin"
+          grep -Eqi '^HTTP/.* 302' /tmp/prod-admin-headers.txt
+          grep -Fqi "location: ${ADMIN_ORIGIN}" /tmp/prod-admin-headers.txt
+          grep -Eqi '^cache-control:.*no-store' /tmp/prod-admin-headers.txt
+          grep -Eqi '^x-robots-tag:.*noindex' /tmp/prod-admin-headers.txt
+
+          curl --silent --show-error --dump-header /tmp/admin-origin-headers.txt --output /tmp/admin-origin.html "$ADMIN_ORIGIN/"
+          grep -Eqi '^HTTP/.* 200' /tmp/admin-origin-headers.txt
+          grep -Eqi '^cache-control:.*no-store' /tmp/admin-origin-headers.txt
+          grep -Fq 'Protected administration' /tmp/admin-origin.html
+
+      - name: Roll back automatically if Production verification fails
+        if: steps.verify.outcome == 'failure'
+        shell: bash
+        env:
+          PREVIOUS_DEPLOYMENT: ${{ steps.pages.outputs.previous_deployment }}
+        run: |
+          set -euo pipefail
+          test -n "$PREVIOUS_DEPLOYMENT"
+          curl --silent --show-error --fail \
+            -X POST \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            --data '{}' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}/deployments/${PREVIOUS_DEPLOYMENT}/rollback" \
+            >/tmp/rollback.json
+          jq -e '.success == true' /tmp/rollback.json >/dev/null
+
+          restored=0
+          for attempt in $(seq 1 30); do
+            code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$PUBLIC_ORIGIN/" || true)"
+            if [[ "$code" == '200' ]]; then
+              restored=1
+              break
+            fi
+            sleep 3
+          done
+          test "$restored" = '1'
+
+      - name: Fail release after successful rollback
+        if: steps.verify.outcome == 'failure'
+        shell: bash
+        run: |
+          echo 'v119 Production verification failed. Cloudflare Pages was rolled back to the previously successful Production deployment.' >&2
+          exit 1
+
+      - name: Record guarded release result
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Print Prep Lab v119 guarded Production release'
+            echo
+            echo "- Approved source SHA: ${APPROVED_SOURCE_SHA}"
+            echo "- Approved preview run: ${APPROVED_PREVIEW_RUN}"
+            echo "- Approved artifact SHA-256: ${APPROVED_ARTIFACT_SHA256}"
+            echo "- Previous Production deployment: ${{ steps.pages.outputs.previous_deployment }}"
+            echo "- Previous Production URL: ${{ steps.pages.outputs.previous_url }}"
+            echo "- Production verification: ${{ steps.verify.outcome }}"
+            echo '- Admin origin modified: no'
+            echo '- D1 modified: no'
+            echo '- Secrets modified: no'
+            if [[ '${{ steps.verify.outcome }}' == 'success' ]]; then
+              echo "- Production origin: ${PUBLIC_ORIGIN}"
+              echo '- Automatic rollback used: no'
+            else
+              echo '- Automatic rollback used: yes'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
