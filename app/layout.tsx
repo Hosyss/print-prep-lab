@@ -16,6 +16,7 @@ import "./globals.css";
 import "./v119-source.css";
 import "./v119-source-nav.css";
 import "./v119-source-polish.css";
+import "./v119-source-locale.css";
 
 const googleVerification =
   process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || DEFAULT_GOOGLE_VERIFICATION;
@@ -71,7 +72,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" dir="ltr">
       <body className="ppl-source-v119">
         <script
           async
