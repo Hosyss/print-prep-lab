@@ -24,21 +24,21 @@ const toolFaq = [
 ];
 
 export default function ToolsIndex() {
-  return <main>
+  return <main className="source-hub source-tools-hub">
     <div className="shell"><Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Tools" }]} /></div>
-    <PageHero eyebrow="Seven focused calculators" title="Free Print Preparation Tools" description="Choose the task that matches what you know. Every calculator explains the formula, shows a practical result and keeps image processing on your device.">
-      <div className="hero-spec"><span>Start here</span><strong>Check if an image is actually ready to print.</strong><small>Pixels · effective PPI · crop · bleed · maximum sizes</small><Link className="text-link" href="/tools/print-readiness-checker">Open the checker →</Link></div>
+    <PageHero eyebrow={`${TOOL_PAGES.length} focused calculators`} title="Print preparation tools for real production decisions." description="Start with what you know: the image, pixel dimensions, final print size, crop or bleed. Each calculator shows the assumption and the result instead of hiding the print math.">
+      <div className="hero-spec"><span>Recommended first check</span><strong>Is this image actually ready to print?</strong><small>Pixels · effective PPI · crop · bleed · maximum sizes</small><Link className="text-link" href="/tools/print-readiness-checker">Open the readiness checker →</Link></div>
     </PageHero>
 
     <section className="content-section shell hub-task-section">
       <div className="section-kicker">Choose by starting point</div>
-      <div className="hub-section-title"><h2>What do you have right now?</h2><p>You do not need to translate your question into technical terminology first.</p></div>
+      <div className="hub-section-title"><h2>What do you have right now?</h2><p>Pick the question in front of you. You do not need to translate it into technical terminology first.</p></div>
       <div className="hub-task-grid">{taskRoutes.map((task) => <Link href={task.href} key={task.title}><span>{task.label}</span><h3>{task.title}</h3><p>{task.text}</p><b>Use this route →</b></Link>)}</div>
     </section>
 
     <section className="hub-feature shell" aria-labelledby="featured-checker-title">
-      <div><span>Featured tool</span><h2 id="featured-checker-title">One local check from pixels to paper.</h2><p>Choose an image and a target print. The checker reads the source dimensions locally, then reports effective PPI, maximum sizes at 150, 240 and 300 PPI, crop loss, bleed canvas and safe area.</p><div className="trust-row"><span>✓ No upload</span><span>✓ No account</span><span>✓ No hidden quality score</span></div></div>
-      <aside><strong>Use the real file</strong><p>A DPI metadata tag cannot create detail. The checker starts with the image&apos;s actual width and height in pixels.</p><Link className="button primary" href="/tools/print-readiness-checker">Check my image <span>→</span></Link></aside>
+      <div><span>Featured workflow</span><h2 id="featured-checker-title">One local check from source pixels to paper.</h2><p>Choose an image and a target print. The checker reads the source dimensions locally, then reports effective PPI, maximum sizes at 150, 240 and 300 PPI, crop loss, bleed canvas and safe area.</p><div className="trust-row"><span>✓ No upload</span><span>✓ No account</span><span>✓ Visible calculations</span></div></div>
+      <aside><strong>Use the real file</strong><p>A DPI metadata tag cannot create detail. Start with the image&apos;s actual width and height in pixels.</p><Link className="button primary" href="/tools/print-readiness-checker">Check my image <span>→</span></Link></aside>
     </section>
 
     <section className="content-section shell">
@@ -48,7 +48,7 @@ export default function ToolsIndex() {
     </section>
 
     <section className="content-section shell hub-learning-grid">
-      <article><div className="section-kicker">Need the reasoning?</div><h2>Learn before you export.</h2><div className="hub-link-list"><Link href="/guides/how-large-can-i-print-my-image">How large can I print my image? <span>→</span></Link><Link href="/guides/dpi-vs-ppi">DPI vs PPI explained <span>→</span></Link><Link href="/guides/aspect-ratio-cropping-print">Why photos crop at print sizes <span>→</span></Link></div></article>
+      <article><div className="section-kicker">Need the reasoning?</div><h2>Understand the decision before export.</h2><div className="hub-link-list"><Link href="/guides/how-large-can-i-print-my-image">How large can I print my image? <span>→</span></Link><Link href="/guides/dpi-vs-ppi">DPI vs PPI explained <span>→</span></Link><Link href="/guides/aspect-ratio-cropping-print">Why photos crop at print sizes <span>→</span></Link></div></article>
       <aside><div className="section-kicker">Tool questions</div><FaqList items={toolFaq} /></aside>
     </section>
     <div className="shell"><PageCta /></div>
