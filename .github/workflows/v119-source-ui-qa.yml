@@ -1,0 +1,121 @@
+name: Print Prep Lab v119 source UI QA
+
+on:
+  push:
+    branches:
+      - design/v119-professional-redesign-20260914
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'tests/**'
+      - 'worker/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - '.github/workflows/v119-source-ui-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-v119-source-ui-qa
+  cancel-in-progress: true
+
+jobs:
+  source-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out v119 design branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build current source
+        run: npm run build
+
+      - name: Prepare Pages source artifact
+        run: npm run prepare:pages
+
+      - name: Validate math rendered pages and source quality
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:math
+          node --test tests/rendered-html.test.mjs
+          npm run lint
+
+      - name: Capture source UI routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v119-source-qa
+          mkdir -p /tmp/v119-source-qa
+          npm run dev -- --host 127.0.0.1 --port 4174 >/tmp/v119-source-dev.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:4174/tools >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          if [[ "$ready" != '1' ]]; then
+            cat /tmp/v119-source-dev.log
+            exit 1
+          fi
+
+          for route in / /tools /guides /tools/dpi-ppi-calculator /guides/how-large-can-i-print-my-image /sizes; do
+            code="$(curl --silent --output /tmp/source-route.html --write-out '%{http_code}' "http://127.0.0.1:4174${route}")"
+            echo "${route} -> ${code}"
+            [[ "$code" == '200' ]]
+          done
+
+          curl --silent --fail http://127.0.0.1:4174/tools >/tmp/tools-source.html
+          grep -Fq 'أدوات تجهيز الطباعة لقرارات إنتاج حقيقية.' /tmp/tools-source.html
+          grep -Fq 'data-source-lang' /tmp/tools-source.html
+          curl --silent --fail http://127.0.0.1:4174/tools/dpi-ppi-calculator >/tmp/tool-detail-source.html
+          grep -Fq 'احسب PPI للصورة عند الطباعة' /tmp/tool-detail-source.html
+          grep -Fq 'النتائج المحسوبة' /tmp/tool-detail-source.html
+          curl --silent --fail http://127.0.0.1:4174/guides/how-large-can-i-print-my-image >/tmp/guide-detail-source.html
+          grep -Fq 'ما أكبر مقاس يمكنك طباعة صورتك به' /tmp/guide-detail-source.html
+
+          shot(){
+            local route="$1" out="$2" viewport="${3:-1920,1080}"
+            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$viewport" --wait-for-timeout 1200 \
+              "http://127.0.0.1:4174${route}" "/tmp/v119-source-qa/${out}"
+          }
+          shot /tools tools-index.png
+          shot /guides guides-index.png
+          shot /tools/dpi-ppi-calculator tool-detail.png
+          shot /guides/how-large-can-i-print-my-image guide-detail.png
+          shot /sizes sizes-index.png
+          shot /tools tools-mobile.png 390,844
+          shot '/tools?lang=ar' tools-rtl.png 1440,1000
+          shot '/sizes?lang=ar' sizes-rtl.png 1440,1000
+          shot '/tools?lang=ar' tools-rtl-mobile.png 390,844
+          shot '/tools/dpi-ppi-calculator?lang=ar' tool-detail-rtl.png 1440,1100
+          shot '/tools/dpi-ppi-calculator?lang=ar' tool-detail-rtl-mobile.png 390,844
+          shot '/guides/how-large-can-i-print-my-image?lang=ar' guide-detail-rtl.png 1440,1100
+
+      - name: Upload source UI QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v119-source-ui-qa
+          path: |
+            /tmp/v119-source-qa/
+            /tmp/v119-source-dev.log
+          if-no-files-found: warn
+          retention-days: 7

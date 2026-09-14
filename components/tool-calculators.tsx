@@ -19,8 +19,75 @@ import type { ToolMode } from "@/lib/site-content";
 
 const COMMON_PPI = [150, 240, 300];
 
+const AR_UI: Record<string, string> = {
+  "Pixel width": "العرض بالبكسل",
+  "Pixel height": "الارتفاع بالبكسل",
+  "Target PPI": "PPI المستهدف",
+  "Print width": "عرض الطباعة",
+  "Print height": "ارتفاع الطباعة",
+  "Quality target": "هدف الجودة",
+  "Trim width": "عرض التشذيب",
+  "Trim height": "ارتفاع التشذيب",
+  "Bleed each edge": "النزف لكل حافة",
+  "Safe margin": "هامش الأمان",
+  "Quick targets": "أهداف سريعة",
+  "Print size in inches": "مقاس الطباعة بالبوصة",
+  "Print size in centimetres": "مقاس الطباعة بالسنتيمتر",
+  "Image aspect ratio": "نسبة أبعاد الصورة",
+  "Required pixel dimensions": "أبعاد البكسل المطلوبة",
+  "Physical size in millimetres": "المقاس الفعلي بالملليمتر",
+  "Required megapixels": "الميجابكسل المطلوب",
+  "Width density": "كثافة العرض",
+  "Height density": "كثافة الارتفاع",
+  "Crop needed to fill": "القص المطلوب للملء",
+  "Trim size": "مقاس التشذيب",
+  "Trim size in inches": "مقاس التشذيب بالبوصة",
+  "Estimated area retained": "المساحة المتبقية المقدرة",
+  "Full image retained": "الصورة كاملة محفوظة",
+  "Estimated crop": "القص المقدر",
+  "Possible border space": "مساحة الحدود المحتملة",
+  "Target format": "المقاس المستهدف",
+  "Full canvas in millimetres": "اللوحة الكاملة بالملليمتر",
+  "Target": "الهدف",
+  "Inches": "بوصات",
+  "Centimetres": "سنتيمترات",
+  "Pixel dimensions": "أبعاد البكسل",
+  "Megapixels": "ميجابكسل",
+  "Width": "العرض",
+  "Height": "الارتفاع",
+  "Same pixels at common print targets": "نفس البكسلات عند أهداف طباعة شائعة",
+  "Pixels required at common targets": "البكسلات المطلوبة عند أهداف شائعة",
+  "Pixels → physical print size": "البكسلات ← مقاس الطباعة الفعلي",
+  "Physical print size → pixels": "مقاس الطباعة الفعلي ← البكسلات",
+  "Effective PPI at final print size": "PPI الفعلي عند مقاس الطباعة النهائي",
+  "Paper preset → pixel dimensions": "مقاس الورق ← أبعاد البكسل",
+  "Image ratio → print crop": "نسبة الصورة ← قص الطباعة",
+  "Trim → bleed canvas and safe area": "التشذيب ← لوحة النزف ومنطقة الأمان",
+  "Print preset": "مقاس الطباعة",
+  "Landscape": "أفقي",
+  "Portrait": "رأسي",
+  "Interactive calculator": "حاسبة تفاعلية",
+  "Calculated results": "النتائج المحسوبة",
+  "Updates as you change the inputs": "تتحدث عند تغيير المدخلات",
+  "Primary result": "النتيجة الأساسية",
+  "Result": "نتيجة",
+  "Copy": "نسخ",
+  "Copied ✓": "تم النسخ ✓",
+  "Copy failed": "فشل النسخ",
+};
+
+function arabicUi(value: string): string {
+  if (AR_UI[value]) return AR_UI[value];
+  if (/ pixel dimensions$/.test(value)) return value.replace(/ pixel dimensions$/, " — أبعاد البكسل");
+  if (/ at common targets$/.test(value)) return value.replace(/ at common targets$/, " — عند أهداف شائعة");
+  if (/^Full canvas in /.test(value)) return value.replace(/^Full canvas in /, "اللوحة الكاملة بوحدة ");
+  if (/^Canvas at /.test(value)) return value.replace(/^Canvas at /, "اللوحة عند ");
+  if (/^Safe area in /.test(value)) return value.replace(/^Safe area in /, "منطقة الأمان بوحدة ");
+  return value;
+}
+
 function NumericField({ label, value, onChange, suffix, minimum = 0, integer = false }: { label: string; value: number; onChange: (value: number) => void; suffix?: string; minimum?: number; integer?: boolean }) {
-  return <label className="tool-field"><span>{label}</span><div><input type="number" min={minimum} step={integer ? 1 : "any"} inputMode={integer ? "numeric" : "decimal"} value={value} onChange={(event) => {
+  return <label className="tool-field"><span data-en={label} data-ar={arabicUi(label)}>{label}</span><div><input type="number" min={minimum} step={integer ? 1 : "any"} inputMode={integer ? "numeric" : "decimal"} value={value} onChange={(event) => {
     const parsed = Number(event.target.value);
     const normalized = Number.isFinite(parsed) ? Math.max(minimum, parsed) : minimum;
     onChange(integer ? Math.round(normalized) : normalized);
@@ -32,11 +99,11 @@ function UnitPicker({ unit, onChange }: { unit: PhysicalUnit; onChange: (unit: P
 }
 
 function PpiPicker({ value, onChange }: { value: number; onChange: (value: number) => void }) {
-  return <div className="ppi-shortcuts" role="group" aria-label="Common PPI targets"><span>Quick targets</span>{COMMON_PPI.map((item) => <button type="button" key={item} className={value === item ? "active" : ""} aria-pressed={value === item} onClick={() => onChange(item)}>{item} PPI</button>)}</div>;
+  return <div className="ppi-shortcuts" role="group" aria-label="Common PPI targets"><span data-en="Quick targets" data-ar="أهداف سريعة">Quick targets</span>{COMMON_PPI.map((item) => <button type="button" key={item} className={value === item ? "active" : ""} aria-pressed={value === item} onClick={() => onChange(item)}>{item} PPI</button>)}</div>;
 }
 
 function ComparisonTable({ title, headings, rows }: { title: string; headings: string[]; rows: string[][] }) {
-  return <div className="comparison-table"><strong>{title}</strong><div className="data-table-wrap"><table className="data-table"><thead><tr>{headings.map((heading) => <th key={heading}>{heading}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.join("-")}>{row.map((cell, index) => <td key={`${cell}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div></div>;
+  return <div className="comparison-table"><strong data-en={title} data-ar={arabicUi(title)}>{title}</strong><div className="data-table-wrap"><table className="data-table"><thead><tr>{headings.map((heading) => <th key={heading} data-en={heading} data-ar={arabicUi(heading)}>{heading}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.join("-")}>{row.map((cell, index) => <td key={`${cell}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div></div>;
 }
 
 function mmInUnit(mm: number, unit: PhysicalUnit) {
@@ -139,10 +206,10 @@ export function ToolCalculator({ mode, initialPreset = "a4" }: { mode: ToolMode;
   if (mode === "aspect-ratio-crop-preview") {
     const crop = cropRetention(widthPx, heightPx, oriented.widthMm, oriented.heightMm);
     return <CalculatorFrame title="Image ratio → print crop" formula="retained area = smaller ratio ÷ larger ratio">
-      <label className="crop-upload" data-clarity-mask="true"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={readLocalImage} /><span>Choose a local image</span><strong>{fileName ?? "No image selected"}</strong><small>{fileName ? `${widthPx} × ${heightPx} px` : "The file stays in your browser"}</small></label>
+      <label className="crop-upload" data-clarity-mask="true"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={readLocalImage} /><span data-en="Choose a local image" data-ar="اختر صورة من جهازك">Choose a local image</span><strong>{fileName ?? "No image selected"}</strong><small>{fileName ? `${widthPx} × ${heightPx} px` : "The file stays in your browser"}</small></label>
       <div className="tool-form-grid"><NumericField label="Pixel width" value={widthPx} onChange={setWidthPx} suffix="px" minimum={1} integer /><NumericField label="Pixel height" value={heightPx} onChange={setHeightPx} suffix="px" minimum={1} integer /></div>
       <PresetControls presetSlug={presetSlug} setPresetSlug={setPresetSlug} landscape={landscape} setLandscape={setLandscape} />
-      <div className="crop-mode-row" role="group" aria-label="Crop preview mode"><span>Preview mode</span><button type="button" className={cropMode === "fill" ? "active" : ""} aria-pressed={cropMode === "fill"} onClick={() => setCropMode("fill")}>Fill & crop</button><button type="button" className={cropMode === "fit" ? "active" : ""} aria-pressed={cropMode === "fit"} onClick={() => setCropMode("fit")}>Fit full image</button></div>
+      <div className="crop-mode-row" role="group" aria-label="Crop preview mode"><span data-en="Preview mode" data-ar="وضع المعاينة">Preview mode</span><button type="button" className={cropMode === "fill" ? "active" : ""} aria-pressed={cropMode === "fill"} onClick={() => setCropMode("fill")} data-en="Fill & crop" data-ar="ملء وقص">Fill & crop</button><button type="button" className={cropMode === "fit" ? "active" : ""} aria-pressed={cropMode === "fit"} onClick={() => setCropMode("fit")} data-en="Fit full image" data-ar="احتواء الصورة كاملة">Fit full image</button></div>
       <div className="crop-preview-grid" data-clarity-mask="true">
         <div className={`crop-stage ${cropMode}`} style={{ aspectRatio: `${oriented.widthMm} / ${oriented.heightMm}` }}>
           {previewUrl ? (
@@ -152,7 +219,7 @@ export function ToolCalculator({ mode, initialPreset = "a4" }: { mode: ToolMode;
           ) : <div className="crop-placeholder"><span>Image {ratioLabel(widthPx, heightPx)}</span><b>→</b><strong>{preset.shortLabel} · {SIZE_RATIO[presetSlug] ?? formatDecimal(oriented.widthMm / oriented.heightMm, 2)}</strong></div>}
           <i aria-hidden="true" />
         </div>
-        <div className="crop-position-controls"><label><span>Horizontal position</span><input type="range" min="0" max="100" value={positionX} onChange={(event) => setPositionX(Number(event.target.value))} /></label><label><span>Vertical position</span><input type="range" min="0" max="100" value={positionY} onChange={(event) => setPositionY(Number(event.target.value))} /></label><small>Position changes what is removed, not the crop percentage.</small></div>
+        <div className="crop-position-controls"><label><span data-en="Horizontal position" data-ar="الموضع الأفقي">Horizontal position</span><input type="range" min="0" max="100" value={positionX} onChange={(event) => setPositionX(Number(event.target.value))} /></label><label><span data-en="Vertical position" data-ar="الموضع الرأسي">Vertical position</span><input type="range" min="0" max="100" value={positionY} onChange={(event) => setPositionY(Number(event.target.value))} /></label><small data-en="Position changes what is removed, not the crop percentage." data-ar="تغيير الموضع يغير الجزء الذي يُزال، وليس نسبة القص.">Position changes what is removed, not the crop percentage.</small></div>
       </div>
       <ResultGrid items={[{ label: cropMode === "fill" ? "Estimated area retained" : "Full image retained", value: `${formatDecimal(cropMode === "fill" ? crop.retainedPercent : 100, 1)}%`, featured: true }, { label: cropMode === "fill" ? "Estimated crop" : "Possible border space", value: cropMode === "fill" ? `${formatDecimal(crop.croppedPercent, 1)}%` : "Shown in preview" }, { label: "Target format", value: `${preset.shortLabel} · ${landscape ? "landscape" : "portrait"}` }]} />
     </CalculatorFrame>;
@@ -162,9 +229,9 @@ export function ToolCalculator({ mode, initialPreset = "a4" }: { mode: ToolMode;
   return <CalculatorFrame title="Trim → bleed canvas and safe area" formula="full canvas = trim + bleed on both edges">
     <UnitPicker unit={unit} onChange={setUnit} />
     <div className="tool-form-grid five"><NumericField label="Trim width" value={width} onChange={setWidth} suffix={unit} minimum={0.01} /><NumericField label="Trim height" value={height} onChange={setHeight} suffix={unit} minimum={0.01} /><NumericField label="Bleed each edge" value={bleed} onChange={setBleed} suffix="mm" /><NumericField label="Safe margin" value={safe} onChange={setSafe} suffix="mm" /><NumericField label="Target PPI" value={ppi} onChange={setPpi} suffix="PPI" minimum={1} /></div>
-    <div className="margin-presets"><span>Common starting points</span><button type="button" onClick={() => setBleed(3)}>3 mm bleed</button><button type="button" onClick={() => setBleed(3.175)}>0.125 in bleed</button><small>Use the printer&apos;s specification when it differs.</small></div>
+    <div className="margin-presets"><span data-en="Common starting points" data-ar="قيم بداية شائعة">Common starting points</span><button type="button" onClick={() => setBleed(3)}>3 mm bleed</button><button type="button" onClick={() => setBleed(3.175)}>0.125 in bleed</button><small data-en="Use the printer's specification when it differs." data-ar="استخدم مواصفات المطبعة عندما تختلف.">Use the printer&apos;s specification when it differs.</small></div>
     <PpiPicker value={ppi} onChange={setPpi} />
-    <div className="bleed-visual"><span>Bleed canvas<strong>Trim<i>Safe area</i></strong></span></div>
+    <div className="bleed-visual"><span data-en="Bleed canvas" data-ar="لوحة النزف">Bleed canvas<strong data-en="Trim" data-ar="التشذيب">Trim<i data-en="Safe area" data-ar="منطقة الأمان">Safe area</i></strong></span></div>
     <ResultGrid items={[{ label: `Full canvas in ${unit}`, value: `${formatDecimal(mmInUnit(plan.canvasWidthMm, unit), 3)} × ${formatDecimal(mmInUnit(plan.canvasHeightMm, unit), 3)} ${unit}`, featured: true }, { label: "Full canvas in millimetres", value: `${formatDecimal(plan.canvasWidthMm, 2)} × ${formatDecimal(plan.canvasHeightMm, 2)} mm` }, { label: `Canvas at ${ppi} PPI`, value: `${plan.canvasWidthPx} × ${plan.canvasHeightPx} px` }, { label: `Safe area in ${unit}`, value: `${formatDecimal(mmInUnit(plan.safeWidthMm, unit), 3)} × ${formatDecimal(mmInUnit(plan.safeHeightMm, unit), 3)} ${unit}` }]} />
   </CalculatorFrame>;
 }
@@ -172,11 +239,12 @@ export function ToolCalculator({ mode, initialPreset = "a4" }: { mode: ToolMode;
 const SIZE_RATIO: Record<string, string> = { a2: "1:√2", a3: "1:√2", a4: "1:√2", a5: "1:√2", "us-letter": "17:22", "us-legal": "17:28", "4x6-photo": "2:3", "5x7-photo": "5:7", "8x10-photo": "4:5", "11x14-photo": "11:14", "12x18-photo": "2:3", "16x20-photo": "4:5" };
 
 function PresetControls({ presetSlug, setPresetSlug, landscape, setLandscape }: { presetSlug: string; setPresetSlug: (value: string) => void; landscape: boolean; setLandscape: (value: boolean) => void }) {
-  return <div className="preset-row"><label><span>Print preset</span><select value={presetSlug} onChange={(event) => setPresetSlug(event.target.value)}>{PRINT_PRESETS.map((item) => <option key={item.slug} value={item.slug}>{item.label}</option>)}</select></label><button type="button" onClick={() => setLandscape(!landscape)}>{landscape ? "Landscape" : "Portrait"} ↻</button></div>;
+  const orientation = landscape ? "Landscape" : "Portrait";
+  return <div className="preset-row"><label><span data-en="Print preset" data-ar="مقاس الطباعة">Print preset</span><select value={presetSlug} onChange={(event) => setPresetSlug(event.target.value)}>{PRINT_PRESETS.map((item) => <option key={item.slug} value={item.slug}>{item.label}</option>)}</select></label><button type="button" onClick={() => setLandscape(!landscape)} data-en={`${orientation} ↻`} data-ar={`${arabicUi(orientation)} ↻`}>{orientation} ↻</button></div>;
 }
 
 function CalculatorFrame({ title, formula, children }: { title: string; formula: string; children: React.ReactNode }) {
-  return <section className="standalone-tool"><div className="standalone-tool-head"><div><span className="live-dot" />Interactive calculator</div><code>{formula}</code></div><div className="standalone-tool-body"><h2>{title}</h2>{children}</div></section>;
+  return <section className="standalone-tool"><div className="standalone-tool-head"><div><span className="live-dot" /><span data-en="Interactive calculator" data-ar="حاسبة تفاعلية">Interactive calculator</span></div><code>{formula}</code></div><div className="standalone-tool-body"><h2 data-en={title} data-ar={arabicUi(title)}>{title}</h2>{children}</div></section>;
 }
 
 function ResultGrid({ items }: { items: Array<{ label: string; value: string; featured?: boolean }> }) {
@@ -206,14 +274,16 @@ function ResultGrid({ items }: { items: Array<{ label: string; value: string; fe
   }
 
   return <section className="tool-results" aria-label="Calculated results">
-    <div className="tool-results-heading"><strong>Calculated results</strong><span>Updates as you change the inputs</span></div>
+    <div className="tool-results-heading"><strong data-en="Calculated results" data-ar="النتائج المحسوبة">Calculated results</strong><span data-en="Updates as you change the inputs" data-ar="تتحدث عند تغيير المدخلات">Updates as you change the inputs</span></div>
     <div className="tool-result-grid">{items.map((item) => {
       const status = copyStatus?.label === item.label ? copyStatus.state : null;
+      const badge = item.featured ? "Primary result" : "Result";
+      const copyLabel = status === "copied" ? "Copied ✓" : status === "error" ? "Copy failed" : "Copy";
       return <div className={`result-card ${item.featured ? "featured" : ""}`} key={item.label}>
-        <div className="result-card-heading"><small>{item.label}</small><span>{item.featured ? "Primary result" : "Result"}</span></div>
+        <div className="result-card-heading"><small data-en={item.label} data-ar={arabicUi(item.label)}>{item.label}</small><span data-en={badge} data-ar={arabicUi(badge)}>{badge}</span></div>
         <strong>{item.value}</strong>
-        <button type="button" className="result-copy" aria-label={`Copy ${item.label}: ${item.value}`} onClick={() => copyResult(item.label, item.value)}>
-          {status === "copied" ? "Copied ✓" : status === "error" ? "Copy failed" : "Copy"}
+        <button type="button" className="result-copy" aria-label={`Copy ${item.label}: ${item.value}`} onClick={() => copyResult(item.label, item.value)} data-en={copyLabel} data-ar={arabicUi(copyLabel)}>
+          {copyLabel}
         </button>
       </div>;
     })}</div>

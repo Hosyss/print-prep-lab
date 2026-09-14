@@ -1,0 +1,61 @@
+/* Print Prep Lab v119 — source visual QA corrections. */
+.ppl-source-v119 h1,.ppl-source-v119 h2,.ppl-source-v119 h3,.ppl-source-v119 h4,
+.ppl-source-v119 .inner-hero h1,.ppl-source-v119 .inner-hero h2,
+.ppl-source-v119 .hub-section-title h2,.ppl-source-v119 .index-card h2,
+.ppl-source-v119 .guide-index h2,.ppl-source-v119 .article-main h2{
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif!important;
+  font-style:normal!important;
+}
+.ppl-source-v119 .inner-hero h1{font-weight:800!important;letter-spacing:-.055em!important}
+
+/* The consent prompt must be visible without becoming the page's focal point. */
+.ppl-source-v119 .privacy-choice-banner{
+  width:min(390px,calc(100vw - 28px));padding:12px 13px;gap:9px;border-radius:12px
+}
+.ppl-source-v119 .privacy-choice-banner strong{font-size:12.5px}
+.ppl-source-v119 .privacy-choice-banner p{font-size:10.5px;line-height:1.42}
+.ppl-source-v119 .privacy-choice-actions button{padding:7px 9px;font-size:10.5px}
+
+/* Sizes is a reference library, not two oversized editorial columns. */
+.ppl-source-v119 .hub-definition-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
+.ppl-source-v119 .hub-definition-grid>article{min-height:0!important;height:auto!important;padding:20px;border:1px solid var(--ppl-line);border-radius:14px;background:#fff;box-shadow:0 5px 18px rgba(7,26,51,.03);align-content:start}
+.ppl-source-v119 .hub-definition-grid>article>span{color:var(--ppl-cyan);font-size:10px;font-weight:820;letter-spacing:.1em;text-transform:uppercase}
+.ppl-source-v119 .hub-definition-grid h2{margin:9px 0 7px;font-size:24px;line-height:1.15;font-weight:760}
+.ppl-source-v119 .hub-definition-grid p{margin:0 0 13px;font-size:13px}
+.ppl-source-v119 .hub-definition-grid a{font-size:12px;font-weight:720;text-decoration:none;color:#075ed0}
+.ppl-source-v119 .size-library-groups{display:grid;gap:24px}
+.ppl-source-v119 .size-library-groups>section{display:grid;gap:12px}
+.ppl-source-v119 .size-group-heading{display:flex;align-items:end;justify-content:space-between;gap:24px}
+.ppl-source-v119 .size-group-heading h2{margin:0;font-size:28px;line-height:1.1}
+.ppl-source-v119 .size-group-heading p{margin:5px 0 0;font-size:13px}
+.ppl-source-v119 .size-group-heading>span{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6e8397}
+.ppl-source-v119 .size-index-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.ppl-source-v119 .size-index-card{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:14px;align-items:center;padding:16px;border:1px solid var(--ppl-line);border-radius:13px;background:#fff;box-shadow:0 4px 16px rgba(7,26,51,.03);text-decoration:none}
+.ppl-source-v119 .size-index-card:hover{border-color:#b9cfe2;box-shadow:var(--ppl-shadow);transform:translateY(-1px)}
+.ppl-source-v119 .size-index-card .paper-mini{width:52px;min-height:58px;display:grid;place-items:center;border:1px solid #bccbd8;border-radius:5px;background:#f8fafc;color:#31516d;font-size:10px;font-weight:800}
+.ppl-source-v119 .size-index-card small{color:var(--ppl-cyan);font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+.ppl-source-v119 .size-index-card h3{margin:4px 0;font-size:17px;line-height:1.15}
+.ppl-source-v119 .size-index-card p{margin:0 0 5px;font-size:11.5px}
+.ppl-source-v119 .size-index-card strong{font-size:11.5px;color:#34526d}.ppl-source-v119 .size-index-card strong i{font-style:normal;color:#8193a3;font-weight:600}
+.ppl-source-v119 .size-index-card>b{color:#0a67cf;font-size:14px}
+.ppl-source-v119 .ppi-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ppl-source-v119 .ppi-guide-grid article{padding:17px;border:1px solid var(--ppl-line);border-radius:12px;background:#fff}
+.ppl-source-v119 .ppi-guide-grid article>span{color:var(--ppl-cyan);font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.ppl-source-v119 .ppi-guide-grid h3{margin:6px 0 5px;font-size:20px}.ppl-source-v119 .ppi-guide-grid p{margin:0;font-size:12px}
+
+@media(max-width:820px){
+  .ppl-source-v119 .hub-definition-grid,.ppl-source-v119 .size-index-grid,.ppl-source-v119 .ppi-guide-grid{grid-template-columns:1fr}
+  .ppl-source-v119 .size-group-heading{align-items:flex-start;flex-direction:column;gap:5px}
+  .ppl-source-v119 .inner-hero>.shell{padding:20px 17px!important}
+  .ppl-source-v119 .inner-hero h1{font-size:36px!important;line-height:.99!important;letter-spacing:-.045em!important}
+  .ppl-source-v119 .inner-hero p{margin-top:12px!important;font-size:14px!important;line-height:1.55!important}
+  .ppl-source-v119 .inner-hero-grid{gap:14px!important}
+  .ppl-source-v119 .hero-spec{padding:14px!important}
+  .ppl-source-v119 .hero-spec strong{font-size:15px!important}
+  .ppl-source-v119 .hero-spec small{margin-top:5px!important;font-size:11px!important}
+  .ppl-source-v119 .privacy-choice-banner{left:auto;right:auto;inset-inline:8px;transform:none;bottom:8px;width:auto;padding:8px 9px;gap:8px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+  .ppl-source-v119 .privacy-choice-banner strong{font-size:11.5px}
+  .ppl-source-v119 .privacy-choice-banner p{margin-top:1px;font-size:9px;line-height:1.28}
+  .ppl-source-v119 .privacy-choice-actions{gap:5px;display:flex;flex-direction:row;align-items:center}
+  .ppl-source-v119 .privacy-choice-actions button{padding:6px 7px;font-size:9.5px;white-space:nowrap}
+}

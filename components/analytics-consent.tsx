@@ -86,22 +86,24 @@ export function AnalyticsConsent() {
 
   if (!isOpen) return null;
 
+  const declineEn = storedChoice === "granted" ? "Withdraw" : "Decline";
+  const declineAr = storedChoice === "granted" ? "سحب الموافقة" : "رفض";
+
   return (
     <aside className="privacy-choice-banner" aria-label="Analytics privacy choices">
       <div>
-        <strong>Help improve these print tools</strong>
+        <strong data-en="Optional analytics" data-ar="تحليلات اختيارية">Optional analytics</strong>
         <p>
-          Microsoft Clarity loads only after you allow analytics. Selected images
-          stay on your device and sensitive page content is masked. {" "}
-          <Link href="/privacy">Privacy details</Link>
+          <span data-en="Clarity loads only if you allow it. Images stay on your device." data-ar="يعمل Clarity فقط بعد موافقتك، وتبقى الصور على جهازك.">Clarity loads only if you allow it. Images stay on your device.</span>{" "}
+          <Link href="/privacy" data-en="Privacy details" data-ar="تفاصيل الخصوصية">Privacy details</Link>
         </p>
       </div>
       <div className="privacy-choice-actions">
-        <button type="button" className="allow" onClick={() => saveChoice("granted")}>
-          Allow analytics
+        <button type="button" className="allow" onClick={() => saveChoice("granted")} data-en="Allow" data-ar="سماح">
+          Allow
         </button>
-        <button type="button" onClick={() => saveChoice("denied")}>
-          {storedChoice === "granted" ? "Withdraw consent" : "Decline"}
+        <button type="button" onClick={() => saveChoice("denied")} data-en={declineEn} data-ar={declineAr}>
+          {declineEn}
         </button>
       </div>
     </aside>
@@ -113,6 +115,8 @@ export function PrivacySettingsButton() {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event("print-prep:privacy-settings"))}
+      data-en="Analytics choices"
+      data-ar="خيارات التحليلات"
     >
       Analytics choices
     </button>

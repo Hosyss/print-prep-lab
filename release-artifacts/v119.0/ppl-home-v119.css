@@ -1,0 +1,47 @@
+/* Print Prep Lab v119 Home — one coherent product surface. */
+.ppl-home-v119 #ppl-v118-launch,.ppl-home-v119 .ppl-v118-home-journey{display:none!important}
+.ppl-home-v119 .ppl-global-stage main{padding-top:24px!important}
+.ppl-home-v119 .home-v119-hero{display:grid!important;grid-template-columns:minmax(0,1.55fr) minmax(300px,.65fr)!important;gap:44px!important;align-items:center!important;padding:48px 52px!important}
+.ppl-home-v119 .home-v119-hero h1{font-size:clamp(44px,4.8vw,72px)!important;line-height:.98!important;letter-spacing:-.055em!important;max-width:870px!important;margin:13px 0 18px!important;color:#fff!important}
+.ppl-home-v119 .home-v119-hero-copy>p{font-size:17px!important;max-width:760px!important;color:#dce9f7!important;margin:0!important}
+.ppl-home-v119 .eyebrow{display:flex;align-items:center;gap:10px;color:#72d7e5!important;font-size:11px;font-weight:800;letter-spacing:.16em}
+.ppl-home-v119 .eyebrow>span{width:26px;height:2px;background:#29bfd0;display:inline-block}
+.ppl-home-v119 .home-v119-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.ppl-home-v119 .home-v119-actions .button{padding:12px 16px;border:1px solid #ffffff55;background:#ffffff0d;color:#fff;text-decoration:none}
+.ppl-home-v119 .home-v119-actions .button.primary{background:#2477ed!important;border-color:#2477ed!important}
+.ppl-home-v119 .home-v119-trust{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.ppl-home-v119 .home-v119-trust span{border:1px solid #ffffff26;background:#ffffff0d;color:#e5f1fc;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:650}
+.ppl-home-v119 .home-v119-start{background:#fff!important;border:1px solid #d6e1ec!important;border-radius:14px!important;overflow:hidden;box-shadow:0 14px 35px rgba(1,18,39,.18)!important}
+.ppl-home-v119 .home-v119-start small{display:block;padding:15px 17px 11px;color:#087f92;font-weight:850;letter-spacing:.12em;font-size:10px}
+.ppl-home-v119 .home-v119-start a{display:block;padding:15px 17px;border-top:1px solid #e3eaf1;text-decoration:none;background:#fff}
+.ppl-home-v119 .home-v119-start a:hover{background:#f7fafe}
+.ppl-home-v119 .home-v119-start strong{display:block;color:#10243a;font-size:15px;margin-bottom:4px}
+.ppl-home-v119 .home-v119-start span{display:block;color:#60758a;font-size:12px;line-height:1.45}
+.ppl-home-v119 .home-v119-section{padding:28px 0 10px!important}
+.ppl-home-v119 .home-v119-section-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.72fr);gap:48px;align-items:end;margin-bottom:18px}
+.ppl-home-v119 .home-v119-section-head h2,.ppl-home-v119 .home-v119-proof h2,.ppl-home-v119 .home-v119-learn h2{font-size:clamp(30px,3vw,44px)!important;line-height:1.06!important;margin:6px 0 0!important;max-width:820px}
+.ppl-home-v119 .home-v119-section-head>p{margin:0;font-size:14px}
+.ppl-home-v119 .kicker{color:#0b8fa3;font-size:10px;font-weight:850;letter-spacing:.15em}
+.ppl-home-v119 .home-v119-task-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.ppl-home-v119 .home-v119-task-grid>a{display:flex;flex-direction:column;min-height:240px;padding:20px;border:1px solid var(--v119-line);border-radius:14px;background:#fff;text-decoration:none;box-shadow:0 5px 18px rgba(7,26,51,.035)}
+.ppl-home-v119 .home-v119-task-grid>a:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(7,26,51,.08)}
+.ppl-home-v119 .home-v119-task-grid>a>span{font-size:11px;font-weight:850;color:#0a91a6;letter-spacing:.12em}
+.ppl-home-v119 .home-v119-task-grid h3{font-size:21px!important;line-height:1.18!important;margin:12px 0 8px!important}
+.ppl-home-v119 .home-v119-task-grid p{font-size:13px;line-height:1.6;margin:0 0 18px}
+.ppl-home-v119 .home-v119-task-grid b{margin-top:auto;color:#1264cf;font-size:12px}
+.ppl-home-v119 .home-v119-proof{padding:28px 0!important;border-top:1px solid #dfe7ef}
+.ppl-home-v119 .home-v119-proof-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}
+.ppl-home-v119 .home-v119-proof-grid article{padding:20px;border:1px solid var(--v119-line);border-radius:14px;background:#f8fafc}
+.ppl-home-v119 .home-v119-proof-grid strong{display:block;color:#10243a;font-size:16px;margin-bottom:7px}
+.ppl-home-v119 .home-v119-proof-grid p{font-size:13px;margin:0}
+.ppl-home-v119 .home-v119-learn{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:44px;align-items:center;padding:26px 30px!important;margin-top:12px!important;background:#0b2a4a!important;border-radius:16px;color:#fff}
+.ppl-home-v119 .home-v119-learn h2{color:#fff!important}
+.ppl-home-v119 .home-v119-learn p{color:#cfdeec!important;max-width:820px}
+.ppl-home-v119 .home-v119-learn nav{display:grid;gap:8px}
+.ppl-home-v119 .home-v119-learn nav a{padding:11px 13px;border:1px solid #ffffff2c;border-radius:9px;color:#fff;text-decoration:none;font-size:12px;font-weight:700;background:#ffffff0a}
+html[dir="rtl"] .ppl-home-v119 .eyebrow{flex-direction:row-reverse;justify-content:flex-end}
+html[dir="rtl"] .ppl-home-v119 .home-v119-start,html[dir="rtl"] .ppl-home-v119 .home-v119-task-grid,html[dir="rtl"] .ppl-home-v119 .home-v119-proof-grid{text-align:right}
+html[dir="rtl"] .ppl-home-v119 .home-v119-actions,html[dir="rtl"] .ppl-home-v119 .home-v119-trust{justify-content:flex-start}
+@media(max-width:1180px){.ppl-home-v119 .home-v119-hero{grid-template-columns:minmax(0,1fr) 300px!important;gap:28px!important}.ppl-home-v119 .home-v119-task-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.ppl-home-v119 .home-v119-hero,.ppl-home-v119 .home-v119-section-head,.ppl-home-v119 .home-v119-learn{grid-template-columns:1fr!important}.ppl-home-v119 .home-v119-start{max-width:none;width:100%}.ppl-home-v119 .home-v119-proof-grid{grid-template-columns:1fr}.ppl-home-v119 .home-v119-learn{gap:20px!important}}
+@media(max-width:640px){.ppl-home-v119 .ppl-global-stage main{padding-top:10px!important}.ppl-home-v119 .home-v119-hero{padding:26px 18px!important;gap:22px!important}.ppl-home-v119 .home-v119-hero h1{font-size:clamp(38px,12vw,52px)!important}.ppl-home-v119 .home-v119-hero-copy>p{font-size:15px!important}.ppl-home-v119 .home-v119-actions{display:grid;grid-template-columns:1fr}.ppl-home-v119 .home-v119-actions .button{text-align:center}.ppl-home-v119 .home-v119-task-grid{grid-template-columns:1fr}.ppl-home-v119 .home-v119-task-grid>a{min-height:0}.ppl-home-v119 .home-v119-section{padding-top:20px!important}.ppl-home-v119 .home-v119-learn{padding:22px 18px!important}}

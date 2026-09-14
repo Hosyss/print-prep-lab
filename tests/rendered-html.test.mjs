@@ -65,6 +65,8 @@ test("renders production security, publisher, advertising and consent signals", 
   assert.match(response.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
   assert.equal(response.headers.get("strict-transport-security"), "max-age=31536000; includeSubDomains");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=0, must-revalidate");
+  assert.equal(response.headers.get("cdn-cache-control"), "public, max-age=600, stale-while-revalidate=86400");
 
   const html = await response.text();
   assert.doesNotMatch(html, developmentPreviewMeta);
@@ -123,6 +125,26 @@ test("serves a clean robots file, a complete sitemap and an authorized ads.txt",
   const indexNowResponse = await requestPath(worker, "/516c1331b746fbca4fb273e523b64e3e.txt");
   assert.equal(indexNowResponse.status, 200);
   assert.equal((await indexNowResponse.text()).trim(), "516c1331b746fbca4fb273e523b64e3e");
+});
+
+test("keeps the public Admin entry isolated from the Pages origin", async () => {
+  const redirects = (await readFile(new URL("../public/_redirects", import.meta.url), "utf8")).trim();
+  assert.equal(
+    redirects,
+    "/admin https://print-prep-lab-admin.buildtools.workers.dev 302\n" +
+      "/admin/ https://print-prep-lab-admin.buildtools.workers.dev 302",
+  );
+  assert.doesNotMatch(redirects, /200|:splat|\/api\//);
+
+  const worker = await loadWorker();
+  for (const path of ["/admin", "/admin/"]) {
+    const response = await requestPath(worker, path);
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), "https://print-prep-lab-admin.buildtools.workers.dev");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+    assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
+  }
 });
 
 test("renders all seven calculators with original use cases, examples, notes and FAQs", async () => {

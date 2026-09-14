@@ -1,0 +1,236 @@
+name: Print Prep Lab v119 professional preview
+
+on:
+  push:
+    branches:
+      - design/v119-professional-redesign-20260914
+    paths:
+      - 'release-artifacts/v119.0/**'
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'worker/**'
+      - 'scripts/build-verified.sh'
+      - 'scripts/prepare-pages.sh'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/v119-professional-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-v119-professional-preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: printpreplab
+      PREVIEW_BRANCH: v119-preview
+      PREVIEW_ORIGIN: https://v119-preview.printpreplab.pages.dev
+
+    steps:
+      - name: Check out design branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Verify preview boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/design/v119-professional-redesign-20260914'
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -f release-artifacts/v119.0/ppl-design-v119.css
+          test -f release-artifacts/v119.0/ppl-home-v119.css
+          test -f release-artifacts/v119.0/ppl-home-v119.html
+          test -f release-artifacts/v119.0/ppl-polish-v119.css
+          test -f release-artifacts/v119.0/build-v119.sh
+          test -f app/v119-source.css
+          test -f app/v119-source-polish.css
+          test -f app/v119-source-locale.css
+          test -f components/source-locale.tsx
+          test -f worker/index.ts
+
+      - name: Build current source runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          npm run prepare:pages
+          test -s .cloudflare/pages/_worker.js
+          test -f .cloudflare/pages/_routes.json
+          find .cloudflare/pages/assets -type f -print -quit | grep -q .
+
+      - name: Build hybrid v119 preview artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash release-artifacts/v119.0/build-v119.sh
+          rm -rf /tmp/ppl-v119
+          mkdir -p /tmp/ppl-v119
+          unzip -q release-artifacts/v119.0/print-prep-lab-pages-v119-professional-preview.zip -d /tmp/ppl-v119
+          test -s /tmp/ppl-v119/_worker.js
+          test -s /tmp/ppl-v119/ppl-workflow-v119.css
+          find /tmp/ppl-v119/assets -type f -print -quit | grep -q .
+          grep -Fq 'Print preparation, without the guesswork.' /tmp/ppl-v119/home-v112.html
+          grep -Fq '.ppl-home-v119 #ppl-v118-launch' /tmp/ppl-v119/ppl-workflow-v119.css
+          grep -Fq 'Run the job from one clear operations board.' /tmp/ppl-v119/operations.html
+          grep -Fq 'class="active" href="/job-costing"' /tmp/ppl-v119/job-costing.html
+          grep -Fq 'class="active" href="/workspace#workspace-tools"' /tmp/ppl-v119/workspace.html
+          grep -Fq 'google.com, pub-3369551572403499' /tmp/ppl-v119/ads.txt
+
+      - name: Upload v119 build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v119-professional-preview-build
+          path: release-artifacts/v119.0/print-prep-lab-pages-v119-professional-preview.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Capture hybrid local Worker visual QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v119-qa
+          mkdir -p /tmp/v119-qa
+
+          (
+            cd /tmp/ppl-v119
+            env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
+              npx --yes wrangler@4.131.1 pages dev . \
+              --ip 127.0.0.1 --port 4173 \
+              --compatibility-date=2026-05-22 --compatibility-flags=nodejs_compat
+          ) >/tmp/v119-wrangler-dev.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:4173/ >/tmp/v119-home.html; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          if [[ "$ready" != '1' ]]; then
+            cat /tmp/v119-wrangler-dev.log
+            exit 1
+          fi
+
+          for route in / /operations /tools/print-readiness-checker /job-costing /workspace /tools /guides /sizes /tools/dpi-ppi-calculator /guides/how-large-can-i-print-my-image; do
+            code="$(curl --silent --output /tmp/route.html --write-out '%{http_code}' "http://127.0.0.1:4173${route}")"
+            echo "${route} -> ${code}"
+            [[ "$code" == '200' ]]
+          done
+
+          curl --silent --fail http://127.0.0.1:4173/tools >/tmp/tools-source.html
+          grep -Fq 'أدوات تجهيز الطباعة لقرارات إنتاج حقيقية.' /tmp/tools-source.html
+          grep -Fq 'data-source-lang' /tmp/tools-source.html
+          curl --silent --fail http://127.0.0.1:4173/sizes >/tmp/sizes-source.html
+          grep -Fq 'مرجع مقاسات الورق والصور' /tmp/sizes-source.html
+
+          shot(){
+            local url="$1" out="$2" viewport="$3"
+            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$viewport" --wait-for-timeout 1000 "$url" "/tmp/v119-qa/$out"
+          }
+
+          shot http://127.0.0.1:4173/ home-desktop.png 1920,1080
+          shot http://127.0.0.1:4173/ home-mobile.png 390,844
+          shot http://127.0.0.1:4173/operations operations.png 1920,1080
+          shot http://127.0.0.1:4173/tools/print-readiness-checker readiness.png 1920,1080
+          shot http://127.0.0.1:4173/job-costing costing.png 1920,1080
+          shot http://127.0.0.1:4173/workspace workspace.png 1920,1080
+          shot http://127.0.0.1:4173/tools tools-index.png 1920,1080
+          shot http://127.0.0.1:4173/guides guides-index.png 1920,1080
+          shot http://127.0.0.1:4173/sizes sizes-index.png 1920,1080
+          shot http://127.0.0.1:4173/tools/dpi-ppi-calculator tool-detail.png 1920,1080
+          shot http://127.0.0.1:4173/guides/how-large-can-i-print-my-image guide-detail.png 1920,1080
+          shot http://127.0.0.1:4173/tools tools-mobile.png 390,844
+          shot 'http://127.0.0.1:4173/tools?lang=ar' tools-rtl.png 1440,1000
+          shot 'http://127.0.0.1:4173/sizes?lang=ar' sizes-rtl.png 1440,1000
+
+      - name: Upload local visual QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v119-hybrid-visual-qa
+          path: |
+            /tmp/v119-qa/
+            /tmp/v119-wrangler-dev.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Deploy preview if Cloudflare token permits
+        id: deploy_preview
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd /tmp/ppl-v119
+            npx --yes wrangler@4.131.1 pages deploy . \
+              --project-name "$PAGES_PROJECT" \
+              --branch "$PREVIEW_BRANCH" \
+              --commit-hash "$GITHUB_SHA" \
+              --commit-message 'v119 current-source hybrid preview'
+          )
+
+      - name: Verify deployed preview visual routes and boundaries
+        if: steps.deploy_preview.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 24); do
+            code="$(curl --silent --show-error --output /tmp/ops.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/operations" || true)"
+            [[ "$code" == '200' ]] && grep -Fq 'Run the job from one clear operations board.' /tmp/ops.html && break
+            sleep 3
+          done
+          [[ "$code" == '200' ]]
+          grep -Fq 'ppl-workflow-v119.css' /tmp/ops.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/ppl-workflow-v119.css" >/tmp/preview-v119.css
+          grep -Fq -- '--v119-sidebar:218px' /tmp/preview-v119.css
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools" >/tmp/tools.html
+          grep -Fq 'Print preparation tools for real production decisions.' /tmp/tools.html
+          grep -Fq 'أدوات تجهيز الطباعة لقرارات إنتاج حقيقية.' /tmp/tools.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/guides" >/tmp/guides.html
+          grep -Fq 'Print preparation guidance you can use on the job.' /tmp/guides.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools/print-readiness-checker" >/tmp/readiness.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/ads.txt" >/tmp/preview-ads.txt
+          grep -Fq 'pub-3369551572403499' /tmp/preview-ads.txt
+          curl --silent --show-error --dump-header /tmp/admin-headers.txt --output /dev/null "$PREVIEW_ORIGIN/admin"
+          grep -Eqi '^HTTP/.* 302' /tmp/admin-headers.txt
+          grep -Fqi 'location: https://print-prep-lab-admin.buildtools.workers.dev' /tmp/admin-headers.txt
+
+      - name: Record preview status
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Print Prep Lab v119 current-source hybrid preview'
+            echo
+            echo '- Source build: validated'
+            echo '- Hybrid artifact: validated'
+            echo '- Local Worker routes + visual QA: validated when prior steps are green'
+            echo '- Arabic RTL QA: clean source routes'
+            if [[ '${{ steps.deploy_preview.outcome }}' == 'success' ]]; then
+              echo "- Cloudflare preview: $PREVIEW_ORIGIN"
+            else
+              echo '- Cloudflare preview: not deployed — current API token lacks Pages deploy permission (Cloudflare code 10000 on prior attempts)'
+              echo '- Required fix: replace/update the GitHub Actions Cloudflare token with Account → Cloudflare Pages: Edit for this account; do not change production while doing so.'
+            fi
+            echo '- Production changed: no'
+            echo '- Admin origin changed: no'
+            echo '- Secrets/D1 changed by this workflow: no'
+          } >> "$GITHUB_STEP_SUMMARY"
