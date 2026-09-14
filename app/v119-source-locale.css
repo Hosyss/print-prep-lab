@@ -1,0 +1,14 @@
+/* Print Prep Lab v119 — shared source language control and RTL support. */
+.source-lang-wrap{display:inline-flex;align-items:center;margin-inline-start:8px}.source-lang-select{min-width:58px;height:34px;padding:0 26px 0 10px;border:1px solid rgba(255,255,255,.2);border-radius:9px;background:#0c2c50;color:#fff;font:700 11px/1 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;cursor:pointer}.source-lang-select:focus-visible{outline:2px solid #6fe6ff;outline-offset:2px}.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+html[dir="rtl"] .ppl-source-v119{font-family:Tahoma,"Segoe UI",Arial,sans-serif;text-align:start}
+html[dir="rtl"] .ppl-source-v119 .brand{direction:ltr}
+html[dir="rtl"] .ppl-source-v119 .breadcrumbs i{transform:scaleX(-1)}
+html[dir="rtl"] .ppl-source-v119 .text-link span,
+html[dir="rtl"] .ppl-source-v119 .button span{display:inline-block;transform:scaleX(-1)}
+html[dir="rtl"] .ppl-source-v119 .main-nav,
+html[dir="rtl"] .ppl-source-v119 .footer-links,
+html[dir="rtl"] .ppl-source-v119 .privacy-choice-actions{direction:rtl}
+html[dir="rtl"] .ppl-source-v119 input,
+html[dir="rtl"] .ppl-source-v119 select,
+html[dir="rtl"] .ppl-source-v119 textarea{font-family:Tahoma,"Segoe UI",Arial,sans-serif}
+@media(max-width:820px){.source-lang-wrap{margin-inline-start:auto}.source-lang-select{height:36px;min-width:54px}.ppl-source-v119 .header-action{display:none}}
