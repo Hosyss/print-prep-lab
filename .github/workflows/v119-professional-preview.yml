@@ -6,6 +6,14 @@ on:
       - design/v119-professional-redesign-20260914
     paths:
       - 'release-artifacts/v119.0/**'
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'worker/**'
+      - 'scripts/build-verified.sh'
+      - 'scripts/prepare-pages.sh'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/v119-professional-preview.yml'
 
 permissions:
@@ -30,6 +38,12 @@ jobs:
       - name: Check out design branch
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
       - name: Verify preview boundary
         shell: bash
         run: |
@@ -42,8 +56,22 @@ jobs:
           test -f release-artifacts/v119.0/ppl-home-v119.html
           test -f release-artifacts/v119.0/ppl-polish-v119.css
           test -f release-artifacts/v119.0/build-v119.sh
+          test -f app/v119-source.css
+          test -f app/v119-source-polish.css
+          test -f worker/index.ts
 
-      - name: Build v119 preview artifact
+      - name: Build current source runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          npm run prepare:pages
+          test -s .cloudflare/pages/_worker.js
+          test -f .cloudflare/pages/_routes.json
+          find .cloudflare/pages/assets -type f -print -quit | grep -q .
+
+      - name: Build hybrid v119 preview artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -51,7 +79,9 @@ jobs:
           rm -rf /tmp/ppl-v119
           mkdir -p /tmp/ppl-v119
           unzip -q release-artifacts/v119.0/print-prep-lab-pages-v119-professional-preview.zip -d /tmp/ppl-v119
+          test -s /tmp/ppl-v119/_worker.js
           test -s /tmp/ppl-v119/ppl-workflow-v119.css
+          find /tmp/ppl-v119/assets -type f -print -quit | grep -q .
           grep -Fq 'Print preparation, without the guesswork.' /tmp/ppl-v119/home-v112.html
           grep -Fq '.ppl-home-v119 #ppl-v118-launch' /tmp/ppl-v119/ppl-workflow-v119.css
           grep -Fq 'Run the job from one clear operations board.' /tmp/ppl-v119/operations.html
@@ -67,7 +97,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Capture local Worker visual QA
+      - name: Capture hybrid local Worker visual QA
         shell: bash
         run: |
           set -euo pipefail
@@ -84,7 +114,7 @@ jobs:
           PY
 
           env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
-            npx --yes wrangler@4.92.0 pages dev /tmp/ppl-v119 \
+            npx --yes wrangler@4.131.1 pages dev /tmp/ppl-v119 \
             --ip 127.0.0.1 --port 4173 \
             --compatibility-date=2026-05-22 --compatibility-flags=nodejs_compat \
             >/tmp/v119-wrangler-dev.log 2>&1 &
@@ -92,7 +122,7 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
 
           ready=0
-          for attempt in $(seq 1 40); do
+          for attempt in $(seq 1 60); do
             if curl --silent --fail http://127.0.0.1:4173/ >/tmp/v119-home.html; then
               ready=1
               break
@@ -104,7 +134,7 @@ jobs:
             exit 1
           fi
 
-          for route in / /operations /tools/print-readiness-checker /job-costing /workspace /tools /guides; do
+          for route in / /operations /tools/print-readiness-checker /job-costing /workspace /tools /guides /sizes /tools/dpi-ppi-calculator /guides/how-large-can-i-print-my-image; do
             code="$(curl --silent --output /tmp/route.html --write-out '%{http_code}' "http://127.0.0.1:4173${route}")"
             echo "${route} -> ${code}"
             [[ "$code" == '200' ]]
@@ -124,12 +154,16 @@ jobs:
           shot http://127.0.0.1:4173/workspace workspace.png 1920,1080
           shot http://127.0.0.1:4173/tools tools-index.png 1920,1080
           shot http://127.0.0.1:4173/guides guides-index.png 1920,1080
+          shot http://127.0.0.1:4173/sizes sizes-index.png 1920,1080
+          shot http://127.0.0.1:4173/tools/dpi-ppi-calculator tool-detail.png 1920,1080
+          shot http://127.0.0.1:4173/guides/how-large-can-i-print-my-image guide-detail.png 1920,1080
+          shot http://127.0.0.1:4173/tools tools-mobile.png 390,844
 
       - name: Upload local visual QA
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v119-local-visual-qa
+          name: v119-hybrid-visual-qa
           path: |
             /tmp/v119-qa/
             /tmp/v119-wrangler-dev.log
@@ -144,7 +178,7 @@ jobs:
             --project-name "$PAGES_PROJECT" \
             --branch "$PREVIEW_BRANCH" \
             --commit-hash "$GITHUB_SHA" \
-            --commit-message 'v119 professional design preview'
+            --commit-message 'v119 current-source hybrid preview'
 
       - name: Verify preview visual routes and boundaries
         shell: bash
@@ -158,6 +192,10 @@ jobs:
           [[ "$code" == '200' ]]
           grep -Fq 'ppl-workflow-v119.css' /tmp/ops.html
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/ppl-workflow-v119.css" | grep -Fq -- '--v119-sidebar:218px'
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools" >/tmp/tools.html
+          grep -Fq 'Print preparation tools for real production decisions.' /tmp/tools.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/guides" >/tmp/guides.html
+          grep -Fq 'Print preparation guidance you can use on the job.' /tmp/guides.html
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools/print-readiness-checker" >/tmp/readiness.html
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/ads.txt" | grep -Fq 'pub-3369551572403499'
           curl --silent --show-error --dump-header /tmp/admin-headers.txt --output /dev/null "$PREVIEW_ORIGIN/admin"
@@ -165,11 +203,12 @@ jobs:
           grep -Fqi 'location: https://print-prep-lab-admin.buildtools.workers.dev' /tmp/admin-headers.txt
 
           {
-            echo '## Print Prep Lab v119 design preview'
+            echo '## Print Prep Lab v119 current-source hybrid preview'
             echo
             echo "- Preview: $PREVIEW_ORIGIN"
-            echo "- Operations: $PREVIEW_ORIGIN/operations"
-            echo "- Readiness tool: $PREVIEW_ORIGIN/tools/print-readiness-checker"
+            echo "- Tools source UI: $PREVIEW_ORIGIN/tools"
+            echo "- Guides source UI: $PREVIEW_ORIGIN/guides"
+            echo "- Operations static v119: $PREVIEW_ORIGIN/operations"
             echo '- Production changed: no'
             echo '- Admin origin changed: no'
             echo '- Secrets/D1 changed: no'
