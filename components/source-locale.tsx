@@ -7,11 +7,7 @@ const LEGACY_LANGUAGE_KEY = "ppl-interface-language";
 
 type Language = "en" | "ar";
 
-function applyLanguage(language: Language, persist = true) {
-  const lang: Language = language === "ar" ? "ar" : "en";
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-
+function translateDocument(lang: Language) {
   document.querySelectorAll<HTMLElement>("[data-en][data-ar]").forEach((element) => {
     const value = lang === "ar" ? element.dataset.ar : element.dataset.en;
     if (value && element.textContent !== value) element.textContent = value;
@@ -25,6 +21,13 @@ function applyLanguage(language: Language, persist = true) {
   document.querySelectorAll<HTMLSelectElement>("[data-source-lang]").forEach((select) => {
     if (select.value !== lang) select.value = lang;
   });
+}
+
+function applyLanguage(language: Language, persist = true) {
+  const lang: Language = language === "ar" ? "ar" : "en";
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  translateDocument(lang);
 
   if (persist) {
     try {
@@ -52,7 +55,20 @@ function initialLanguage(): Language {
 
 export function SourceLocaleSelect() {
   useEffect(() => {
-    applyLanguage(initialLanguage());
+    const language = initialLanguage();
+    applyLanguage(language);
+
+    let queued = false;
+    const observer = new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        translateDocument(document.documentElement.lang === "ar" ? "ar" : "en");
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, []);
 
   return (
