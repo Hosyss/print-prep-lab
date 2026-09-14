@@ -1,0 +1,52 @@
+name: Print Prep Lab v119 Cloudflare source audit
+
+on:
+  push:
+    branches:
+      - audit/v119-cloudflare-source-mode-20260914
+    paths:
+      - '.github/workflows/v119-cloudflare-source-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: printpreplab
+    steps:
+      - name: Inspect Pages source mode read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          response="$(curl --silent --show-error --fail \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}")"
+          jq -e '.success == true' <<<"$response" >/dev/null
+          mode="$(jq -r 'if .result.source == null then "direct_upload" else (.result.source.type // "connected_unknown") end' <<<"$response")"
+          branch="$(jq -r '.result.production_branch // empty' <<<"$response")"
+          source_repo="$(jq -r '.result.source.config.repo_name // empty' <<<"$response")"
+          source_owner="$(jq -r '.result.source.config.owner // empty' <<<"$response")"
+          echo "source_mode=$mode"
+          echo "production_branch=$branch"
+          echo "source_owner=$source_owner"
+          echo "source_repo=$source_repo"
+          {
+            echo '## Cloudflare Pages source audit'
+            echo
+            echo "- Source mode: ${mode}"
+            echo "- Production branch: ${branch}"
+            if [[ -n "$source_repo" ]]; then
+              echo "- Connected repository: ${source_owner}/${source_repo}"
+            else
+              echo '- Connected repository: none'
+            fi
+            echo '- Mutation performed: no'
+          } >> "$GITHUB_STEP_SUMMARY"
