@@ -38,6 +38,8 @@ jobs:
           test -n "${CLOUDFLARE_API_TOKEN:-}"
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
           test -f release-artifacts/v119.0/ppl-design-v119.css
+          test -f release-artifacts/v119.0/ppl-home-v119.css
+          test -f release-artifacts/v119.0/ppl-home-v119.html
           test -f release-artifacts/v119.0/build-v119.sh
 
       - name: Build v119 preview artifact
@@ -48,8 +50,48 @@ jobs:
           mkdir -p /tmp/ppl-v119
           unzip -q release-artifacts/v119.0/print-prep-lab-pages-v119-professional-preview.zip -d /tmp/ppl-v119
           test -s /tmp/ppl-v119/ppl-workflow-v119.css
+          grep -Fq 'Print preparation, without the guesswork.' /tmp/ppl-v119/home-v112.html
+          grep -Fq '.ppl-home-v119 #ppl-v118-launch' /tmp/ppl-v119/ppl-workflow-v119.css
           grep -Fq 'Run the job from one clear operations board.' /tmp/ppl-v119/operations.html
           grep -Fq 'google.com, pub-3369551572403499' /tmp/ppl-v119/ads.txt
+
+      - name: Capture local visual QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v119-qa
+          python3 -m http.server 4173 --directory /tmp/ppl-v119 >/tmp/v119-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            curl --silent --fail http://127.0.0.1:4173/home-v112.html >/dev/null && break
+            sleep 0.5
+          done
+          curl --silent --fail http://127.0.0.1:4173/home-v112.html >/dev/null
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path('/tmp/ppl-v119/home-v112.html').read_text(encoding='utf-8')
+          src = src.replace('<html lang="en" dir="ltr">', '<html lang="ar" dir="rtl">', 1)
+          qa = """<script>window.addEventListener('load',()=>{document.documentElement.lang='ar';document.documentElement.dir='rtl';document.querySelectorAll('[data-ar]').forEach(el=>{const v=el.getAttribute('data-ar');if(!v)return;if(el.tagName==='INPUT')el.placeholder=v;else el.textContent=v;});});</script>"""
+          src = src.replace('</body>', qa + '</body>')
+          Path('/tmp/ppl-v119/home-v119-rtl-qa.html').write_text(src, encoding='utf-8')
+          PY
+          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/home-v112.html /tmp/v119-qa/home-desktop.png
+          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "390,844" --wait-for-timeout 900 http://127.0.0.1:4173/home-v112.html /tmp/v119-qa/home-mobile.png
+          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1440,1000" --wait-for-timeout 900 http://127.0.0.1:4173/home-v119-rtl-qa.html /tmp/v119-qa/home-rtl.png
+          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/operations.html /tmp/v119-qa/operations.png
+          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/print-readiness-v111.html /tmp/v119-qa/readiness.png
+          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/job-costing.html /tmp/v119-qa/costing.png
+          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/workspace.html /tmp/v119-qa/workspace.png
+
+      - name: Upload local visual QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v119-local-visual-qa
+          path: /tmp/v119-qa/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Deploy preview only
         shell: bash
