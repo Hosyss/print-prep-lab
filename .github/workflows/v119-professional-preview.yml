@@ -84,7 +84,9 @@ jobs:
           PY
 
           env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
-            npx --yes wrangler@4.92.0 pages dev /tmp/ppl-v119 --ip 127.0.0.1 --port 4173 \
+            npx --yes wrangler@4.92.0 pages dev /tmp/ppl-v119 \
+            --ip 127.0.0.1 --port 4173 \
+            --compatibility-date=2026-05-22 --compatibility-flags=nodejs_compat \
             >/tmp/v119-wrangler-dev.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
