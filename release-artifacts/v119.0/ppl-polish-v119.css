@@ -20,6 +20,15 @@
 /* Operations v119 has a rewritten sentence and does not need forced legacy breaks. */
 .ppl-global-stage .op-hero h1 br{display:none!important}
 
+/* Legacy enterprise-module pills inherit white text from the new dark hero while
+   their old stylesheet also forces a white fill. Give them an intentional dark-hero
+   treatment so their labels stay readable in every module. */
+.ppl-global-stage .ep-hero .ep-pill{
+  background:#ffffff14!important;
+  border-color:#ffffff38!important;
+  color:#eef7ff!important;
+}
+
 /* Product pages should feel deliberate even where the old markup still supplies
    hero copy: keep the main measure controlled and the secondary line readable. */
 .ppl-global-stage main>section:first-of-type[class*="hero"] h1,
