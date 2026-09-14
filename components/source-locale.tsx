@@ -7,10 +7,32 @@ const LEGACY_LANGUAGE_KEY = "ppl-interface-language";
 
 type Language = "en" | "ar";
 
+function replaceVisibleText(element: HTMLElement, value: string) {
+  if (element.childElementCount === 0) {
+    if (element.textContent !== value) element.textContent = value;
+    return;
+  }
+
+  const textNode = Array.from(element.childNodes).find(
+    (node) => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()),
+  );
+
+  if (textNode) {
+    const current = textNode.textContent ?? "";
+    const leading = current.match(/^\s*/)?.[0] ?? "";
+    const trailing = current.match(/\s*$/)?.[0] ?? "";
+    const next = `${leading}${value}${trailing}`;
+    if (current !== next) textNode.textContent = next;
+    return;
+  }
+
+  element.insertBefore(document.createTextNode(`${value} `), element.firstChild);
+}
+
 function translateDocument(lang: Language) {
   document.querySelectorAll<HTMLElement>("[data-en][data-ar]").forEach((element) => {
     const value = lang === "ar" ? element.dataset.ar : element.dataset.en;
-    if (value && element.textContent !== value) element.textContent = value;
+    if (value) replaceVisibleText(element, value);
   });
 
   document.querySelectorAll<HTMLInputElement>("[data-placeholder-en][data-placeholder-ar]").forEach((element) => {
