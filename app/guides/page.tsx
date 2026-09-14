@@ -24,10 +24,10 @@ const toolHandoffs = [
 ];
 
 export default function GuidesIndex() {
-  return <main>
+  return <main className="source-hub source-guides-hub">
     <div className="shell"><Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Guides" }]} /></div>
-    <PageHero eyebrow="Eight original production guides" title="Print Preparation Guides" description="Understand image resolution, PPI, cropping, document margins and export checks before changing a file. Each guide shows the decision, the formula and the tool to use next.">
-      <div className="hero-spec"><span>Featured guide</span><strong>How large can you print an image?</strong><small>Start with real pixels, then account for PPI and crop.</small><Link className="text-link" href="/guides/how-large-can-i-print-my-image">Read the guide →</Link></div>
+    <PageHero eyebrow={`${GUIDE_PAGES.length} production guides`} title="Print preparation guidance you can use on the job." description="Understand the decision before changing the file. Each guide connects the production question to the calculation, the risk and the tool you can use next.">
+      <div className="hero-spec"><span>Recommended starting guide</span><strong>How large can you print an image?</strong><small>Start with real pixels, then account for PPI and final crop.</small><Link className="text-link" href="/guides/how-large-can-i-print-my-image">Read the guide →</Link></div>
     </PageHero>
 
     <section className="content-section shell">
@@ -37,7 +37,7 @@ export default function GuidesIndex() {
     </section>
 
     <section className="guide-feature shell" aria-labelledby="guide-feature-title">
-      <div><span>Flagship guide</span><h2 id="guide-feature-title">Turn source pixels into a defensible maximum print size.</h2><p>A 6000 × 4000 pixel image is 20 × 13.33 inches at 300 PPI before crop, 25 × 16.67 inches at 240 PPI and 40 × 26.67 inches at 150 PPI. The useful answer depends on viewing distance, print process and the final ratio.</p><Link className="button primary" href="/guides/how-large-can-i-print-my-image">See the full method <span>→</span></Link></div>
+      <div><span>Core method</span><h2 id="guide-feature-title">Turn source pixels into a defensible maximum print size.</h2><p>A 6000 × 4000 pixel image is 20 × 13.33 inches at 300 PPI before crop, 25 × 16.67 inches at 240 PPI and 40 × 26.67 inches at 150 PPI. The useful answer depends on viewing distance, print process and the final ratio.</p><Link className="button primary" href="/guides/how-large-can-i-print-my-image">See the full method <span>→</span></Link></div>
       <aside><span>Core formula</span><code>print inches = pixels ÷ PPI</code><small>Apply the final crop before trusting the available pixel count.</small></aside>
     </section>
 
