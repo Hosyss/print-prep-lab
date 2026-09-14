@@ -4,10 +4,10 @@ import { SourceLocaleSelect } from "@/components/source-locale";
 
 const NAV_ITEMS = [
   { href: "/tools", label: "Tools", ar: "الأدوات" },
-  { href: "/jobs", label: "Projects", ar: "المشاريع" },
-  { href: "/guides", label: "Resources", ar: "الموارد" },
   { href: "/sizes", label: "Print sizes", ar: "مقاسات الطباعة" },
-  { href: "/troubleshoot", label: "Help center", ar: "مركز المساعدة" },
+  { href: "/guides", label: "Resources", ar: "الموارد" },
+  { href: "/methodology", label: "Methodology", ar: "المنهجية" },
+  { href: "/about", label: "About", ar: "حول الموقع" },
 ];
 
 export function SiteHeader() {
