@@ -67,7 +67,7 @@ export function SourceLocaleSelect() {
         translateDocument(document.documentElement.lang === "ar" ? "ar" : "en");
       });
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
     return () => observer.disconnect();
   }, []);
 
