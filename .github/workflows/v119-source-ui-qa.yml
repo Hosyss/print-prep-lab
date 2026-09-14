@@ -8,6 +8,7 @@ on:
       - 'app/**'
       - 'components/**'
       - 'lib/**'
+      - 'tests/**'
       - 'worker/**'
       - 'package.json'
       - 'package-lock.json'
@@ -44,6 +45,14 @@ jobs:
       - name: Prepare Pages source artifact
         run: npm run prepare:pages
 
+      - name: Validate math rendered pages and source quality
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:math
+          node --test tests/rendered-html.test.mjs
+          npm run lint
+
       - name: Capture source UI routes
         shell: bash
         run: |
@@ -79,6 +88,8 @@ jobs:
           curl --silent --fail http://127.0.0.1:4174/tools/dpi-ppi-calculator >/tmp/tool-detail-source.html
           grep -Fq 'احسب PPI للصورة عند الطباعة' /tmp/tool-detail-source.html
           grep -Fq 'النتائج المحسوبة' /tmp/tool-detail-source.html
+          curl --silent --fail http://127.0.0.1:4174/guides/how-large-can-i-print-my-image >/tmp/guide-detail-source.html
+          grep -Fq 'ما أكبر مقاس يمكنك طباعة صورتك به' /tmp/guide-detail-source.html
 
           shot(){
             local route="$1" out="$2" viewport="${3:-1920,1080}"
@@ -96,6 +107,7 @@ jobs:
           shot '/tools?lang=ar' tools-rtl-mobile.png 390,844
           shot '/tools/dpi-ppi-calculator?lang=ar' tool-detail-rtl.png 1440,1100
           shot '/tools/dpi-ppi-calculator?lang=ar' tool-detail-rtl-mobile.png 390,844
+          shot '/guides/how-large-can-i-print-my-image?lang=ar' guide-detail-rtl.png 1440,1100
 
       - name: Upload source UI QA
         if: always()
