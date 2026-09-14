@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { PrivacySettingsButton } from "@/components/analytics-consent";
 
+const NAV_ITEMS = [
+  { href: "/tools", label: "Tools" },
+  { href: "/jobs", label: "Projects" },
+  { href: "/guides", label: "Resources" },
+  { href: "/sizes", label: "Print sizes" },
+  { href: "/troubleshoot", label: "Help center" },
+];
+
 export function SiteHeader() {
   return (
     <header className="site-header">
@@ -10,12 +18,16 @@ export function SiteHeader() {
           <span>Print Prep <b>Lab</b></span>
         </Link>
         <nav className="main-nav" aria-label="Main navigation">
-          <Link href="/tools">Tools</Link>
-          <Link href="/sizes">Print sizes</Link>
-          <Link href="/guides">Guides</Link>
-          <Link href="/methodology">Methodology</Link>
+          {NAV_ITEMS.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}
         </nav>
-        <Link className="header-action" href="/#check">Check an image</Link>
+        <Link className="header-action" href="/tools/print-readiness-checker">Check a file</Link>
+        <details className="mobile-nav">
+          <summary aria-label="Open navigation">Menu</summary>
+          <nav aria-label="Mobile navigation">
+            {NAV_ITEMS.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}
+            <Link href="/tools/print-readiness-checker">Check a file</Link>
+          </nav>
+        </details>
       </div>
     </header>
   );
