@@ -12,7 +12,11 @@ trap 'rm -rf -- "${staging}"' EXIT
 unzip -q "${baseline}" -d "${staging}"
 cp "${release_dir}/ppl-home-v119.html" "${staging}/home-v112.html"
 cp "${workflow_dir}/ppl-workflow-v1187.js" "${staging}/ppl-workflow-v1187.js"
-cat "${workflow_dir}/ppl-workflow-v1187.css" "${release_dir}/ppl-design-v119.css" "${release_dir}/ppl-home-v119.css" > "${staging}/ppl-workflow-v119.css"
+cat "${workflow_dir}/ppl-workflow-v1187.css" \
+    "${release_dir}/ppl-design-v119.css" \
+    "${release_dir}/ppl-home-v119.css" \
+    "${release_dir}/ppl-polish-v119.css" \
+    > "${staging}/ppl-workflow-v119.css"
 cp "${repo_root}/public/ads.txt" "${staging}/ads.txt"
 
 cat > "${staging}/_redirects" <<'EOF'
@@ -29,19 +33,11 @@ from pathlib import Path
 import sys
 root = Path(sys.argv[1])
 replacements = {
-    'â†’': '→',
-    'â†': '←',
-    'âœ“': '✓',
-    'آ·': '·',
-    'â€”': '—',
-    'â€“': '–',
-    'â€™': '’',
-    'â€œ': '“',
-    'â€': '”',
-    'Â©': '©',
+    'â†’': '→', 'â†': '←', 'âœ“': '✓', 'آ·': '·',
+    'â€”': '—', 'â€“': '–', 'â€™': '’', 'â€œ': '“',
+    'â€': '”', 'Â©': '©',
 }
-changed = 0
-hits = 0
+changed = hits = 0
 for p in root.glob('*.html'):
     s = p.read_text(encoding='utf-8')
     original = s
@@ -74,6 +70,25 @@ s = s.replace('<a href="/operations"><svg', '<a class="active" href="/operations
 p.write_text(s, encoding='utf-8')
 PY
 
+python3 - "${staging}/job-costing.html" "${staging}/workspace.html" <<'PY'
+from pathlib import Path
+import sys
+
+def activate(path, href):
+    p = Path(path)
+    s = p.read_text(encoding='utf-8')
+    s = s.replace('<a class="active" href="/">', '<a href="/">', 1)
+    needle = f'<a href="{href}"><svg'
+    replacement = f'<a class="active" href="{href}"><svg'
+    if needle not in s and replacement not in s:
+        raise SystemExit(f'could not find sidebar target {href} in {p.name}')
+    s = s.replace(needle, replacement, 1)
+    p.write_text(s, encoding='utf-8')
+
+activate(sys.argv[1], '/job-costing')
+activate(sys.argv[2], '/workspace#workspace-tools')
+PY
+
 perl -0pi -e 's/if \(redirectResponse\) return redirectResponse;/if (redirectResponse) return redirectResponse;\n      if (url.pathname === "\/admin" || url.pathname === "\/admin\/") return new Response(null, { status: 302, headers: { Location: "https:\/\/print-prep-lab-admin.buildtools.workers.dev", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow, noarchive" } });/' "${staging}/_worker.js"
 
 node - "${staging}/_routes.json" <<'NODE'
@@ -101,6 +116,8 @@ EOF
 node --check "${staging}/_worker.js"
 grep -Fq 'Print preparation, without the guesswork.' "${staging}/home-v112.html"
 grep -Fq 'Run the job from one clear operations board.' "${staging}/operations.html"
+grep -Fq 'class="active" href="/job-costing"' "${staging}/job-costing.html"
+grep -Fq 'class="active" href="/workspace#workspace-tools"' "${staging}/workspace.html"
 grep -Fq 'ppl-workflow-v119.css' "${staging}/operations.html"
 grep -Fq 'google.com, pub-3369551572403499' "${staging}/ads.txt"
 
