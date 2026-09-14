@@ -14,6 +14,7 @@ import {
 } from "@/lib/seo";
 import "./globals.css";
 import "./v119-source.css";
+import "./v119-source-nav.css";
 
 const googleVerification =
   process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || DEFAULT_GOOGLE_VERIFICATION;
