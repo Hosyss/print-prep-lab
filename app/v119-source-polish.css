@@ -17,8 +17,8 @@
 .ppl-source-v119 .privacy-choice-actions button{padding:7px 9px;font-size:10.5px}
 
 /* Sizes is a reference library, not two oversized editorial columns. */
-.ppl-source-v119 .hub-definition-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.ppl-source-v119 .hub-definition-grid>article{padding:20px;border:1px solid var(--ppl-line);border-radius:14px;background:#fff;box-shadow:0 5px 18px rgba(7,26,51,.03)}
+.ppl-source-v119 .hub-definition-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
+.ppl-source-v119 .hub-definition-grid>article{min-height:0!important;height:auto!important;padding:20px;border:1px solid var(--ppl-line);border-radius:14px;background:#fff;box-shadow:0 5px 18px rgba(7,26,51,.03);align-content:start}
 .ppl-source-v119 .hub-definition-grid>article>span{color:var(--ppl-cyan);font-size:10px;font-weight:820;letter-spacing:.1em;text-transform:uppercase}
 .ppl-source-v119 .hub-definition-grid h2{margin:9px 0 7px;font-size:24px;line-height:1.15;font-weight:760}
 .ppl-source-v119 .hub-definition-grid p{margin:0 0 13px;font-size:13px}
@@ -46,6 +46,13 @@
 @media(max-width:820px){
   .ppl-source-v119 .hub-definition-grid,.ppl-source-v119 .size-index-grid,.ppl-source-v119 .ppi-guide-grid{grid-template-columns:1fr}
   .ppl-source-v119 .size-group-heading{align-items:flex-start;flex-direction:column;gap:5px}
+  .ppl-source-v119 .inner-hero>.shell{padding:20px 17px!important}
+  .ppl-source-v119 .inner-hero h1{font-size:36px!important;line-height:.99!important;letter-spacing:-.045em!important}
+  .ppl-source-v119 .inner-hero p{margin-top:12px!important;font-size:14px!important;line-height:1.55!important}
+  .ppl-source-v119 .inner-hero-grid{gap:14px!important}
+  .ppl-source-v119 .hero-spec{padding:14px!important}
+  .ppl-source-v119 .hero-spec strong{font-size:15px!important}
+  .ppl-source-v119 .hero-spec small{margin-top:5px!important;font-size:11px!important}
   .ppl-source-v119 .privacy-choice-banner{right:8px;bottom:8px;width:calc(100vw - 16px);padding:10px 11px;gap:7px}
   .ppl-source-v119 .privacy-choice-banner p{margin-top:2px;font-size:10px;line-height:1.35}
   .ppl-source-v119 .privacy-choice-actions{gap:6px}
