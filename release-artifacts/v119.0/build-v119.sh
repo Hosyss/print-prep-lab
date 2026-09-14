@@ -62,6 +62,26 @@ for p in root.glob('*.html'):
         changed += 1
 print(f'normalized legacy punctuation: {hits} replacements across {changed} html files')
 
+public_nav = (
+    '<nav class="ppl-nav">'
+    '<a href="/tools" data-en="Tools" data-ar="الأدوات">Tools</a>'
+    '<a href="/sizes" data-en="Print sizes" data-ar="مقاسات الطباعة">Print sizes</a>'
+    '<a href="/guides" data-en="Resources" data-ar="الموارد">Resources</a>'
+    '<a href="/methodology" data-en="Methodology" data-ar="المنهجية">Methodology</a>'
+    '<a href="/about" data-en="About" data-ar="حول الموقع">About</a>'
+    '</nav>'
+)
+updated_topbars = 0
+for p in root.glob('*.html'):
+    s = p.read_text(encoding='utf-8')
+    updated, count = re.subn(r'<nav class="ppl-nav">.*?</nav>', public_nav, s, count=1, flags=re.S)
+    if count:
+        p.write_text(updated, encoding='utf-8')
+        updated_topbars += 1
+if updated_topbars < 1:
+    raise SystemExit('No static v119 topbars were found to normalize')
+print(f'updated global topbar navigation on {updated_topbars} static professional pages')
+
 groups = {
     '/command-center': {'command-center', 'enterprise-dashboard'},
     '/jobs': {'jobs', 'job-brief'},
@@ -177,6 +197,8 @@ EOF
 
 node --check "${staging}/_worker.js"
 grep -Fq 'Print preparation, without the guesswork.' "${staging}/home-v112.html"
+grep -Fq '<nav class="ppl-nav"><a href="/tools" data-en="Tools" data-ar="الأدوات">Tools</a><a href="/sizes" data-en="Print sizes" data-ar="مقاسات الطباعة">Print sizes</a><a href="/guides" data-en="Resources" data-ar="الموارد">Resources</a><a href="/methodology" data-en="Methodology" data-ar="المنهجية">Methodology</a><a href="/about" data-en="About" data-ar="حول الموقع">About</a></nav>' "${staging}/home-v112.html"
+grep -Fq '<nav class="ppl-nav"><a href="/tools" data-en="Tools" data-ar="الأدوات">Tools</a><a href="/sizes" data-en="Print sizes" data-ar="مقاسات الطباعة">Print sizes</a><a href="/guides" data-en="Resources" data-ar="الموارد">Resources</a><a href="/methodology" data-en="Methodology" data-ar="المنهجية">Methodology</a><a href="/about" data-en="About" data-ar="حول الموقع">About</a></nav>' "${staging}/operations.html"
 grep -Fq 'Run the job from one clear operations board.' "${staging}/operations.html"
 grep -Fq 'class="active" href="/job-costing"' "${staging}/job-costing.html"
 grep -Fq 'ppl-page-costing' "${staging}/job-costing.html"
