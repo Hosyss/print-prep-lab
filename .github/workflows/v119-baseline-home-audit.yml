@@ -1,0 +1,44 @@
+name: Print Prep Lab v119 baseline home audit
+on:
+  push:
+    branches:
+      - audit/v119-cloudflare-source-mode-20260914
+    paths:
+      - .github/workflows/v119-baseline-home-audit.yml
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect baseline home and legacy labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base && mkdir -p /tmp/base
+          unzip -q release-artifacts/v118.6/print-prep-lab-pages-20260830-v118-6-runtime-mobile-arabic-recovery.zip -d /tmp/base
+          echo '=== BASELINE HOME AUDIENCE MATCHES ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          p=Path('/tmp/base/home-v112.html')
+          s=BeautifulSoup(p.read_text('utf-8'), 'html.parser')
+          text='\n'.join(x.strip() for x in s.stripped_strings)
+          lines=text.splitlines()
+          keys=('who','photograph','designer','print shop','freelanc','studio','creator','for you','use print prep','built for','made for')
+          hits=[]
+          for i,line in enumerate(lines):
+            if any(k in line.lower() for k in keys):
+              a=max(0,i-5); b=min(len(lines),i+12)
+              hits.append('\n'.join(lines[a:b]))
+          print('\n---\n'.join(hits) if hits else 'NO KEYWORD MATCHES')
+          PY
+          echo '=== BASELINE HOME SECTION HEADINGS ==='
+          python3 - <<'PY'
+          from bs4 import BeautifulSoup
+          s=BeautifulSoup(open('/tmp/base/home-v112.html', encoding='utf-8').read(),'html.parser')
+          for h in s.find_all(['h1','h2','h3']): print(h.get_text(' ',strip=True))
+          PY
+          echo '=== V100 / ENTERPRISE VISIBLE LABELS ==='
+          grep -RniI -E '>[^<]*(v100|ENTERPRISE PLATFORM|Enterprise layer|Enterprise Dashboard)[^<]*<' /tmp/base --include='*.html' | head -120 || true
