@@ -74,7 +74,7 @@ python3 - "${staging}/job-costing.html" "${staging}/workspace.html" <<'PY'
 from pathlib import Path
 import sys
 
-def activate(path, href):
+def activate(path, href, page_class):
     p = Path(path)
     s = p.read_text(encoding='utf-8')
     s = s.replace('<a class="active" href="/">', '<a href="/">', 1)
@@ -83,10 +83,15 @@ def activate(path, href):
     if needle not in s and replacement not in s:
         raise SystemExit(f'could not find sidebar target {href} in {p.name}')
     s = s.replace(needle, replacement, 1)
+    if page_class not in s:
+        body = '<body class="ppl-v108-page">'
+        if body not in s:
+            raise SystemExit(f'could not mark page body in {p.name}')
+        s = s.replace(body, f'<body class="ppl-v108-page {page_class}">', 1)
     p.write_text(s, encoding='utf-8')
 
-activate(sys.argv[1], '/job-costing')
-activate(sys.argv[2], '/workspace#workspace-tools')
+activate(sys.argv[1], '/job-costing', 'ppl-page-costing')
+activate(sys.argv[2], '/workspace#workspace-tools', 'ppl-page-workspace')
 PY
 
 perl -0pi -e 's/if \(redirectResponse\) return redirectResponse;/if (redirectResponse) return redirectResponse;\n      if (url.pathname === "\/admin" || url.pathname === "\/admin\/") return new Response(null, { status: 302, headers: { Location: "https:\/\/print-prep-lab-admin.buildtools.workers.dev", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow, noarchive" } });/' "${staging}/_worker.js"
@@ -117,7 +122,9 @@ node --check "${staging}/_worker.js"
 grep -Fq 'Print preparation, without the guesswork.' "${staging}/home-v112.html"
 grep -Fq 'Run the job from one clear operations board.' "${staging}/operations.html"
 grep -Fq 'class="active" href="/job-costing"' "${staging}/job-costing.html"
+grep -Fq 'ppl-page-costing' "${staging}/job-costing.html"
 grep -Fq 'class="active" href="/workspace#workspace-tools"' "${staging}/workspace.html"
+grep -Fq 'ppl-page-workspace' "${staging}/workspace.html"
 grep -Fq 'ppl-workflow-v119.css' "${staging}/operations.html"
 grep -Fq 'google.com, pub-3369551572403499' "${staging}/ads.txt"
 
