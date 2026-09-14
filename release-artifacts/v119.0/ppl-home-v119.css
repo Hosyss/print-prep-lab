@@ -29,6 +29,18 @@
 .ppl-home-v119 .home-v119-task-grid h3{font-size:21px!important;line-height:1.18!important;margin:12px 0 8px!important}
 .ppl-home-v119 .home-v119-task-grid p{font-size:13px;line-height:1.6;margin:0 0 18px}
 .ppl-home-v119 .home-v119-task-grid b{margin-top:auto;color:#1264cf;font-size:12px}
+.ppl-home-v119 .home-v119-about{display:block!important;margin-top:28px!important;padding:32px!important;border:1px solid #d6e1ec!important;border-radius:16px!important;background:#fff!important;color:#10243a!important;visibility:visible!important;opacity:1!important}
+.ppl-home-v119 .home-v119-about-intro{display:block!important;max-width:980px;margin-bottom:24px!important;color:#10243a!important}
+.ppl-home-v119 .home-v119-about h2{display:block!important;font-size:clamp(30px,3vw,44px)!important;line-height:1.07!important;margin:6px 0 12px!important;color:#10243a!important;visibility:visible!important;opacity:1!important}
+.ppl-home-v119 .home-v119-about-intro>p{display:block!important;margin:0!important;max-width:980px;color:#42586d!important;font-size:15px!important;line-height:1.7!important;visibility:visible!important;opacity:1!important}
+.ppl-home-v119 .home-v119-about-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px!important;visibility:visible!important;opacity:1!important}
+.ppl-home-v119 .home-v119-about-grid article{display:block!important;border:1px solid #dfe7ef!important;border-radius:14px!important;padding:20px!important;background:#f8fafc!important;color:#10243a!important;visibility:visible!important;opacity:1!important}
+.ppl-home-v119 .home-v119-about-grid h3{display:block!important;margin:0 0 14px!important;color:#10243a!important;font-size:18px!important;line-height:1.3!important}
+.ppl-home-v119 .home-v119-about-grid ul{display:grid!important;list-style:none!important;margin:0!important;padding:0!important;gap:10px!important}
+.ppl-home-v119 .home-v119-about-grid li{display:block!important;position:relative!important;padding-left:16px!important;color:#42586d!important;font-size:13px!important;line-height:1.5!important;visibility:visible!important;opacity:1!important}
+.ppl-home-v119 .home-v119-about-grid li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:#0a91a6}
+.ppl-home-v119 .home-v119-about-grid li strong{display:block!important;color:#10243a!important;font-size:13px!important;margin-bottom:2px!important}
+.ppl-home-v119 .home-v119-about-grid li span{display:block!important;color:#60758a!important;font-size:12px!important}
 .ppl-home-v119 .home-v119-proof{padding:28px 0!important;border-top:1px solid #dfe7ef}
 .ppl-home-v119 .home-v119-proof-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:18px}
 .ppl-home-v119 .home-v119-proof-grid article{padding:20px;border:1px solid var(--v119-line);border-radius:14px;background:#f8fafc}
@@ -40,8 +52,10 @@
 .ppl-home-v119 .home-v119-learn nav{display:grid;gap:8px}
 .ppl-home-v119 .home-v119-learn nav a{padding:11px 13px;border:1px solid #ffffff2c;border-radius:9px;color:#fff;text-decoration:none;font-size:12px;font-weight:700;background:#ffffff0a}
 html[dir="rtl"] .ppl-home-v119 .eyebrow{flex-direction:row-reverse;justify-content:flex-end}
-html[dir="rtl"] .ppl-home-v119 .home-v119-start,html[dir="rtl"] .ppl-home-v119 .home-v119-task-grid,html[dir="rtl"] .ppl-home-v119 .home-v119-proof-grid{text-align:right}
+html[dir="rtl"] .ppl-home-v119 .home-v119-start,html[dir="rtl"] .ppl-home-v119 .home-v119-task-grid,html[dir="rtl"] .ppl-home-v119 .home-v119-about,html[dir="rtl"] .ppl-home-v119 .home-v119-proof-grid{text-align:right}
+html[dir="rtl"] .ppl-home-v119 .home-v119-about-grid li{padding-left:0!important;padding-right:16px!important}
+html[dir="rtl"] .ppl-home-v119 .home-v119-about-grid li::before{left:auto;right:0}
 html[dir="rtl"] .ppl-home-v119 .home-v119-actions,html[dir="rtl"] .ppl-home-v119 .home-v119-trust{justify-content:flex-start}
 @media(max-width:1180px){.ppl-home-v119 .home-v119-hero{grid-template-columns:minmax(0,1fr) 300px!important;gap:28px!important}.ppl-home-v119 .home-v119-task-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:900px){.ppl-home-v119 .home-v119-hero,.ppl-home-v119 .home-v119-section-head,.ppl-home-v119 .home-v119-learn{grid-template-columns:1fr!important}.ppl-home-v119 .home-v119-start{max-width:none;width:100%}.ppl-home-v119 .home-v119-proof-grid{grid-template-columns:1fr}.ppl-home-v119 .home-v119-learn{gap:20px!important}}
-@media(max-width:640px){.ppl-home-v119 .ppl-global-stage main{padding-top:10px!important}.ppl-home-v119 .home-v119-hero{padding:26px 18px!important;gap:22px!important}.ppl-home-v119 .home-v119-hero h1{font-size:clamp(38px,12vw,52px)!important}.ppl-home-v119 .home-v119-hero-copy>p{font-size:15px!important}.ppl-home-v119 .home-v119-actions{display:grid;grid-template-columns:1fr}.ppl-home-v119 .home-v119-actions .button{text-align:center}.ppl-home-v119 .home-v119-task-grid{grid-template-columns:1fr}.ppl-home-v119 .home-v119-task-grid>a{min-height:0}.ppl-home-v119 .home-v119-section{padding-top:20px!important}.ppl-home-v119 .home-v119-learn{padding:22px 18px!important}}
+@media(max-width:900px){.ppl-home-v119 .home-v119-hero,.ppl-home-v119 .home-v119-section-head,.ppl-home-v119 .home-v119-learn{grid-template-columns:1fr!important}.ppl-home-v119 .home-v119-start{max-width:none;width:100%}.ppl-home-v119 .home-v119-about-grid{grid-template-columns:1fr!important}.ppl-home-v119 .home-v119-proof-grid{grid-template-columns:1fr}.ppl-home-v119 .home-v119-learn{gap:20px!important}}
+@media(max-width:640px){.ppl-home-v119 .ppl-global-stage main{padding-top:10px!important}.ppl-home-v119 .home-v119-hero{padding:26px 18px!important;gap:22px!important}.ppl-home-v119 .home-v119-hero h1{font-size:clamp(38px,12vw,52px)!important}.ppl-home-v119 .home-v119-hero-copy>p{font-size:15px!important}.ppl-home-v119 .home-v119-actions{display:grid;grid-template-columns:1fr}.ppl-home-v119 .home-v119-actions .button{text-align:center}.ppl-home-v119 .home-v119-task-grid{grid-template-columns:1fr}.ppl-home-v119 .home-v119-task-grid>a{min-height:0}.ppl-home-v119 .home-v119-section{padding-top:20px!important}.ppl-home-v119 .home-v119-about{padding:22px 18px!important}.ppl-home-v119 .home-v119-learn{padding:22px 18px!important}}
