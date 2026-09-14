@@ -58,6 +58,8 @@ jobs:
           test -f release-artifacts/v119.0/build-v119.sh
           test -f app/v119-source.css
           test -f app/v119-source-polish.css
+          test -f app/v119-source-locale.css
+          test -f components/source-locale.tsx
           test -f worker/index.ts
 
       - name: Build current source runtime
@@ -104,15 +106,6 @@ jobs:
           rm -rf /tmp/v119-qa
           mkdir -p /tmp/v119-qa
 
-          python3 - <<'PY'
-          from pathlib import Path
-          src = Path('/tmp/ppl-v119/home-v112.html').read_text(encoding='utf-8')
-          src = src.replace('<html lang="en" dir="ltr">', '<html lang="ar" dir="rtl">', 1)
-          qa = """<script>window.addEventListener('load',()=>{document.documentElement.lang='ar';document.documentElement.dir='rtl';document.querySelectorAll('[data-ar]').forEach(el=>{const v=el.getAttribute('data-ar');if(!v)return;if(el.tagName==='INPUT')el.placeholder=v;else el.textContent=v;});});</script>"""
-          src = src.replace('</body>', qa + '</body>')
-          Path('/tmp/ppl-v119/home-v119-rtl-qa.html').write_text(src, encoding='utf-8')
-          PY
-
           (
             cd /tmp/ppl-v119
             env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
@@ -142,14 +135,19 @@ jobs:
             [[ "$code" == '200' ]]
           done
 
+          curl --silent --fail http://127.0.0.1:4173/tools >/tmp/tools-source.html
+          grep -Fq 'أدوات تجهيز الطباعة لقرارات إنتاج حقيقية.' /tmp/tools-source.html
+          grep -Fq 'data-source-lang' /tmp/tools-source.html
+          curl --silent --fail http://127.0.0.1:4173/sizes >/tmp/sizes-source.html
+          grep -Fq 'مرجع مقاسات الورق والصور' /tmp/sizes-source.html
+
           shot(){
             local url="$1" out="$2" viewport="$3"
-            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$viewport" --wait-for-timeout 900 "$url" "/tmp/v119-qa/$out"
+            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$viewport" --wait-for-timeout 1000 "$url" "/tmp/v119-qa/$out"
           }
 
           shot http://127.0.0.1:4173/ home-desktop.png 1920,1080
           shot http://127.0.0.1:4173/ home-mobile.png 390,844
-          shot http://127.0.0.1:4173/home-v119-rtl-qa.html home-rtl.png 1440,1000
           shot http://127.0.0.1:4173/operations operations.png 1920,1080
           shot http://127.0.0.1:4173/tools/print-readiness-checker readiness.png 1920,1080
           shot http://127.0.0.1:4173/job-costing costing.png 1920,1080
@@ -160,6 +158,8 @@ jobs:
           shot http://127.0.0.1:4173/tools/dpi-ppi-calculator tool-detail.png 1920,1080
           shot http://127.0.0.1:4173/guides/how-large-can-i-print-my-image guide-detail.png 1920,1080
           shot http://127.0.0.1:4173/tools tools-mobile.png 390,844
+          shot 'http://127.0.0.1:4173/tools?lang=ar' tools-rtl.png 1440,1000
+          shot 'http://127.0.0.1:4173/sizes?lang=ar' sizes-rtl.png 1440,1000
 
       - name: Upload local visual QA
         if: always()
@@ -196,6 +196,7 @@ jobs:
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/ppl-workflow-v119.css" | grep -Fq -- '--v119-sidebar:218px'
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools" >/tmp/tools.html
           grep -Fq 'Print preparation tools for real production decisions.' /tmp/tools.html
+          grep -Fq 'أدوات تجهيز الطباعة لقرارات إنتاج حقيقية.' /tmp/tools.html
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/guides" >/tmp/guides.html
           grep -Fq 'Print preparation guidance you can use on the job.' /tmp/guides.html
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools/print-readiness-checker" >/tmp/readiness.html
@@ -211,6 +212,7 @@ jobs:
             echo "- Tools source UI: $PREVIEW_ORIGIN/tools"
             echo "- Guides source UI: $PREVIEW_ORIGIN/guides"
             echo "- Operations static v119: $PREVIEW_ORIGIN/operations"
+            echo '- Arabic RTL QA: clean source routes'
             echo '- Production changed: no'
             echo '- Admin origin changed: no'
             echo '- Secrets/D1 changed: no'
