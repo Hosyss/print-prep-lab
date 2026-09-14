@@ -24,6 +24,38 @@ find "${staging}" -maxdepth 1 -type f -name '*.html' -print0 \
   | xargs -0 perl -pi -e 's/ppl-workflow-v1186\.js/ppl-workflow-v1187.js/g; s/ppl-workflow-v1186\.css/ppl-workflow-v119.css/g'
 perl -pi -e 's/ppl-workflow-v1186\.js/ppl-workflow-v1187.js/g; s/ppl-workflow-v1186\.css/ppl-workflow-v119.css/g' "${staging}/_worker.js"
 
+python3 - "${staging}" <<'PY'
+from pathlib import Path
+import sys
+root = Path(sys.argv[1])
+replacements = {
+    'â†’': '→',
+    'â†': '←',
+    'âœ“': '✓',
+    'آ·': '·',
+    'â€”': '—',
+    'â€“': '–',
+    'â€™': '’',
+    'â€œ': '“',
+    'â€': '”',
+    'Â©': '©',
+}
+changed = 0
+hits = 0
+for p in root.glob('*.html'):
+    s = p.read_text(encoding='utf-8')
+    original = s
+    for bad, good in replacements.items():
+        count = s.count(bad)
+        if count:
+            hits += count
+            s = s.replace(bad, good)
+    if s != original:
+        p.write_text(s, encoding='utf-8')
+        changed += 1
+print(f'normalized legacy punctuation: {hits} replacements across {changed} html files')
+PY
+
 python3 - "${staging}/operations.html" <<'PY'
 from pathlib import Path
 import sys
