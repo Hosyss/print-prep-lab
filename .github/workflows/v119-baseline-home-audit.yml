@@ -1,0 +1,50 @@
+name: Print Prep Lab v119 baseline home audit
+on:
+  push:
+    branches:
+      - fix/v119-home-audience-legacy-labels-20260914
+    paths:
+      - .github/workflows/v119-baseline-home-audit.yml
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect baseline home and legacy labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base && mkdir -p /tmp/base
+          unzip -q release-artifacts/v118.6/print-prep-lab-pages-20260830-v118-6-runtime-mobile-arabic-recovery.zip -d /tmp/base
+          echo '=== BASELINE HOME AUDIENCE MATCHES ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          import html,re
+          raw=Path('/tmp/base/home-v112.html').read_text('utf-8')
+          text=re.sub(r'<script\b.*?</script>|<style\b.*?</style>', ' ', raw, flags=re.I|re.S)
+          text=re.sub(r'<[^>]+>', '\n', text)
+          lines=[html.unescape(re.sub(r'\s+',' ',x)).strip() for x in text.splitlines()]
+          lines=[x for x in lines if x]
+          keys=('who','photograph','designer','print shop','print business','freelanc','studio','creator','for you','built for','made for','use print prep','professional')
+          seen=set()
+          for i,line in enumerate(lines):
+            if any(k in line.lower() for k in keys):
+              block='\n'.join(lines[max(0,i-6):min(len(lines),i+14)])
+              if block not in seen:
+                print(block+'\n---')
+                seen.add(block)
+          if not seen: print('NO KEYWORD MATCHES')
+          PY
+          echo '=== BASELINE HOME HEADINGS ==='
+          python3 - <<'PY'
+          from pathlib import Path
+          import html,re
+          raw=Path('/tmp/base/home-v112.html').read_text('utf-8')
+          for m in re.finditer(r'<h([123])\b[^>]*>(.*?)</h\1>',raw,re.I|re.S):
+            t=html.unescape(re.sub(r'<[^>]+>',' ',m.group(2)))
+            print(re.sub(r'\s+',' ',t).strip())
+          PY
+          echo '=== V100 / ENTERPRISE VISIBLE LABELS ==='
+          grep -RniI -E '>[^<]*(v100|ENTERPRISE PLATFORM|Enterprise layer|Enterprise Dashboard)[^<]*<' /tmp/base --include='*.html' | head -120 || true
