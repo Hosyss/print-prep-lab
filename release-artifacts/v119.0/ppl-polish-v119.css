@@ -1,0 +1,35 @@
+/* Print Prep Lab v119 — final product-level polish for legacy page structures. */
+
+/* Legacy operational heroes used <br><em> for editorial styling. Keep the intended
+   line break, but remove the magazine-like italic treatment in the product UI. */
+.ppl-global-stage main>section:first-of-type[class*="hero"] h1 br,
+.ppl-global-stage main>.shell:first-child h1 br{
+  display:block!important;
+}
+.ppl-global-stage main>section:first-of-type[class*="hero"] h1 em,
+.ppl-global-stage main>.shell:first-child h1 em,
+.ppl-global-stage main>section:first-of-type[class*="hero"] h2 em,
+.ppl-global-stage main>.shell:first-child h2 em{
+  font-family:inherit!important;
+  font-style:normal!important;
+  font-weight:780!important;
+  letter-spacing:inherit!important;
+  color:#bfe8ff!important;
+}
+
+/* Operations v119 has a rewritten sentence and does not need forced legacy breaks. */
+.ppl-global-stage .op-hero h1 br{display:none!important}
+
+/* Product pages should feel deliberate even where the old markup still supplies
+   hero copy: keep the main measure controlled and the secondary line readable. */
+.ppl-global-stage main>section:first-of-type[class*="hero"] h1,
+.ppl-global-stage main>.shell:first-child h1{
+  text-wrap:balance;
+}
+
+@media(max-width:820px){
+  .ppl-global-stage main>section:first-of-type[class*="hero"] h1 em,
+  .ppl-global-stage main>.shell:first-child h1 em{
+    color:#d2edff!important;
+  }
+}
