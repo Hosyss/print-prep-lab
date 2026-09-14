@@ -40,6 +40,7 @@ jobs:
           test -f release-artifacts/v119.0/ppl-design-v119.css
           test -f release-artifacts/v119.0/ppl-home-v119.css
           test -f release-artifacts/v119.0/ppl-home-v119.html
+          test -f release-artifacts/v119.0/ppl-polish-v119.css
           test -f release-artifacts/v119.0/build-v119.sh
 
       - name: Build v119 preview artifact
@@ -47,27 +48,32 @@ jobs:
         run: |
           set -euo pipefail
           bash release-artifacts/v119.0/build-v119.sh
+          rm -rf /tmp/ppl-v119
           mkdir -p /tmp/ppl-v119
           unzip -q release-artifacts/v119.0/print-prep-lab-pages-v119-professional-preview.zip -d /tmp/ppl-v119
           test -s /tmp/ppl-v119/ppl-workflow-v119.css
           grep -Fq 'Print preparation, without the guesswork.' /tmp/ppl-v119/home-v112.html
           grep -Fq '.ppl-home-v119 #ppl-v118-launch' /tmp/ppl-v119/ppl-workflow-v119.css
           grep -Fq 'Run the job from one clear operations board.' /tmp/ppl-v119/operations.html
+          grep -Fq 'class="active" href="/job-costing"' /tmp/ppl-v119/job-costing.html
+          grep -Fq 'class="active" href="/workspace#workspace-tools"' /tmp/ppl-v119/workspace.html
           grep -Fq 'google.com, pub-3369551572403499' /tmp/ppl-v119/ads.txt
 
-      - name: Capture local visual QA
+      - name: Upload v119 build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v119-professional-preview-build
+          path: release-artifacts/v119.0/print-prep-lab-pages-v119-professional-preview.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Capture local Worker visual QA
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf /tmp/v119-qa
           mkdir -p /tmp/v119-qa
-          python3 -m http.server 4173 --directory /tmp/ppl-v119 >/tmp/v119-http.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          for attempt in $(seq 1 20); do
-            curl --silent --fail http://127.0.0.1:4173/home-v112.html >/dev/null && break
-            sleep 0.5
-          done
-          curl --silent --fail http://127.0.0.1:4173/home-v112.html >/dev/null
+
           python3 - <<'PY'
           from pathlib import Path
           src = Path('/tmp/ppl-v119/home-v112.html').read_text(encoding='utf-8')
@@ -76,20 +82,55 @@ jobs:
           src = src.replace('</body>', qa + '</body>')
           Path('/tmp/ppl-v119/home-v119-rtl-qa.html').write_text(src, encoding='utf-8')
           PY
-          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/home-v112.html /tmp/v119-qa/home-desktop.png
-          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "390,844" --wait-for-timeout 900 http://127.0.0.1:4173/home-v112.html /tmp/v119-qa/home-mobile.png
-          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1440,1000" --wait-for-timeout 900 http://127.0.0.1:4173/home-v119-rtl-qa.html /tmp/v119-qa/home-rtl.png
-          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/operations.html /tmp/v119-qa/operations.png
-          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/print-readiness-v111.html /tmp/v119-qa/readiness.png
-          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/job-costing.html /tmp/v119-qa/costing.png
-          npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "1920,1080" --wait-for-timeout 900 http://127.0.0.1:4173/workspace.html /tmp/v119-qa/workspace.png
+
+          env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
+            npx --yes wrangler@4.92.0 pages dev /tmp/ppl-v119 --ip 127.0.0.1 --port 4173 \
+            >/tmp/v119-wrangler-dev.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:4173/ >/tmp/v119-home.html; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          if [[ "$ready" != '1' ]]; then
+            cat /tmp/v119-wrangler-dev.log
+            exit 1
+          fi
+
+          for route in / /operations /tools/print-readiness-checker /job-costing /workspace /tools /guides; do
+            code="$(curl --silent --output /tmp/route.html --write-out '%{http_code}' "http://127.0.0.1:4173${route}")"
+            echo "${route} -> ${code}"
+            [[ "$code" == '200' ]]
+          done
+
+          shot(){
+            local url="$1" out="$2" viewport="$3"
+            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$viewport" --wait-for-timeout 900 "$url" "/tmp/v119-qa/$out"
+          }
+
+          shot http://127.0.0.1:4173/ home-desktop.png 1920,1080
+          shot http://127.0.0.1:4173/ home-mobile.png 390,844
+          shot http://127.0.0.1:4173/home-v119-rtl-qa.html home-rtl.png 1440,1000
+          shot http://127.0.0.1:4173/operations operations.png 1920,1080
+          shot http://127.0.0.1:4173/tools/print-readiness-checker readiness.png 1920,1080
+          shot http://127.0.0.1:4173/job-costing costing.png 1920,1080
+          shot http://127.0.0.1:4173/workspace workspace.png 1920,1080
+          shot http://127.0.0.1:4173/tools tools-index.png 1920,1080
+          shot http://127.0.0.1:4173/guides guides-index.png 1920,1080
 
       - name: Upload local visual QA
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: v119-local-visual-qa
-          path: /tmp/v119-qa/
+          path: |
+            /tmp/v119-qa/
+            /tmp/v119-wrangler-dev.log
           if-no-files-found: warn
           retention-days: 7
 
