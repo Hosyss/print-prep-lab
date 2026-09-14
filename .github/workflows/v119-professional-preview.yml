@@ -199,14 +199,16 @@ jobs:
           done
           [[ "$code" == '200' ]]
           grep -Fq 'ppl-workflow-v119.css' /tmp/ops.html
-          curl --silent --show-error --fail "$PREVIEW_ORIGIN/ppl-workflow-v119.css" | grep -Fq -- '--v119-sidebar:218px'
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/ppl-workflow-v119.css" >/tmp/preview-v119.css
+          grep -Fq -- '--v119-sidebar:218px' /tmp/preview-v119.css
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools" >/tmp/tools.html
           grep -Fq 'Print preparation tools for real production decisions.' /tmp/tools.html
           grep -Fq 'أدوات تجهيز الطباعة لقرارات إنتاج حقيقية.' /tmp/tools.html
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/guides" >/tmp/guides.html
           grep -Fq 'Print preparation guidance you can use on the job.' /tmp/guides.html
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/tools/print-readiness-checker" >/tmp/readiness.html
-          curl --silent --show-error --fail "$PREVIEW_ORIGIN/ads.txt" | grep -Fq 'pub-3369551572403499'
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/ads.txt" >/tmp/preview-ads.txt
+          grep -Fq 'pub-3369551572403499' /tmp/preview-ads.txt
           curl --silent --show-error --dump-header /tmp/admin-headers.txt --output /dev/null "$PREVIEW_ORIGIN/admin"
           grep -Eqi '^HTTP/.* 302' /tmp/admin-headers.txt
           grep -Fqi 'location: https://print-prep-lab-admin.buildtools.workers.dev' /tmp/admin-headers.txt
