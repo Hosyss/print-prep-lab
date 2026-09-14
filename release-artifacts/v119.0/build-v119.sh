@@ -5,9 +5,19 @@ release_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${release_dir}/../.." && pwd)"
 baseline="${repo_root}/release-artifacts/v118.6/print-prep-lab-pages-20260830-v118-6-runtime-mobile-arabic-recovery.zip"
 workflow_dir="${repo_root}/release-artifacts/v118.8"
+source_pages="${repo_root}/.cloudflare/pages"
 output="${release_dir}/print-prep-lab-pages-v119-professional-preview.zip"
 staging="$(mktemp -d)"
 trap 'rm -rf -- "${staging}"' EXIT
+
+[[ -s "${source_pages}/_worker.js" ]] || {
+  echo "Missing current source Pages artifact. Run npm run build && npm run prepare:pages first." >&2
+  exit 66
+}
+[[ -f "${source_pages}/_routes.json" ]] || {
+  echo "Missing current source _routes.json." >&2
+  exit 66
+}
 
 unzip -q "${baseline}" -d "${staging}"
 cp "${release_dir}/ppl-home-v119.html" "${staging}/home-v112.html"
@@ -26,7 +36,6 @@ EOF
 
 find "${staging}" -maxdepth 1 -type f -name '*.html' -print0 \
   | xargs -0 perl -pi -e 's/ppl-workflow-v1186\.js/ppl-workflow-v1187.js/g; s/ppl-workflow-v1186\.css/ppl-workflow-v119.css/g'
-perl -pi -e 's/ppl-workflow-v1186\.js/ppl-workflow-v1187.js/g; s/ppl-workflow-v1186\.css/ppl-workflow-v119.css/g' "${staging}/_worker.js"
 
 python3 - "${staging}" <<'PY'
 from pathlib import Path
@@ -53,9 +62,6 @@ for p in root.glob('*.html'):
         changed += 1
 print(f'normalized legacy punctuation: {hits} replacements across {changed} html files')
 
-# One coherent navigation state across the professional surface. Pages that do
-# not have a dedicated sidebar destination are grouped by the job decision they
-# belong to instead of incorrectly highlighting Home.
 groups = {
     '/command-center': {'command-center', 'enterprise-dashboard'},
     '/jobs': {'jobs', 'job-brief'},
@@ -105,7 +111,6 @@ for p in root.glob('*.html'):
         nav = nav.replace(needle, f'<a class="active" href="{href}">', 1)
         updated_nav += 1
     s = s[:nav_start] + nav + s[nav_end:]
-
     page_class = custom_page_class.get(stem, f'ppl-page-{stem}')
     body_match = re.search(r'<body class="([^"]*)">', s)
     if body_match and page_class not in body_match.group(1).split():
@@ -131,19 +136,34 @@ s = s.replace(
 p.write_text(s, encoding='utf-8')
 PY
 
-perl -0pi -e 's/if \(redirectResponse\) return redirectResponse;/if (redirectResponse) return redirectResponse;\n      if (url.pathname === "\/admin" || url.pathname === "\/admin\/") return new Response(null, { status: 302, headers: { Location: "https:\/\/print-prep-lab-admin.buildtools.workers.dev", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow, noarchive" } });/' "${staging}/_worker.js"
+# Overlay only the current source client/runtime files. Keep the proven v119
+# static HTML, asset exclusions, headers and admin redirect from the professional
+# artifact. The source hybrid worker chooses a static page when that file exists,
+# otherwise it falls through to the current app router for Tools/Guides/Sizes.
+for entry in "${source_pages}"/*; do
+  name="$(basename "${entry}")"
+  case "${name}" in
+    _worker.js|_routes.json|_headers|_redirects|ads.txt|home-v112.html) continue ;;
+  esac
+  rm -rf -- "${staging:?}/${name}"
+  cp -a "${entry}" "${staging}/${name}"
+done
+cp "${source_pages}/_worker.js" "${staging}/_worker.js"
 
 node - "${staging}/_routes.json" <<'NODE'
 const fs = require('node:fs');
 const path = process.argv[2];
 const routes = JSON.parse(fs.readFileSync(path, 'utf8'));
-for (const asset of ['/ppl-workflow-v119.css', '/ppl-workflow-v1187.js', '/ads.txt']) {
+for (const asset of ['/assets/*', '/ppl-workflow-v119.css', '/ppl-workflow-v1187.js', '/ads.txt']) {
   if (!routes.exclude.includes(asset)) routes.exclude.push(asset);
 }
 fs.writeFileSync(path, `${JSON.stringify(routes)}\n`);
 NODE
 
 cat >> "${staging}/_headers" <<'EOF'
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
 
 /ppl-workflow-v119.css
   Cache-Control: public, max-age=3600
@@ -168,6 +188,8 @@ grep -Fq 'class="active" href="/production-analytics"' "${staging}/production-an
 grep -Fq 'class="active" href="/command-center"' "${staging}/command-center.html"
 grep -Fq 'ppl-workflow-v119.css' "${staging}/operations.html"
 grep -Fq 'google.com, pub-3369551572403499' "${staging}/ads.txt"
+grep -Fq 'Print Prep Lab v119' "${repo_root}/app/v119-source.css"
+find "${staging}/assets" -type f -print -quit | grep -q .
 
 rm -f -- "${output}"
 (cd "${staging}" && zip -q -X -r "${output}" . -x '*.DS_Store')
