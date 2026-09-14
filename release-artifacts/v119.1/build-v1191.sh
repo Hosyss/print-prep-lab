@@ -48,6 +48,7 @@ for p in root.glob('*.html'):
     # Rename the old dashboard product label while keeping its route stable.
     s = s.replace('Enterprise Dashboard', 'Workspace Dashboard')
     s = s.replace('enterprise signals', 'workspace signals')
+    s = s.replace('<small>Platform</small><strong>v100</strong>', '<small>Workspace</small><strong>Local</strong>')
 
     # Do not touch inline scripts/styles; clean actual rendered text nodes only.
     parts = re.split(r'(<(?:script|style)\b.*?</(?:script|style)>)', s, flags=re.I | re.S)
@@ -92,6 +93,7 @@ grep -Fq 'لمن صُمم؟' "${staging}/home-v112.html"
 grep -Fq '.home-v119-about' "${staging}/ppl-workflow-v119.css"
 grep -Fq 'Command Center' "${staging}/command-center.html"
 grep -Fq 'PROFESSIONAL WORKSPACE' "${staging}/command-center.html"
+grep -Fq '<small>Workspace</small><strong>Local</strong>' "${staging}/command-center.html"
 
 rm -f -- "${output}"
 (cd "${staging}" && zip -q -X -r "${output}" . -x '*.DS_Store')
