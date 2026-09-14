@@ -33,7 +33,7 @@ export function FaqList({ items }: { items: Array<{ question: string; answer: st
     })),
   };
 
-  return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} /><div className="faq-list">{items.map((item) => <details key={item.question}><summary {...(item.questionAr ? { "data-en": item.question, "data-ar": item.questionAr } : {})}>{item.question}<span>+</span></summary><p {...(item.answerAr ? { "data-en": item.answer, "data-ar": item.answerAr } : {})}>{item.answer}</p></details>)}</div></>;
+  return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} /><div className="faq-list">{items.map((item) => <details key={item.question}><summary><span {...(item.questionAr ? { "data-en": item.question, "data-ar": item.questionAr } : {})}>{item.question}</span><span aria-hidden="true">+</span></summary><p {...(item.answerAr ? { "data-en": item.answer, "data-ar": item.answerAr } : {})}>{item.answer}</p></details>)}</div></>;
 }
 
 export function PageCta({
