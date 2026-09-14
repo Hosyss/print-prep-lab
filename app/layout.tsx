@@ -13,6 +13,7 @@ import {
   socialImage,
 } from "@/lib/seo";
 import "./globals.css";
+import "./v119-source.css";
 
 const googleVerification =
   process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || DEFAULT_GOOGLE_VERIFICATION;
@@ -62,14 +63,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f2f0e8",
+  themeColor: "#071a33",
   colorScheme: "light",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>
+      <body className="ppl-source-v119">
         <script
           async
           src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
