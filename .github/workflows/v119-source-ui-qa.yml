@@ -1,0 +1,99 @@
+name: Print Prep Lab v119 source UI QA
+
+on:
+  push:
+    branches:
+      - design/v119-professional-redesign-20260914
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'lib/**'
+      - 'worker/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - '.github/workflows/v119-source-ui-qa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-v119-source-ui-qa
+  cancel-in-progress: true
+
+jobs:
+  source-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out v119 design branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build current source
+        run: npm run build
+
+      - name: Prepare Pages source artifact
+        run: npm run prepare:pages
+
+      - name: Capture source UI routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v119-source-qa
+          npx wrangler pages dev .cloudflare/pages \
+            --ip 127.0.0.1 --port 4174 \
+            --compatibility-date=2026-05-22 --compatibility-flags=nodejs_compat \
+            >/tmp/v119-source-wrangler.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:4174/tools >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.5
+          done
+          if [[ "$ready" != '1' ]]; then
+            cat /tmp/v119-source-wrangler.log
+            exit 1
+          fi
+
+          for route in / /tools /guides /tools/dpi-ppi-calculator /guides/how-large-can-i-print-my-image /sizes; do
+            code="$(curl --silent --output /tmp/source-route.html --write-out '%{http_code}' "http://127.0.0.1:4174${route}")"
+            echo "${route} -> ${code}"
+            [[ "$code" == '200' ]]
+          done
+
+          shot(){
+            local route="$1" out="$2" viewport="${3:-1920,1080}"
+            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$viewport" --wait-for-timeout 900 \
+              "http://127.0.0.1:4174${route}" "/tmp/v119-source-qa/${out}"
+          }
+          shot /tools tools-index.png
+          shot /guides guides-index.png
+          shot /tools/dpi-ppi-calculator tool-detail.png
+          shot /guides/how-large-can-i-print-my-image guide-detail.png
+          shot /sizes sizes-index.png
+          shot /tools tools-mobile.png 390,844
+
+      - name: Upload source UI QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v119-source-ui-qa
+          path: |
+            /tmp/v119-source-qa/
+            /tmp/v119-source-wrangler.log
+          if-no-files-found: warn
+          retention-days: 7
