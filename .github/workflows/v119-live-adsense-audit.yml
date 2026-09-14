@@ -1,0 +1,143 @@
+name: Print Prep Lab v119 live AdSense audit
+
+on:
+  push:
+    branches:
+      - audit/v119-cloudflare-source-mode-20260914
+    paths:
+      - .github/workflows/v119-live-adsense-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ORIGIN: https://printpreplab.pages.dev
+      ADS_LINE: google.com, pub-3369551572403499, DIRECT, f08c47fec0942fa0
+    steps:
+      - name: Fetch crawler control files
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --fail "$ORIGIN/ads.txt" -o /tmp/ads.txt
+          curl --silent --show-error --fail "$ORIGIN/robots.txt" -o /tmp/robots.txt
+          curl --silent --show-error --fail "$ORIGIN/sitemap.xml" -o /tmp/sitemap.xml
+          grep -Fxq "$ADS_LINE" /tmp/ads.txt
+          grep -Fq 'User-agent: *' /tmp/robots.txt
+          grep -Fq 'Allow: /' /tmp/robots.txt
+          grep -Fq "$ORIGIN/sitemap.xml" /tmp/robots.txt
+
+      - name: Crawl every sitemap URL and validate indexability
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, subprocess, sys, urllib.parse, xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          origin = 'https://printpreplab.pages.dev'
+          xml = Path('/tmp/sitemap.xml').read_text('utf-8')
+          root = ET.fromstring(xml)
+          ns = {'s': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          urls = [n.text.strip() for n in root.findall('.//s:loc', ns) if n.text]
+          if not urls:
+              raise SystemExit('sitemap has no URLs')
+          if len(urls) != len(set(urls)):
+              raise SystemExit('duplicate sitemap URLs detected')
+          if len(urls) < 30:
+              raise SystemExit(f'unexpectedly small sitemap: {len(urls)} URLs')
+
+          titles = {}
+          descriptions = {}
+          failures = []
+          rows = []
+
+          def curl(url):
+              h = subprocess.run(['curl','--silent','--show-error','--fail','--dump-header','-','--output','-','--max-time','20',url], capture_output=True, text=True)
+              if h.returncode != 0:
+                  return None, None, h.stderr.strip()
+              raw = h.stdout
+              marker = '\r\n\r\n'
+              if marker not in raw:
+                  marker = '\n\n'
+              headers, body = raw.split(marker, 1)
+              return headers, body, None
+
+          for url in urls:
+              if not url.startswith(origin + '/') and url != origin + '/':
+                  failures.append(f'foreign sitemap URL: {url}')
+                  continue
+              headers, body, err = curl(url)
+              if err:
+                  failures.append(f'{url}: curl failed: {err}')
+                  continue
+              status_lines = [x for x in headers.splitlines() if x.startswith('HTTP/')]
+              status = status_lines[-1].split()[1] if status_lines else '???'
+              if status != '200':
+                  failures.append(f'{url}: HTTP {status}')
+              if re.search(r'(?im)^x-robots-tag:.*noindex', headers):
+                  failures.append(f'{url}: X-Robots-Tag noindex')
+              if re.search(r'<meta[^>]+name=["\']robots["\'][^>]+content=["\'][^"\']*noindex', body, re.I):
+                  failures.append(f'{url}: meta robots noindex')
+              title_m = re.search(r'<title[^>]*>(.*?)</title>', body, re.I|re.S)
+              desc_m = re.search(r'<meta[^>]+name=["\']description["\'][^>]+content=["\'](.*?)["\']', body, re.I|re.S)
+              if not desc_m:
+                  desc_m = re.search(r'<meta[^>]+content=["\'](.*?)["\'][^>]+name=["\']description["\']', body, re.I|re.S)
+              can_m = re.search(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\'](.*?)["\']', body, re.I|re.S)
+              if not can_m:
+                  can_m = re.search(r'<link[^>]+href=["\'](.*?)["\'][^>]+rel=["\']canonical["\']', body, re.I|re.S)
+              h1s = re.findall(r'<h1\b', body, re.I)
+              title = re.sub(r'\s+',' ',title_m.group(1)).strip() if title_m else ''
+              desc = re.sub(r'\s+',' ',desc_m.group(1)).strip() if desc_m else ''
+              canonical = urllib.parse.urljoin(url, can_m.group(1).strip()) if can_m else ''
+              expected = url.rstrip('/') or origin
+              actual = canonical.rstrip('/') or origin
+              if not title:
+                  failures.append(f'{url}: missing title')
+              if not desc or len(desc) < 50:
+                  failures.append(f'{url}: missing/short meta description ({len(desc)})')
+              if actual != expected:
+                  failures.append(f'{url}: canonical mismatch: {canonical}')
+              if len(h1s) != 1:
+                  failures.append(f'{url}: H1 count {len(h1s)}')
+              if len(body) < 2500:
+                  failures.append(f'{url}: suspiciously thin HTML ({len(body)} bytes)')
+              titles.setdefault(title, []).append(url)
+              descriptions.setdefault(desc, []).append(url)
+              rows.append((url, len(body), title))
+
+          for value, members in titles.items():
+              if value and len(members) > 1:
+                  failures.append('duplicate title: ' + value + ' :: ' + ', '.join(members))
+          for value, members in descriptions.items():
+              if value and len(members) > 1:
+                  failures.append('duplicate description :: ' + ', '.join(members))
+
+          print(f'Sitemap URLs checked: {len(urls)}')
+          for url, size, title in rows:
+              print(f'PASS {size:6d} {url} :: {title[:90]}')
+          if failures:
+              print('\nFAILURES:', file=sys.stderr)
+              for f in failures:
+                  print('- ' + f, file=sys.stderr)
+              raise SystemExit(1)
+          PY
+
+      - name: Verify key live trust and AdSense surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          for route in / /tools /guides /sizes /about /methodology /sources /editorial-policy /privacy /terms /contact; do
+            curl --silent --show-error --fail "$ORIGIN$route" -o "/tmp/page$(echo "$route" | tr '/' '_').html"
+          done
+          grep -Fq 'google-adsense-account' /tmp/page_.html
+          grep -Fq 'About Print Prep Lab' /tmp/page_about.html
+          grep -Fq 'Calculation Methodology' /tmp/page_methodology.html
+          grep -Fq 'Sources & Reference Policy' /tmp/page_sources.html
+          grep -Fq 'Editorial Policy' /tmp/page_editorial-policy.html
+          grep -Fq 'Google AdSense' /tmp/page_privacy.html
+          grep -Fq 'Terms of Use' /tmp/page_terms.html
+          grep -Fq 'Contact & Calculation Reports' /tmp/page_contact.html
