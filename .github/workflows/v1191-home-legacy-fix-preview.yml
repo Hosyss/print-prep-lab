@@ -1,0 +1,158 @@
+name: Print Prep Lab v119.1 home and legacy fix preview
+
+on:
+  push:
+    branches:
+      - fix/v119-home-audience-legacy-labels-20260914
+    paths:
+      - 'release-artifacts/v119.0/ppl-home-v119.html'
+      - 'release-artifacts/v119.0/ppl-home-v119.css'
+      - 'release-artifacts/v119.1/**'
+      - '.github/workflows/v1191-home-legacy-fix-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-v1191-home-fix-preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: printpreplab
+      PREVIEW_BRANCH: v119-fix-preview
+      PREVIEW_ORIGIN: https://v119-fix-preview.printpreplab.pages.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Build current source and v119.1 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          npm run prepare:pages
+          bash release-artifacts/v119.1/build-v1191.sh
+          rm -rf /tmp/ppl-v1191
+          mkdir -p /tmp/ppl-v1191
+          unzip -q release-artifacts/v119.1/print-prep-lab-pages-v119-1-home-legacy-fix.zip -d /tmp/ppl-v1191
+          test -s /tmp/ppl-v1191/_worker.js
+          test -s /tmp/ppl-v1191/ppl-workflow-v119.css
+          grep -Fq 'Who is it for?' /tmp/ppl-v1191/home-v112.html
+          grep -Fq 'Commercial and digital printers' /tmp/ppl-v1191/home-v112.html
+          grep -Fq 'لمن صُمم؟' /tmp/ppl-v1191/home-v112.html
+          grep -Fq '.home-v119-about' /tmp/ppl-v1191/ppl-workflow-v119.css
+
+      - name: Validate no visible legacy release branding
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root=Path('/tmp/ppl-v1191')
+          failures=[]
+          patterns=[
+            ('v100 Command',r'>[^<]*\bv100 Command\b[^<]*<'),
+            ('ENTERPRISE PLATFORM',r'>[^<]*ENTERPRISE PLATFORM[^<]*<'),
+            ('Enterprise layer',r'>[^<]*Enterprise layer[^<]*<'),
+            ('standalone version badge',r'>\s*v\d+(?:[–-]v\d+)?\s*<'),
+            ('v100 platform',r'>[^<]*\bv100 platform\b[^<]*<'),
+          ]
+          for p in root.glob('*.html'):
+            s=p.read_text('utf-8')
+            s=re.sub(r'<(?:script|style)\b.*?</(?:script|style)>','',s,flags=re.I|re.S)
+            for label,pat in patterns:
+              if re.search(pat,s,flags=re.I): failures.append(f'{p.name}: {label}')
+          if failures:
+            raise SystemExit('\n'.join(failures))
+          print('No visible legacy version/enterprise branding remains.')
+          PY
+
+      - name: Run local route and visual QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v1191-qa && mkdir -p /tmp/v1191-qa
+          (
+            cd /tmp/ppl-v1191
+            env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
+              npx --yes wrangler@4.131.1 pages dev . \
+              --ip 127.0.0.1 --port 4173 \
+              --compatibility-date=2026-05-22 --compatibility-flags=nodejs_compat
+          ) >/tmp/v1191-wrangler.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:4173/ >/tmp/home.html; then ready=1; break; fi
+            sleep .5
+          done
+          test "$ready" = 1
+          grep -Fq 'Who is it for?' /tmp/home.html
+          grep -Fq 'What can it help you solve?' /tmp/home.html
+          grep -Fq 'لمن صُمم؟' /tmp/home.html
+          for route in / /workspace /command-center /operations /job-costing /tools /guides /sizes; do
+            code="$(curl --silent --output /tmp/route.html --write-out '%{http_code}' "http://127.0.0.1:4173${route}")"
+            echo "$route -> $code"
+            test "$code" = 200
+          done
+          shot(){
+            npx --yes playwright@1.63.0 screenshot --channel chrome --viewport-size "$3" --full-page --wait-for-timeout 1000 "$1" "/tmp/v1191-qa/$2"
+          }
+          shot http://127.0.0.1:4173/ home-desktop.png 1920,1080
+          shot http://127.0.0.1:4173/ home-mobile.png 390,844
+          shot http://127.0.0.1:4173/workspace workspace.png 1920,1080
+          shot http://127.0.0.1:4173/command-center command-center.png 1920,1080
+
+      - name: Upload v119.1 build and visual QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: v1191-home-legacy-fix-qa
+          path: |
+            release-artifacts/v119.1/print-prep-lab-pages-v119-1-home-legacy-fix.zip
+            /tmp/v1191-qa/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Deploy safe public preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          cd /tmp/ppl-v1191
+          npx --yes wrangler@4.131.1 pages deploy . \
+            --project-name "$PAGES_PROJECT" \
+            --branch "$PREVIEW_BRANCH" \
+            --commit-hash "$GITHUB_SHA" \
+            --commit-message 'v119.1 restore home audience and remove legacy release branding'
+
+      - name: Verify public preview content
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 24); do
+            code="$(curl --silent --show-error --output /tmp/live-home.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/" || true)"
+            if [[ "$code" == 200 ]] && grep -Fq 'Who is it for?' /tmp/live-home.html; then ready=1; break; fi
+            sleep 3
+          done
+          test "$ready" = 1
+          grep -Fq 'Commercial and digital printers' /tmp/live-home.html
+          grep -Fq 'لمن صُمم؟' /tmp/live-home.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/command-center" -o /tmp/live-command.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/workspace" -o /tmp/live-workspace.html
+          ! grep -Eqi '>[^<]*(v100 Command|ENTERPRISE PLATFORM|Enterprise layer|v100 platform)[^<]*<' /tmp/live-command.html
+          ! grep -Eqi '>[^<]*(v100 Command|ENTERPRISE PLATFORM|Enterprise layer|v100 platform)[^<]*<' /tmp/live-workspace.html
+          grep -Fq 'PROFESSIONAL WORKSPACE' /tmp/live-command.html
