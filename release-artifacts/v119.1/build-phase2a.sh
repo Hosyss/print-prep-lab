@@ -13,6 +13,7 @@ bash "${release_dir}/build-v1191.sh"
 unzip -q "${base_zip}" -d "${staging}"
 
 python3 "${release_dir}/phase2a-suite-patch.py" "${staging}/enterprise-suite.js"
+python3 "${release_dir}/phase2a-review-patch.py" "${staging}/enterprise-suite.js"
 cat "${release_dir}/enterprise-status-v1.js" "${staging}/enterprise-suite.js" > "${staging}/enterprise-suite.phase2a.js"
 mv "${staging}/enterprise-suite.phase2a.js" "${staging}/enterprise-suite.js"
 node --check "${staging}/enterprise-suite.js"
@@ -22,6 +23,8 @@ for page in digital-twin.html release-center.html enterprise-dashboard.html read
 done
 ! grep -Eq 'blockedWord|okayWord|JSON\.stringify\([^)]*\).*BLOCK' "${staging}/enterprise-suite.js"
 grep -Fq 'PPLStatusRules' "${staging}/enterprise-suite.js"
+grep -Fq "decisionModel:'explicit-fields-v2'" "${staging}/enterprise-suite.js"
+grep -Fq 'blockers:blocked.map' "${staging}/enterprise-suite.js"
 grep -Fq 'function supplier()' "${staging}/enterprise-suite.js"
 grep -Fq 'function jobCore()' "${staging}/enterprise-suite.js"
 grep -Fq 'Who is it for?' "${staging}/home-v112.html"
