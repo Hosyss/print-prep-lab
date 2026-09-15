@@ -85,6 +85,8 @@ jobs:
             sleep .5
           done
           test "$ready" = 1
+          curl --silent --show-error --fail http://127.0.0.1:4173/enterprise-status-v1.js -o /tmp/local-status.js
+          grep -Fq 'PPLStatusRules' /tmp/local-status.js
           node tests/phase2a-browser-qa.mjs http://127.0.0.1:4173 /tmp/phase2a-qa
 
       - name: Deploy isolated public preview
