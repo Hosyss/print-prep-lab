@@ -20,6 +20,8 @@ eq('stock covered pass',R.evaluate('stock',{state:'COVERED'}).state,'PASS');
 eq('legacy readiness is unresolved',R.evaluate('audit',{status:'READY',required:3,unresolved:[]}).state,'UNRESOLVED');
 eq('explicit readiness READY',R.evaluate('audit',{version:2,decisionModel:'explicit-fields-v2',status:'READY',required:3,unresolved:[],blockers:[]}).state,'PASS');
 eq('explicit readiness zero checks',R.evaluate('audit',{version:2,decisionModel:'explicit-fields-v2',status:'READY',required:0,unresolved:[],blockers:[]}).state,'UNRESOLVED');
+eq('explicit readiness missing version is invalid',R.evaluate('audit',{decisionModel:'explicit-fields-v2',status:'READY',required:3,unresolved:[],blockers:[]}).state,'INVALID');
+eq('explicit readiness malformed version is invalid',R.evaluate('audit',{version:'bad',decisionModel:'explicit-fields-v2',status:'READY',required:3,unresolved:[],blockers:[]}).state,'INVALID');
 eq('contradictory readiness READY with blocker',R.evaluate('audit',{version:2,decisionModel:'explicit-fields-v2',status:'READY',required:3,unresolved:[],blockers:['QA']}).state,'INVALID');
 eq('explicit readiness HOLD',R.evaluate('audit',{version:2,decisionModel:'explicit-fields-v2',status:'HOLD',required:3,unresolved:[],blockers:['QA']}).state,'BLOCK');
 console.log('All Phase 2a status-rule cases passed.');
