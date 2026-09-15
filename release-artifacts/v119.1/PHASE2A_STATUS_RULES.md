@@ -11,7 +11,7 @@ Scope: decision/status logic only. Supplier ranking/eligibility and Jobs/Job Cor
 | `REVIEW` | The source explicitly reports a warning/review condition. | No |
 | `BLOCK` | The source explicitly reports a real blocking condition. | No; blocker has precedence |
 | `PASS` | The requirements actually checked by that source are satisfied. | Only when every required source in that view is `PASS` |
-| `UNRESOLVED` | Data exists but the current product definition does not provide a decisive rule. | No |
+| `UNRESOLVED` | Data exists but the current product definition does not provide a decisive rule, or a legacy decision record cannot be trusted under the current explicit-field model. | No |
 
 Aggregation precedence: `BLOCK` → `INVALID` → `REVIEW` → `UNRESOLVED`/`NO_DATA` → `PASS`. A passing source never cancels a blocker from another source.
 
@@ -37,16 +37,18 @@ Aggregation precedence: `BLOCK` → `INVALID` → `REVIEW` → `UNRESOLVED`/`NO_
 | Compliance | Missing | Unknown state | `REVIEW` | `HOLD` | `READY` |
 | Schedule optimizer | Missing | Late count invalid | — | `late>0` | `late=0` |
 | Material intelligence | Missing | Unknown state | `REORDER` | — | `COVERED` |
-| Saved readiness audit | Missing | Unknown status | `REVIEW` | `HOLD` | `READY` for the checks selected in that saved audit only |
+| Saved readiness audit | Missing | Explicit v2 fields/status contradict each other or are malformed | Explicit v2 has unresolved evidence / `REVIEW` | Explicit v2 has recorded blockers / `HOLD` | Only `version>=2` + `decisionModel=explicit-fields-v2` + at least one selected check + no unresolved/blockers + `READY` |
 
-Free-text notes, field names and JSON serialization are never scanned for status words.
+QA history status values are normalized to lowercase before validation and counting, so case differences cannot hide a real blocker. Free-text notes, field names and JSON serialization are never scanned for status words.
+
+Legacy readiness records (including old `READY` records without `decisionModel=explicit-fields-v2`) are preserved but classified `UNRESOLVED`; the user must run Readiness Audit again before they can be trusted. Phase 2a readiness writes keep the existing storage key and add `decisionModel`, separate `unresolved`, and separate `blockers` fields without deleting the old record automatically.
 
 ## Five consumers
 
 - **Digital Twin:** summarizes recognized stored decision sources. It can show `CLEAR` when all recognized stored sources pass, but `CLEAR` is explicitly not release approval. Empty-only evidence remains `NO DATA`.
 - **Release Center:** Job Core + Preflight + Approvals + QA + Supplier. Any real blocker makes `HOLD`; any missing/invalid/review/unresolved source makes `REVIEW`; only all-pass gates make `READY`.
 - **Enterprise Dashboard:** counts only explicit blockers from recognized source rules and explains non-pass evidence without dumping JSON.
-- **Readiness Audit:** applies the source-specific rule for each selected checkbox. `READY` requires every selected check to pass; QA alone does not override other selected requirements.
-- **Command Center:** respects the saved readiness audit but also checks recognized stored sources so a blocker outside a previously green audit cannot be erased by that audit.
+- **Readiness Audit:** applies the source-specific rule for each selected checkbox. `READY` requires every selected check to pass; QA alone does not override other selected requirements. New audit records are explicitly stamped with the Phase 2a decision model and keep blockers separate from other unresolved evidence.
+- **Command Center:** respects only a current explicit-field readiness audit as pass, and also checks recognized stored sources so a blocker outside a previously green audit cannot be erased by that audit.
 
 Existing localStorage records are read in place. Phase 2a does not delete, clear or auto-migrate user data.
