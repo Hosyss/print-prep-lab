@@ -7,6 +7,7 @@ eq('clean QA',R.evaluate('qa',null).state,'NO_DATA');
 eq('QA zero',R.evaluate('qa',{total:0,pass:0,review:0,blocker:0}).state,'NO_DATA');
 eq('QA blocker=0 completed',R.evaluate('qa',{total:3,pass:3,review:0,blocker:0,note:'FAIL is just free text'}).state,'PASS');
 eq('QA real blocker',R.evaluate('qa',{total:3,pass:2,review:0,blocker:1,note:'all good'}).state,'BLOCK');
+eq('QA array uppercase blocker',R.evaluate('qa',[{status:'BLOCKER'}]).state,'BLOCK');
 eq('QA review',R.evaluate('qa',{total:3,pass:2,review:1,blocker:0}).state,'REVIEW');
 eq('QA invalid missing field',R.evaluate('qa',{total:3,pass:3,blocker:0}).state,'INVALID');
 eq('QA free text ignored',R.evaluate('qa',{total:1,pass:1,review:0,blocker:0,finding:'BLOCK FAIL CRITICAL'}).state,'PASS');
@@ -16,4 +17,9 @@ const mixed=[{result:R.evaluate('qa',{total:1,pass:1,review:0,blocker:0})},{resu
 eq('risk review',R.evaluate('risk',{total:2,open:1,high:0,review:1}).state,'REVIEW');
 eq('stock reorder review',R.evaluate('stock',{state:'REORDER'}).state,'REVIEW');
 eq('stock covered pass',R.evaluate('stock',{state:'COVERED'}).state,'PASS');
+eq('legacy readiness is unresolved',R.evaluate('audit',{status:'READY',required:3,unresolved:[]}).state,'UNRESOLVED');
+eq('explicit readiness READY',R.evaluate('audit',{version:2,decisionModel:'explicit-fields-v2',status:'READY',required:3,unresolved:[],blockers:[]}).state,'PASS');
+eq('explicit readiness zero checks',R.evaluate('audit',{version:2,decisionModel:'explicit-fields-v2',status:'READY',required:0,unresolved:[],blockers:[]}).state,'UNRESOLVED');
+eq('contradictory readiness READY with blocker',R.evaluate('audit',{version:2,decisionModel:'explicit-fields-v2',status:'READY',required:3,unresolved:[],blockers:['QA']}).state,'INVALID');
+eq('explicit readiness HOLD',R.evaluate('audit',{version:2,decisionModel:'explicit-fields-v2',status:'HOLD',required:3,unresolved:[],blockers:['QA']}).state,'BLOCK');
 console.log('All Phase 2a status-rule cases passed.');
