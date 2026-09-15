@@ -27,8 +27,14 @@ const qaPass={schema:'print-prep-lab-qa-summary',version:1,total:2,pass:2,review
 const browser=await chromium.launch({headless:true,channel:'chrome'});
 const context=await browser.newContext({viewport:{width:1440,height:1000}});
 const page=await context.newPage();
+page.on('console',m=>console.log(`BROWSER ${m.type()}: ${m.text()}`));
+page.on('pageerror',e=>console.log(`BROWSER pageerror: ${e.message}`));
 try{
-  await seed(page,{});await open(page,'/digital-twin');check('clean session is NO DATA',(await text(page,'#dt-health'))==='NO DATA');check('clean session has zero blockers',(await text(page,'#dt-blockers'))==='0');
+  await seed(page,{});await open(page,'/digital-twin');
+  const firstHealth=await text(page,'#dt-health');
+  const runtime=await page.evaluate(()=>({rules:!!window.PPLStatusRules,core:!!window.PPLCore,mode:document.body.dataset.enterpriseMode,scripts:[...document.scripts].map(s=>s.src).filter(Boolean)}));
+  console.log('RUNTIME',JSON.stringify(runtime));
+  check('clean session is NO DATA',firstHealth==='NO DATA',`actual=${firstHealth}; rules=${runtime.rules}; core=${runtime.core}; mode=${runtime.mode}`);check('clean session has zero blockers',(await text(page,'#dt-blockers'))==='0');
 
   await open(page,'/qa-history');await open(page,'/digital-twin');check('empty QA history is not blocked',(await text(page,'#dt-health'))==='NO DATA');check('empty QA history blocker count',(await text(page,'#dt-blockers'))==='0');await shot(page,'after-empty-en.png');
 
