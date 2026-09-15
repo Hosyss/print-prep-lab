@@ -13,7 +13,7 @@ bash "${release_dir}/build-v1191.sh"
 unzip -q "${base_zip}" -d "${staging}"
 
 install -m 0644 "${release_dir}/enterprise-status-v1.js" "${staging}/enterprise-status-v1.js"
-install -m 0644 "${release_dir}/enterprise-suite.js" "${staging}/enterprise-suite.js"
+python3 "${release_dir}/phase2a-suite-patch.py" "${staging}/enterprise-suite.js"
 
 python3 - "${staging}" <<'PY'
 from pathlib import Path
