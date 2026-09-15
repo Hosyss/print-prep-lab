@@ -7,6 +7,7 @@ on:
     paths:
       - 'release-artifacts/v119.1/enterprise-status-v1.js'
       - 'release-artifacts/v119.1/phase2a-suite-patch.py'
+      - 'release-artifacts/v119.1/phase2a-review-patch.py'
       - 'release-artifacts/v119.1/build-phase2a.sh'
       - 'release-artifacts/v119.1/PHASE2A_STATUS_RULES.md'
       - 'tests/phase2a-status-rules.test.mjs'
@@ -53,6 +54,8 @@ jobs:
           test -s /tmp/ppl-phase2a/enterprise-suite.js
           ! grep -Eq 'blockedWord|okayWord' /tmp/ppl-phase2a/enterprise-suite.js
           grep -Fq 'PPLStatusRules' /tmp/ppl-phase2a/enterprise-suite.js
+          grep -Fq "decisionModel:'explicit-fields-v2'" /tmp/ppl-phase2a/enterprise-suite.js
+          grep -Fq 'blockers:blocked.map' /tmp/ppl-phase2a/enterprise-suite.js
           grep -Fq 'Who is it for?' /tmp/ppl-phase2a/home-v112.html
           grep -Fq 'PROFESSIONAL WORKSPACE' /tmp/ppl-phase2a/command-center.html
 
@@ -119,6 +122,8 @@ jobs:
           done
           curl --silent --show-error --fail "$PREVIEW_ORIGIN/enterprise-suite.js" -o /tmp/live-suite.js
           grep -Fq 'PPLStatusRules' /tmp/live-suite.js
+          grep -Fq "decisionModel:'explicit-fields-v2'" /tmp/live-suite.js
+          grep -Fq 'blockers:blocked.map' /tmp/live-suite.js
 
       - name: Run browser QA against public preview
         shell: bash
