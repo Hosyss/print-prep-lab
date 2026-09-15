@@ -94,9 +94,10 @@ function countGate(v,badKey,reviewKey,passEn,passAr,badEn,badAr,reviewEn,reviewA
 function stateGate(v,map){if(!isObj(v))return nodata();const state=String(v.state||v.status||'').toUpperCase();if(!state)return invalid();const hit=map[state];return hit?result(hit[0],hit[1],hit[2]):invalid('Saved state is not recognized.','الحالة المحفوظة غير معروفة.');}
 function audit(v){
   if(!isObj(v))return nodata('No readiness audit is saved.','لا يوجد تدقيق جاهزية محفوظ.');
-  if(Number(v.version)<2||v.decisionModel!=='explicit-fields-v2')return unresolved('A legacy readiness audit is saved. Run Readiness Audit again before relying on it.','يوجد تدقيق جاهزية قديم محفوظ. أعد تشغيل تدقيق الجاهزية قبل الاعتماد عليه.');
+  const version=Number(v.version);
+  if(v.decisionModel!=='explicit-fields-v2'||(Number.isInteger(version)&&version<2))return unresolved('A legacy readiness audit is saved. Run Readiness Audit again before relying on it.','يوجد تدقيق جاهزية قديم محفوظ. أعد تشغيل تدقيق الجاهزية قبل الاعتماد عليه.');
   const status=String(v.status||'').toUpperCase(), required=v.required, unresolvedItems=v.unresolved, blockers=v.blockers;
-  if(!['READY','REVIEW','HOLD'].includes(status)||!Number.isInteger(required)||required<0||!Array.isArray(unresolvedItems)||!Array.isArray(blockers))return invalid('Readiness audit fields are missing or invalid.','حقول تدقيق الجاهزية مفقودة أو غير صالحة.');
+  if(!Number.isInteger(version)||version<2||!['READY','REVIEW','HOLD'].includes(status)||!Number.isInteger(required)||required<0||!Array.isArray(unresolvedItems)||!Array.isArray(blockers))return invalid('Readiness audit fields are missing or invalid.','حقول تدقيق الجاهزية مفقودة أو غير صالحة.');
   if(required===0)return unresolved('The saved readiness audit has no selected checks.','تدقيق الجاهزية المحفوظ لا يحتوي فحوصًا محددة.');
   if(status==='READY'&&(unresolvedItems.length>0||blockers.length>0))return invalid('Readiness audit says READY but still records unresolved evidence or blockers.','تدقيق الجاهزية يقول READY لكنه ما زال يسجل أدلة غير محسومة أو عوائق.');
   if(status==='REVIEW'&&blockers.length>0)return invalid('Readiness audit says REVIEW but records a blocker.','تدقيق الجاهزية يقول REVIEW لكنه يسجل عائقًا.');
