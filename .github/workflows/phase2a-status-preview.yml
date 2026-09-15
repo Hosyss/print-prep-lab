@@ -1,0 +1,140 @@
+name: Print Prep Lab Phase 2a explicit status preview
+
+on:
+  push:
+    branches:
+      - fix/phase2a-explicit-status-20260915
+    paths:
+      - 'release-artifacts/v119.1/enterprise-status-v1.js'
+      - 'release-artifacts/v119.1/phase2a-suite-patch.py'
+      - 'release-artifacts/v119.1/build-phase2a.sh'
+      - 'release-artifacts/v119.1/PHASE2A_STATUS_RULES.md'
+      - 'tests/phase2a-status-rules.test.mjs'
+      - 'tests/phase2a-browser-qa.mjs'
+      - '.github/workflows/phase2a-status-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-phase2a-status-preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: printpreplab
+      PREVIEW_BRANCH: phase2a-status-preview
+      PREVIEW_ORIGIN: https://phase2a-status-preview.printpreplab.pages.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Build current source and isolated Phase 2a artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+          npm run prepare:pages
+          bash release-artifacts/v119.1/build-phase2a.sh
+          rm -rf /tmp/ppl-phase2a
+          mkdir -p /tmp/ppl-phase2a
+          unzip -q release-artifacts/v119.1/print-prep-lab-pages-v119-2a-explicit-status.zip -d /tmp/ppl-phase2a
+          test -s /tmp/ppl-phase2a/_worker.js
+          test -s /tmp/ppl-phase2a/enterprise-status-v1.js
+          test -s /tmp/ppl-phase2a/enterprise-suite.js
+          ! grep -Eq 'blockedWord|okayWord' /tmp/ppl-phase2a/enterprise-suite.js
+          grep -Fq '/enterprise-status-v1.js' /tmp/ppl-phase2a/digital-twin.html
+          grep -Fq 'Who is it for?' /tmp/ppl-phase2a/home-v112.html
+          grep -Fq 'PROFESSIONAL WORKSPACE' /tmp/ppl-phase2a/command-center.html
+
+      - name: Run Phase 2a state-rule tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/phase2a-status-rules.test.mjs
+
+      - name: Run Phase 2a browser integration QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.63.0
+          rm -rf /tmp/phase2a-qa
+          mkdir -p /tmp/phase2a-qa
+          (
+            cd /tmp/ppl-phase2a
+            env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
+              npx --yes wrangler@4.131.1 pages dev . \
+              --ip 127.0.0.1 --port 4173 \
+              --compatibility-date=2026-05-22 --compatibility-flags=nodejs_compat
+          ) >/tmp/phase2a-wrangler.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:4173/digital-twin >/dev/null; then ready=1; break; fi
+            sleep .5
+          done
+          test "$ready" = 1
+          node tests/phase2a-browser-qa.mjs http://127.0.0.1:4173 /tmp/phase2a-qa
+
+      - name: Deploy isolated public preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          cd /tmp/ppl-phase2a
+          npx --yes wrangler@4.131.1 pages deploy . \
+            --project-name "$PAGES_PROJECT" \
+            --branch "$PREVIEW_BRANCH" \
+            --commit-hash "$GITHUB_SHA" \
+            --commit-message 'phase 2a explicit status logic preview'
+
+      - name: Verify public preview routes and status assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 24); do
+            code="$(curl --silent --show-error --output /tmp/live-dt.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/digital-twin" || true)"
+            if [[ "$code" == 200 ]] && grep -Fq '/enterprise-status-v1.js' /tmp/live-dt.html; then ready=1; break; fi
+            sleep 3
+          done
+          test "$ready" = 1
+          for route in /digital-twin /release-center /enterprise-dashboard /readiness-audit /command-center; do
+            code="$(curl --silent --output /tmp/route.html --write-out '%{http_code}' "$PREVIEW_ORIGIN${route}")"
+            echo "$route -> $code"
+            test "$code" = 200
+          done
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/enterprise-status-v1.js" -o /tmp/live-status.js
+          grep -Fq 'PPLStatusRules' /tmp/live-status.js
+
+      - name: Run browser QA against public preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/phase2a-live-qa
+          mkdir -p /tmp/phase2a-live-qa
+          node tests/phase2a-browser-qa.mjs "$PREVIEW_ORIGIN" /tmp/phase2a-live-qa
+
+      - name: Upload Phase 2a build and fresh QA evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2a-explicit-status-qa
+          path: |
+            release-artifacts/v119.1/print-prep-lab-pages-v119-2a-explicit-status.zip
+            /tmp/phase2a-qa/
+            /tmp/phase2a-live-qa/
+            /tmp/phase2a-wrangler.log
+          if-no-files-found: error
+          retention-days: 7
