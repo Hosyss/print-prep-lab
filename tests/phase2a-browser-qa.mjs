@@ -9,7 +9,8 @@ const prefix='print-prep-lab-';
 const results=[];
 const check=(name,ok,detail='')=>{if(!ok)throw new Error(`${name}${detail?`: ${detail}`:''}`);results.push({name,ok:true,detail});console.log(`PASS ${name}${detail?` — ${detail}`:''}`)};
 async function seed(page,data={},lang='en'){
-  await page.goto(base+'/',{waitUntil:'domcontentloaded'});
+  const res=await page.goto(base+'/',{waitUntil:'domcontentloaded'});
+  if(!res||res.status()!==200)throw new Error(`seed navigation / expected 200, got ${res?.status()}`);
   await page.evaluate(()=>localStorage.clear());
   await page.evaluate(({data,lang,prefix})=>{
     for(const [k,v] of Object.entries(data)) localStorage.setItem(prefix+k,JSON.stringify(v));
@@ -18,7 +19,10 @@ async function seed(page,data={},lang='en'){
   },{data,lang,prefix});
 }
 async function open(page,route){
-  await page.goto(base+route,{waitUntil:'domcontentloaded'});
+  const res=await page.goto(base+route,{waitUntil:'domcontentloaded'});
+  const status=res?.status();
+  console.log(`NAV ${route} -> ${status} ${page.url()}`);
+  if(!res||status!==200)throw new Error(`navigation ${route} expected 200, got ${status}; url=${page.url()}`);
   await page.waitForTimeout(350);
 }
 async function text(page,sel){return (await page.locator(sel).innerText()).trim()}
