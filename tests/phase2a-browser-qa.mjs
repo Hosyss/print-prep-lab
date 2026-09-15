@@ -9,26 +9,37 @@ const prefix='print-prep-lab-';
 const results=[];
 const check=(name,ok,detail='')=>{if(!ok)throw new Error(`${name}${detail?`: ${detail}`:''}`);results.push({name,ok:true,detail});console.log(`PASS ${name}${detail?` — ${detail}`:''}`)};
 const qaPass={schema:'print-prep-lab-qa-summary',version:1,total:2,pass:2,review:0,blocker:0,finding:'FAIL appears only in free text'};
+const viewport={width:1440,height:1000};
 
 const browser=await chromium.launch({headless:true,channel:'chrome'});
-const context=await browser.newContext({viewport:{width:1440,height:1000}});
-let page=null;
+let context=null,page=null,storageState=undefined;
 function wire(p){p.on('console',m=>console.log(`BROWSER ${m.type()}: ${m.text()}`));p.on('pageerror',e=>console.log(`BROWSER pageerror: ${e.message}`));}
+async function captureAndClose(){
+  if(context){storageState=await context.storageState();await context.close();}
+  context=null;page=null;
+}
+async function freshContext(){
+  context=await browser.newContext(storageState?{viewport,storageState}:{viewport});
+  page=await context.newPage();wire(page);
+}
 async function seed(data={},lang='en'){
-  const p=await context.newPage();wire(p);
-  const res=await p.goto(base+'/',{waitUntil:'domcontentloaded'});
+  await captureAndClose();
+  storageState=undefined;
+  await freshContext();
+  const res=await page.goto(base+'/',{waitUntil:'domcontentloaded'});
   if(!res||res.status()!==200)throw new Error(`seed navigation / expected 200, got ${res?.status()}`);
-  await p.evaluate(()=>localStorage.clear());
-  await p.evaluate(({data,lang,prefix})=>{
+  await page.evaluate(()=>localStorage.clear());
+  await page.evaluate(({data,lang,prefix})=>{
     for(const [k,v] of Object.entries(data)) localStorage.setItem(prefix+k,JSON.stringify(v));
     localStorage.setItem(prefix+'language',lang);
     localStorage.setItem('ppl-interface-language',lang);
   },{data,lang,prefix});
-  await p.close();
+  storageState=await context.storageState();
+  await context.close();context=null;page=null;
 }
 async function open(route){
-  if(page&&!page.isClosed())await page.close();
-  page=await context.newPage();wire(page);
+  await captureAndClose();
+  await freshContext();
   const res=await page.goto(base+route,{waitUntil:'domcontentloaded'});
   const status=res?.status();
   console.log(`NAV ${route} -> ${status} ${page.url()}`);
@@ -103,6 +114,6 @@ try{
 
   fs.writeFileSync(path.join(outDir,'phase2a-results.json'),JSON.stringify({generatedAt:new Date().toISOString(),base,results},null,2));
 } finally {
-  if(page&&!page.isClosed())await page.close();
+  if(context)await context.close();
   await browser.close();
 }
