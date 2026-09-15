@@ -1,0 +1,115 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium } from 'playwright';
+
+const base=process.argv[2]||'http://127.0.0.1:4174';
+const outDir=process.argv[3]||'/tmp/phase2b-qa';
+fs.mkdirSync(outDir,{recursive:true});
+const prefix='print-prep-lab-';
+const results=[];
+const check=(name,ok,detail='')=>{if(!ok)throw new Error(`${name}${detail?`: ${detail}`:''}`);results.push({name,ok:true,detail});console.log(`PASS ${name}${detail?` — ${detail}`:''}`)};
+const browser=await chromium.launch({headless:true,channel:'chrome'});
+let context,page;
+async function newContext(storageState){
+  if(context)await context.close();
+  context=await browser.newContext({viewport:{width:1440,height:1000},storageState});
+  page=await context.newPage();
+  page.on('console',m=>console.log(`BROWSER ${m.type()}: ${m.text()}`));
+  page.on('pageerror',e=>console.log(`BROWSER pageerror: ${e.message}`));
+}
+async function seed(data={}){
+  await newContext();
+  let res=await page.goto(base+'/',{waitUntil:'domcontentloaded'});
+  if(!res||res.status()!==200)throw new Error(`seed / expected 200, got ${res?.status()}`);
+  await page.evaluate(()=>localStorage.clear());
+  await page.evaluate(({data,prefix})=>{for(const [k,v] of Object.entries(data))localStorage.setItem(prefix+k,JSON.stringify(v));},{data,prefix});
+  const state=await context.storageState();
+  await newContext(state);
+}
+async function open(route){
+  const res=await page.goto(base+route,{waitUntil:'domcontentloaded'});
+  const status=res?.status();
+  console.log(`NAV ${route} -> ${status} ${page.url()}`);
+  if(!res||status!==200)throw new Error(`navigation ${route} expected 200, got ${status}`);
+  await page.waitForTimeout(350);
+}
+async function read(key){return page.evaluate(({prefix,key})=>{const raw=localStorage.getItem(prefix+key);return raw?JSON.parse(raw):null},{prefix,key})}
+async function supplierState(){return page.evaluate(({prefix})=>{const raw=localStorage.getItem(prefix+'supplier-intelligence-last-v1');return window.PPLStatusRules.evaluate('supplier',raw?JSON.parse(raw):null).state},{prefix})}
+async function text(sel){return (await page.locator(sel).innerText()).trim()}
+async function shot(name){await page.screenshot({path:path.join(outDir,name),fullPage:true})}
+
+const p=(id,name,eligibility,score=80)=>({id,name,cap:score,quality:score,lead:score,price:score,risk:100-score,...(eligibility?{eligibility}:{})});
+const passBase={
+  'enterprise-job-core-v1':{name:'Supplier QA job',revision:'R1',quantity:10},
+  'preflight-last-v1':{state:'ready',blockers:0,warnings:0},
+  'approval-summary-v1':{required:1,approved:1,blocking:0},
+  'qa-summary-v1':{total:1,pass:1,review:0,blocker:0}
+};
+
+try{
+  await seed({});await open('/supplier-intelligence');
+  let summary=await read('supplier-intelligence-last-v1');
+  check('clean supplier summary has no best',summary?.best===null);
+  check('clean supplier state is NO_DATA',(await supplierState())==='NO_DATA');
+  check('eligibility control exists',await page.locator('#si-eligibility').count()===1);
+  check('fixed weights are disclosed',(await page.locator('body').innerText()).includes('capability 35%')&&(await page.locator('body').innerText()).includes('Weight editing is intentionally deferred'));
+  check('no weight editor is present',await page.locator('[id^="si-weight"]').count()===0);
+
+  const legacy=[p('legacy','Legacy Provider',null,92)];
+  await seed({'enterprise-suppliers-v1':legacy});await open('/supplier-intelligence');
+  const sourceAfter=await read('enterprise-suppliers-v1');summary=await read('supplier-intelligence-last-v1');
+  check('legacy source record is preserved',!Object.prototype.hasOwnProperty.call(sourceAfter[0],'eligibility'));
+  check('legacy record derives to unassessed',summary.providers[0].eligibility==='unassessed');
+  check('legacy record cannot become best',summary.best===null);
+  check('legacy supplier state is UNRESOLVED',(await supplierState())==='UNRESOLVED');
+  check('legacy UI shows NOT ASSESSED',(await text('#si-list')).includes('NOT ASSESSED'));
+
+  const mixed=[p('bad-high','High Score Ineligible','ineligible',100),p('good-low','Lower Score Eligible','eligible',70)];
+  await seed({'enterprise-suppliers-v1':mixed});await open('/supplier-intelligence');
+  summary=await read('supplier-intelligence-last-v1');
+  check('eligible supplier wins over higher ineligible score',summary.best?.name==='Lower Score Eligible',`best=${summary.best?.name}`);
+  check('only eligible suppliers are counted',summary.eligibleCount===1&&summary.ineligibleCount===1);
+  check('eligible supplier state is PASS',(await supplierState())==='PASS');
+  check('ineligible row is explicitly not ranked',(await text('#si-list')).includes('INELIGIBLE')&&(await text('#si-list')).includes('not ranked'));
+  check('weights are persisted as fixed contract',JSON.stringify(summary.weights)===JSON.stringify({capability:35,quality:25,leadTime:15,price:15,risk:10}));
+  await shot('mixed-eligibility.png');
+
+  await seed({'enterprise-suppliers-v1':[p('x','Only Ineligible','ineligible',95)]});await open('/supplier-intelligence');
+  summary=await read('supplier-intelligence-last-v1');
+  check('all ineligible produces no best',summary.best===null);
+  check('all ineligible supplier state is BLOCK',(await supplierState())==='BLOCK');
+
+  await seed({'enterprise-suppliers-v1':[p('u','Needs Assessment','unassessed',99)]});await open('/supplier-intelligence');
+  summary=await read('supplier-intelligence-last-v1');
+  check('unassessed produces no best',summary.best===null);
+  check('unassessed supplier state is UNRESOLVED',(await supplierState())==='UNRESOLVED');
+
+  await seed({});await open('/supplier-intelligence');
+  await page.locator('#si-name').fill('UI Eligible Provider');
+  await page.locator('#si-eligibility').selectOption('eligible');
+  await page.locator('#si-eligibility-note').fill('written process confirmation');
+  await page.locator('#si-add').click();await page.waitForTimeout(250);
+  summary=await read('supplier-intelligence-last-v1');
+  const stored=await read('enterprise-suppliers-v1');
+  check('UI saves explicit eligibility',stored[0].eligibility==='eligible');
+  check('UI saves eligibility note',stored[0].eligibilityNote==='written process confirmation');
+  check('UI eligible provider becomes best',summary.best?.name==='UI Eligible Provider');
+
+  const eligibleSummary={schema:'ppl-supplier-intelligence',version:2,decisionModel:'explicit-eligibility-v1',providers:[p('e','Eligible','eligible',80)],best:p('e','Eligible','eligible',80)};
+  await seed({...passBase,'supplier-intelligence-last-v1':eligibleSummary});await open('/release-center');
+  check('Release Center can be READY with explicit eligible supplier',(await text('#rc-status'))==='READY');
+
+  const unresolvedSummary={schema:'ppl-supplier-intelligence',version:2,decisionModel:'explicit-eligibility-v1',providers:[p('u','Unknown','unassessed',90)],best:null};
+  await seed({...passBase,'supplier-intelligence-last-v1':unresolvedSummary});await open('/release-center');
+  check('Release Center remains REVIEW with unassessed supplier',(await text('#rc-status'))==='REVIEW');
+
+  const blockedSummary={schema:'ppl-supplier-intelligence',version:2,decisionModel:'explicit-eligibility-v1',providers:[p('i','Ineligible','ineligible',100)],best:null};
+  await seed({...passBase,'supplier-intelligence-last-v1':blockedSummary});await open('/release-center');
+  check('Release Center is HOLD when all suppliers are ineligible',(await text('#rc-status'))==='HOLD');
+  check('Release Center counts supplier blocker',(await text('#rc-blockers'))==='1');
+
+  fs.writeFileSync(path.join(outDir,'phase2b-results.json'),JSON.stringify({generatedAt:new Date().toISOString(),base,results},null,2));
+} finally {
+  if(context)await context.close();
+  await browser.close();
+}
