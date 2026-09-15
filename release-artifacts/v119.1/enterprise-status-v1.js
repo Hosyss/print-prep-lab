@@ -12,7 +12,8 @@ function qa(v){
     if(!v.length)return nodata('No QA checkpoints are saved.','لا توجد نقاط فحص QA محفوظة.');
     const allowed=new Set(['pass','review','blocker']);
     if(v.some(x=>!isObj(x)||!allowed.has(String(x.status||'').toLowerCase())))return invalid('QA history contains a checkpoint with a missing or invalid status.','سجل QA يحتوي على نقطة فحص بحالة مفقودة أو غير صالحة.');
-    const blocker=v.filter(x=>x.status==='blocker').length, review=v.filter(x=>x.status==='review').length, pass=v.filter(x=>x.status==='pass').length;
+    const normalized=v.map(x=>String(x.status||'').toLowerCase());
+    const blocker=normalized.filter(x=>x==='blocker').length, review=normalized.filter(x=>x==='review').length, pass=normalized.filter(x=>x==='pass').length;
     if(blocker>0)return result(S.BLOCK,`${blocker} QA blocker${blocker===1?' is':'s are'} recorded.`,`${blocker} عائق QA مسجل.` ,{counts:{total:v.length,pass,review,blocker}});
     if(review>0)return result(S.REVIEW,`${review} QA checkpoint${review===1?' needs':'s need'} review.`,`${review} نقطة QA تحتاج مراجعة.`,{counts:{total:v.length,pass,review,blocker}});
     return result(S.PASS,`All ${v.length} recorded QA checkpoints are marked pass.`,`كل نقاط QA المسجلة وعددها ${v.length} بحالة اجتياز.`,{counts:{total:v.length,pass,review,blocker}});
@@ -93,11 +94,17 @@ function countGate(v,badKey,reviewKey,passEn,passAr,badEn,badAr,reviewEn,reviewA
 function stateGate(v,map){if(!isObj(v))return nodata();const state=String(v.state||v.status||'').toUpperCase();if(!state)return invalid();const hit=map[state];return hit?result(hit[0],hit[1],hit[2]):invalid('Saved state is not recognized.','الحالة المحفوظة غير معروفة.');}
 function audit(v){
   if(!isObj(v))return nodata('No readiness audit is saved.','لا يوجد تدقيق جاهزية محفوظ.');
-  const status=String(v.status||'').toUpperCase();
-  if(status==='HOLD')return result(S.BLOCK,'The saved readiness audit is on hold.','تدقيق الجاهزية المحفوظ في حالة إيقاف.');
-  if(status==='REVIEW')return result(S.REVIEW,'The saved readiness audit still has unresolved evidence.','تدقيق الجاهزية المحفوظ ما زال يحتوي أدلة غير محسومة.');
+  if(Number(v.version)<2||v.decisionModel!=='explicit-fields-v2')return unresolved('A legacy readiness audit is saved. Run Readiness Audit again before relying on it.','يوجد تدقيق جاهزية قديم محفوظ. أعد تشغيل تدقيق الجاهزية قبل الاعتماد عليه.');
+  const status=String(v.status||'').toUpperCase(), required=v.required, unresolvedItems=v.unresolved, blockers=v.blockers;
+  if(!['READY','REVIEW','HOLD'].includes(status)||!Number.isInteger(required)||required<0||!Array.isArray(unresolvedItems)||!Array.isArray(blockers))return invalid('Readiness audit fields are missing or invalid.','حقول تدقيق الجاهزية مفقودة أو غير صالحة.');
+  if(required===0)return unresolved('The saved readiness audit has no selected checks.','تدقيق الجاهزية المحفوظ لا يحتوي فحوصًا محددة.');
+  if(status==='READY'&&(unresolvedItems.length>0||blockers.length>0))return invalid('Readiness audit says READY but still records unresolved evidence or blockers.','تدقيق الجاهزية يقول READY لكنه ما زال يسجل أدلة غير محسومة أو عوائق.');
+  if(status==='REVIEW'&&blockers.length>0)return invalid('Readiness audit says REVIEW but records a blocker.','تدقيق الجاهزية يقول REVIEW لكنه يسجل عائقًا.');
+  if(status==='HOLD'&&blockers.length===0)return invalid('Readiness audit says HOLD without a recorded blocker.','تدقيق الجاهزية يقول HOLD بدون عائق مسجل.');
+  if(blockers.length>0)return result(S.BLOCK,'The saved readiness audit records blocking evidence.','تدقيق الجاهزية المحفوظ يسجل أدلة مانعة.');
+  if(unresolvedItems.length>0||status==='REVIEW')return result(S.REVIEW,'The saved readiness audit still has unresolved evidence.','تدقيق الجاهزية المحفوظ ما زال يحتوي أدلة غير محسومة.');
   if(status==='READY')return result(S.PASS,'The selected checks in the saved readiness audit passed.','الفحوص المحددة في تدقيق الجاهزية المحفوظ اجتازت.');
-  return invalid('Readiness audit status is missing or invalid.','حالة تدقيق الجاهزية مفقودة أو غير صالحة.');
+  return invalid('Readiness audit state is internally inconsistent.','حالة تدقيق الجاهزية غير متسقة داخليًا.');
 }
 function evaluate(kind,v){
   switch(kind){
