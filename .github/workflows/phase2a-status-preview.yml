@@ -50,10 +50,9 @@ jobs:
           mkdir -p /tmp/ppl-phase2a
           unzip -q release-artifacts/v119.1/print-prep-lab-pages-v119-2a-explicit-status.zip -d /tmp/ppl-phase2a
           test -s /tmp/ppl-phase2a/_worker.js
-          test -s /tmp/ppl-phase2a/enterprise-status-v1.js
           test -s /tmp/ppl-phase2a/enterprise-suite.js
           ! grep -Eq 'blockedWord|okayWord' /tmp/ppl-phase2a/enterprise-suite.js
-          grep -Fq '/enterprise-status-v1.js' /tmp/ppl-phase2a/digital-twin.html
+          grep -Fq 'PPLStatusRules' /tmp/ppl-phase2a/enterprise-suite.js
           grep -Fq 'Who is it for?' /tmp/ppl-phase2a/home-v112.html
           grep -Fq 'PROFESSIONAL WORKSPACE' /tmp/ppl-phase2a/command-center.html
 
@@ -85,8 +84,8 @@ jobs:
             sleep .5
           done
           test "$ready" = 1
-          curl --silent --show-error --fail http://127.0.0.1:4173/enterprise-status-v1.js -o /tmp/local-status.js
-          grep -Fq 'PPLStatusRules' /tmp/local-status.js
+          curl --silent --show-error --fail http://127.0.0.1:4173/enterprise-suite.js -o /tmp/local-suite.js
+          grep -Fq 'PPLStatusRules' /tmp/local-suite.js
           node tests/phase2a-browser-qa.mjs http://127.0.0.1:4173 /tmp/phase2a-qa
 
       - name: Deploy isolated public preview
@@ -109,7 +108,7 @@ jobs:
           ready=0
           for attempt in $(seq 1 24); do
             code="$(curl --silent --show-error --output /tmp/live-dt.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/digital-twin" || true)"
-            if [[ "$code" == 200 ]] && grep -Fq '/enterprise-status-v1.js' /tmp/live-dt.html; then ready=1; break; fi
+            if [[ "$code" == 200 ]] && grep -Fq '/enterprise-suite.js' /tmp/live-dt.html; then ready=1; break; fi
             sleep 3
           done
           test "$ready" = 1
@@ -118,8 +117,8 @@ jobs:
             echo "$route -> $code"
             test "$code" = 200
           done
-          curl --silent --show-error --fail "$PREVIEW_ORIGIN/enterprise-status-v1.js" -o /tmp/live-status.js
-          grep -Fq 'PPLStatusRules' /tmp/live-status.js
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/enterprise-suite.js" -o /tmp/live-suite.js
+          grep -Fq 'PPLStatusRules' /tmp/live-suite.js
 
       - name: Run browser QA against public preview
         shell: bash
