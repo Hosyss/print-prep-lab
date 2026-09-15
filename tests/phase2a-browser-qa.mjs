@@ -81,8 +81,8 @@ try{
   await seed({'qa-summary-v1':qaPass,'stock-last-v1':{state:'SHORT',after:-2}});await open('/digital-twin');
   check('real blocker wins across sources',(await text('#dt-health'))==='BLOCKED');
   check('one explicit blocker is counted',(await text('#dt-blockers'))==='1');
-  await page.reload({waitUntil:'domcontentloaded'});await page.waitForTimeout(300);
-  check('status survives reload',(await text('#dt-health'))==='BLOCKED');
+  await open('/digital-twin');
+  check('status survives browser-context rehydrate',(await text('#dt-health'))==='BLOCKED');
 
   const blockedSet={
     'enterprise-job-core-v1':{name:'Test job',revision:'R1',quantity:10},
