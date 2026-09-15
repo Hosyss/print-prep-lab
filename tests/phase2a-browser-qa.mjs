@@ -68,6 +68,9 @@ try{
   check('blocker=0 complete QA is clear health, not release approval',(await text('#dt-health'))==='CLEAR');
   check('blocker=0 count',(await text('#dt-blockers'))==='0');
 
+  await seed({'qa-history-v1':[{status:'BLOCKER'}]});await open('/digital-twin');
+  check('uppercase QA blocker remains a blocker',(await text('#dt-health'))==='BLOCKED');
+
   await seed({'qa-summary-v1':{...qaPass,pass:1,review:1}});await open('/digital-twin');
   check('QA review remains review',(await text('#dt-health'))==='REVIEW');
 
@@ -97,7 +100,16 @@ try{
   check('Release Center reflects blocker',(await text('#rc-status'))==='HOLD');
   check('Release Center counts only real blockers',(await text('#rc-blockers'))==='1');
   await open('/enterprise-dashboard');check('Enterprise Dashboard reflects blocker',(await text('#ed-blockers'))==='1');
-  await open('/readiness-audit');check('Readiness reflects blocker',(await text('#ra-status'))==='HOLD');
+  await open('/readiness-audit');
+  check('Readiness reflects blocker',(await text('#ra-status'))==='HOLD');
+  const savedAudit=await page.evaluate(prefix=>JSON.parse(localStorage.getItem(prefix+'readiness-audit-last-v1')),prefix);
+  check('Readiness audit stamps explicit decision model',savedAudit?.decisionModel==='explicit-fields-v2');
+  check('Readiness audit stores blockers separately',Array.isArray(savedAudit?.blockers)&&savedAudit.blockers.length>0);
+  check('Readiness audit stores unresolved separately',Array.isArray(savedAudit?.unresolved));
+
+  await seed({'readiness-audit-last-v1':{status:'READY',required:3,unresolved:[]}});await open('/command-center');
+  check('Legacy READY audit is not trusted',(await text('#pc-next'))==='Complete evidence');
+  check('Legacy audit is visibly unresolved',(await text('#pc-list')).includes('UNRESOLVED'));
 
   await seed({'readiness-audit-last-v1':{status:'READY',required:3,unresolved:[]},'qa-summary-v1':qaPass,'stock-last-v1':{state:'SHORT'}});await open('/command-center');
   check('Command Center does not let READY audit erase another blocker',(await text('#pc-next'))==='Resolve blockers');
