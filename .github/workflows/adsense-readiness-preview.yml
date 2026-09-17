@@ -34,10 +34,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/adsense-source-patch.py
           npm ci --no-audit --no-fund
-          npm run build
-          npm run prepare:pages
           bash release-artifacts/v119.1/build-adsense-readiness.sh
           rm -rf /tmp/ppl-final
           mkdir -p /tmp/ppl-final
@@ -49,6 +46,7 @@ jobs:
           grep -Fq "decisionModel:'explicit-fields-v2'" /tmp/ppl-final/enterprise-suite.js
           grep -Fq "decisionModel:'explicit-eligibility-v1'" /tmp/ppl-final/enterprise-suite.js
           grep -Fq 'selected-job-id-v1' /tmp/ppl-final/enterprise-suite.js
+          grep -Fq 'JSON.stringify(id)' /tmp/ppl-final/jobs.js
           ! grep -Eq 'blockedWord|okayWord' /tmp/ppl-final/enterprise-suite.js
           ! grep -Fq 'value="Sample print job"' /tmp/ppl-final/job-core.html
           grep -Fq 'Who is it for?' /tmp/ppl-final/home-v112.html
@@ -58,16 +56,18 @@ jobs:
         shell: bash
         run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.63.0
 
-      - name: Run state-rule regression
-        shell: bash
-        run: node tests/phase2a-status-rules.test.mjs
-
-      - name: Run all local browser and crawl gates
+      - name: Run logic regressions
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/final-local-qa /tmp/final-local-crawl /tmp/phase2a-regression /tmp/tool-input-qa
-          mkdir -p /tmp/final-local-qa /tmp/final-local-crawl /tmp/phase2a-regression /tmp/tool-input-qa
+          node tests/phase2a-status-rules.test.mjs
+
+      - name: Run all local browser crawl and reload gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-local-qa /tmp/final-local-crawl /tmp/phase2a-regression /tmp/phase2b-regression /tmp/phase2c-regression /tmp/tool-input-qa
+          mkdir -p /tmp/final-local-qa /tmp/final-local-crawl /tmp/phase2a-regression /tmp/phase2b-regression /tmp/phase2c-regression /tmp/tool-input-qa
           (
             cd /tmp/ppl-final
             env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
@@ -84,14 +84,11 @@ jobs:
           done
           test "$ready" = 1
           node tests/phase2a-browser-qa.mjs http://127.0.0.1:4175 /tmp/phase2a-regression
+          node tests/phase2b-supplier-qa.mjs http://127.0.0.1:4175 /tmp/phase2b-regression
+          node tests/phase2c-jobs-qa.mjs http://127.0.0.1:4175 /tmp/phase2c-regression
           node tests/final-readiness-qa.mjs http://127.0.0.1:4175 /tmp/final-local-qa
           node tests/tool-input-qa.mjs http://127.0.0.1:4175 /tmp/tool-input-qa
           node tests/final-route-crawl.mjs http://127.0.0.1:4175 /tmp/ppl-final /tmp/final-local-crawl
-
-      - name: Reproduce and verify reload cache fix locally
-        shell: bash
-        run: |
-          set -euo pipefail
           curl -sS -D /tmp/reload-first.headers -o /tmp/reload-first.html http://127.0.0.1:4175/digital-twin
           etag="$(awk 'BEGIN{IGNORECASE=1} /^etag:/{sub(/\r$/,"",$2); print $2; exit}' /tmp/reload-first.headers)"
           test -n "$etag"
@@ -136,9 +133,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/final-live-qa /tmp/final-live-crawl /tmp/phase2a-live-regression /tmp/tool-input-live
-          mkdir -p /tmp/final-live-qa /tmp/final-live-crawl /tmp/phase2a-live-regression /tmp/tool-input-live
+          rm -rf /tmp/final-live-qa /tmp/final-live-crawl /tmp/phase2a-live-regression /tmp/phase2b-live-regression /tmp/phase2c-live-regression /tmp/tool-input-live
+          mkdir -p /tmp/final-live-qa /tmp/final-live-crawl /tmp/phase2a-live-regression /tmp/phase2b-live-regression /tmp/phase2c-live-regression /tmp/tool-input-live
           node tests/phase2a-browser-qa.mjs "$PREVIEW_ORIGIN" /tmp/phase2a-live-regression
+          node tests/phase2b-supplier-qa.mjs "$PREVIEW_ORIGIN" /tmp/phase2b-live-regression
+          node tests/phase2c-jobs-qa.mjs "$PREVIEW_ORIGIN" /tmp/phase2c-live-regression
           node tests/final-readiness-qa.mjs "$PREVIEW_ORIGIN" /tmp/final-live-qa
           node tests/tool-input-qa.mjs "$PREVIEW_ORIGIN" /tmp/tool-input-live
           node tests/final-route-crawl.mjs "$PREVIEW_ORIGIN" /tmp/ppl-final /tmp/final-live-crawl
@@ -150,10 +149,14 @@ jobs:
           path: |
             release-artifacts/v119.1/print-prep-lab-pages-adsense-readiness-final.zip
             /tmp/phase2a-regression/
+            /tmp/phase2b-regression/
+            /tmp/phase2c-regression/
             /tmp/final-local-qa/
             /tmp/final-local-crawl/
             /tmp/tool-input-qa/
             /tmp/phase2a-live-regression/
+            /tmp/phase2b-live-regression/
+            /tmp/phase2c-live-regression/
             /tmp/final-live-qa/
             /tmp/final-live-crawl/
             /tmp/tool-input-live/
