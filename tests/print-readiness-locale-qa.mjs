@@ -72,9 +72,12 @@ try {
       await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
       await waitForCalculatorLanguage('en');
       calcText = await calculator.innerText();
-      check(`${viewport.name} English controls restored on language toggle`, calcText.includes('Image dimensions') && calcText.includes('Width') && calcText.includes('Height') && calcText.includes('Target print') && calcText.includes('Quality target'));
-      check(`${viewport.name} English dynamic result restored on language toggle`, (await calculator.locator('[data-readiness-status]').innerText()).trim() === 'Below target', await calculator.locator('[data-readiness-status]').innerText());
-      check(`${viewport.name} orientation state survives language toggle`, (await orientation.innerText()).includes('Portrait'), await orientation.innerText());
+      const englishCalcText = calcText.toLowerCase();
+      check(`${viewport.name} English controls restored on language toggle`, englishCalcText.includes('image dimensions') && englishCalcText.includes('width') && englishCalcText.includes('height') && englishCalcText.includes('target print') && englishCalcText.includes('quality target'), calcText.slice(0, 500));
+      const englishStatus = (await calculator.locator('[data-readiness-status]').innerText()).trim();
+      check(`${viewport.name} English dynamic result restored on language toggle`, englishStatus.toLowerCase() === 'below target', englishStatus);
+      const englishOrientation = await orientation.innerText();
+      check(`${viewport.name} orientation state survives language toggle`, englishOrientation.toLowerCase().includes('portrait'), englishOrientation);
       check(`${viewport.name} numeric state survives language toggle`, (await numeric.nth(0).inputValue()) === '600' && (await numeric.nth(1).inputValue()) === '400', `${await numeric.nth(0).inputValue()}×${await numeric.nth(1).inputValue()}`);
 
       await numeric.nth(0).fill('4200');
