@@ -20,14 +20,16 @@ test('all seven editorial worked examples agree with calculator math', () => {
   const croppedWidth = 2800 * (14 / 10);
   assert.equal(croppedWidth, 3920);
   const readinessPpi = effectivePpiDetails(croppedWidth, 2800, 14 * 25.4, 10 * 25.4);
-  assert.deepEqual(readinessPpi, { widthPpi: 280, heightPpi: 280, effectivePpi: 280 });
+  closeTo(readinessPpi.widthPpi, 280);
+  closeTo(readinessPpi.heightPpi, 280);
+  closeTo(readinessPpi.effectivePpi, 280);
   assert.deepEqual([14 * 300, 10 * 300], [4200, 3000]);
   assert.deepEqual([14 * 240, 10 * 240], [3360, 2400]);
 
   // Pixels → Print Size.
   const pixelPrint = printSizeAtPpi(4032, 3024, 300);
-  assert.equal(pixelPrint.widthIn, 13.44);
-  assert.equal(pixelPrint.heightIn, 10.08);
+  closeTo(pixelPrint.widthIn, 13.44);
+  closeTo(pixelPrint.heightIn, 10.08);
   closeTo(pixelPrint.widthCm, 34.1376);
   closeTo(pixelPrint.heightCm, 25.6032);
 
@@ -40,7 +42,9 @@ test('all seven editorial worked examples agree with calculator math', () => {
 
   // DPI/PPI: 6000×4000 on 20×16.
   const dpiPpi = effectivePpiDetails(6000, 4000, 20 * 25.4, 16 * 25.4);
-  assert.deepEqual(dpiPpi, { widthPpi: 300, heightPpi: 250, effectivePpi: 250 });
+  closeTo(dpiPpi.widthPpi, 300);
+  closeTo(dpiPpi.heightPpi, 250);
+  closeTo(dpiPpi.effectivePpi, 250);
 
   // Paper Size → Pixels: A3 at 240 PPI.
   const a3 = PRINT_PRESETS.find((item) => item.slug === 'a3');
