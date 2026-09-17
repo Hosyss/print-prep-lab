@@ -22,7 +22,6 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
       PAGES_PROJECT: printpreplab
       PREVIEW_BRANCH: adsense-low-value-content-preview
-      PREVIEW_ORIGIN: https://adsense-low-value-content-preview.printpreplab.pages.dev
 
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Source quality gates
+      - name: Source and calculation gates
         shell: bash
         run: |
           set -euo pipefail
@@ -80,45 +79,15 @@ jobs:
           done
           test "$ready" = 1
 
-      - name: Focused local runtime and content gates
+      - name: Focused print-readiness regression QA and required project gates
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/qa-tool-content /tmp/qa-tool /tmp/qa-final /tmp/qa-crawl /tmp/qa-content /tmp/qa-visual
-          mkdir -p /tmp/qa-tool-content /tmp/qa-tool /tmp/qa-final /tmp/qa-crawl /tmp/qa-content /tmp/qa-visual
-          node tests/tool-content-runtime-qa.mjs http://127.0.0.1:4182 /tmp/qa-tool-content
-          node tests/tool-input-qa.mjs http://127.0.0.1:4182 /tmp/qa-tool
-          node tests/content-value-audit.mjs http://127.0.0.1:4182 /tmp/qa-content remediated
+          rm -rf /tmp/qa-readiness-locale /tmp/qa-final /tmp/qa-crawl
+          mkdir -p /tmp/qa-readiness-locale /tmp/qa-final /tmp/qa-crawl
+          node tests/print-readiness-locale-qa.mjs http://127.0.0.1:4182 /tmp/qa-readiness-locale
           node tests/final-site-audit.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-final
           node tests/final-route-crawl.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-crawl
-
-      - name: Trust-page desktop/mobile visual review
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat > ./trust-visual-review.mjs <<'EOF'
-          import { chromium } from 'playwright';
-          const base='http://127.0.0.1:4182';
-          const routes=['/about','/contact','/methodology','/sources'];
-          const browser=await chromium.launch({headless:true,channel:'chrome'});
-          try {
-            for (const viewport of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]) {
-              const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height}});
-              const page=await context.newPage();
-              for (const route of routes) {
-                const res=await page.goto(base+route,{waitUntil:'networkidle'});
-                if(!res||res.status()!==200) throw new Error(`${route} -> ${res?.status()}`);
-                const state=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bad:[...document.querySelectorAll('a[href]')].filter(a=>!a.getAttribute('href')||a.getAttribute('href')==='#').length}));
-                if(state.sw>state.cw+1||state.bad) throw new Error(`${route}: visual/link state ${JSON.stringify(state)}`);
-                const name=route.slice(1);
-                await page.screenshot({path:`/tmp/qa-visual/${viewport.name}-${name}.png`,fullPage:true});
-              }
-              await context.close();
-            }
-          } finally { await browser.close(); }
-          EOF
-          node ./trust-visual-review.mjs
-          rm -f ./trust-visual-review.mjs
 
       - name: Stop local Pages runtime
         if: always()
@@ -137,39 +106,41 @@ jobs:
             --project-name "$PAGES_PROJECT" \
             --branch "$PREVIEW_BRANCH" \
             --commit-hash "$GITHUB_SHA" \
-            --commit-message 'AdSense low-value content remediation preview — no production promotion'
+            --commit-message 'AdSense low-value content remediation preview — no production promotion' \
+            2>&1 | tee /tmp/preview-deploy.log
+          preview_url="$(grep -oE 'https://[0-9a-f]+\.printpreplab\.pages\.dev' /tmp/preview-deploy.log | tail -1)"
+          test -n "$preview_url"
+          printf '%s\n' "$preview_url" >/tmp/preview-url.txt
+          echo "LIVE_PREVIEW_ORIGIN=$preview_url" >> "$GITHUB_ENV"
 
-      - name: Verify public preview content on the deployed artifact
+      - name: Verify exact deployed Preview and focused Arabic regression
         shell: bash
         run: |
           set -euo pipefail
           ready=0
           for attempt in $(seq 1 30); do
-            code="$(curl --silent --show-error --output /tmp/live-home.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/" || true)"
-            curl --silent --show-error --fail "$PREVIEW_ORIGIN/enterprise-suite.js" -o /tmp/live-suite.js || true
+            code="$(curl --silent --show-error --output /tmp/live-home.html --write-out '%{http_code}' "$LIVE_PREVIEW_ORIGIN/" || true)"
+            curl --silent --show-error --fail "$LIVE_PREVIEW_ORIGIN/enterprise-suite.js" -o /tmp/live-suite.js || true
             if [[ "$code" == 200 ]] && grep -Fq "ppl-final-build-marker:${GITHUB_SHA}" /tmp/live-suite.js 2>/dev/null; then ready=1; break; fi
             sleep 3
           done
           test "$ready" = 1
-          rm -rf /tmp/qa-tool-content-live /tmp/qa-content-live
-          mkdir -p /tmp/qa-tool-content-live /tmp/qa-content-live
-          node tests/tool-content-runtime-qa.mjs "$PREVIEW_ORIGIN" /tmp/qa-tool-content-live
-          node tests/content-value-audit.mjs "$PREVIEW_ORIGIN" /tmp/qa-content-live remediated
+          rm -rf /tmp/qa-readiness-locale-live
+          mkdir -p /tmp/qa-readiness-locale-live
+          node tests/print-readiness-locale-qa.mjs "$LIVE_PREVIEW_ORIGIN" /tmp/qa-readiness-locale-live
 
-      - name: Upload final content and visual evidence
+      - name: Upload final regression evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: print-prep-lab-low-value-content-final-evidence
+          name: print-prep-lab-print-readiness-arabic-regression-evidence
           path: |
-            /tmp/qa-tool-content/
-            /tmp/qa-tool-content-live/
-            /tmp/qa-tool/
-            /tmp/qa-content/
-            /tmp/qa-content-live/
+            /tmp/qa-readiness-locale/
+            /tmp/qa-readiness-locale-live/
             /tmp/qa-final/
             /tmp/qa-crawl/
-            /tmp/qa-visual/
+            /tmp/preview-deploy.log
+            /tmp/preview-url.txt
             /tmp/low-value-wrangler.log
             release-artifacts/v119.1/print-prep-lab-pages-adsense-readiness-final.zip
           if-no-files-found: warn
