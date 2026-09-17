@@ -32,8 +32,18 @@ if old_privacy not in privacy: raise SystemExit('privacy accuracy marker changed
 privacy=privacy.replace(old_privacy,new_privacy)
 p.write_text(privacy,encoding='utf-8')
 
+# A static route is backed by an internal HTML asset. Browser conditional headers
+# must not be forwarded to that internal fetch: a matching ETag can make ASSETS
+# return 304, Response.ok becomes false, and the old code fell through to App Router
+# as a false 404 on reload. The outer route owns cache validation.
+p=root/'worker/index.ts'; worker=p.read_text(encoding='utf-8')
+old_worker='''  const assetRequest = new Request(new URL(target, request.url), { method: request.method, headers: request.headers });\n  const response = await env.ASSETS.fetch(assetRequest);\n  return response.ok ? withSecurityHeaders(response, request) : null;'''
+new_worker='''  const headers = new Headers(request.headers);\n  headers.delete("If-None-Match");\n  headers.delete("If-Modified-Since");\n  const assetRequest = new Request(new URL(target, request.url), { method: request.method, headers });\n  const response = await env.ASSETS.fetch(assetRequest);\n  return response.ok ? withSecurityHeaders(response, request) : null;'''
+if old_worker not in worker: raise SystemExit('static route asset fetch marker changed')
+p.write_text(worker.replace(old_worker,new_worker,1),encoding='utf-8')
+
 # Freshness metadata follows the reviewed release rather than the August baseline.
 p=root/'lib/seo.ts'; seo=p.read_text(encoding='utf-8')
 seo=seo.replace('export const SITE_UPDATED_AT = "2026-08-24";','export const SITE_UPDATED_AT = "2026-09-17";')
 p.write_text(seo,encoding='utf-8')
-print('Applied final source patch: inputs, examples, mobile overflow, privacy accuracy, SEO freshness')
+print('Applied final source patch: inputs, examples, mobile overflow, privacy accuracy, reload cache, SEO freshness')
