@@ -1,0 +1,64 @@
+name: Print Prep Lab immutable low-value preview evidence
+
+on:
+  push:
+    branches:
+      - evidence/low-value-preview-live-20260917
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REVIEWED_SHA: 5274300372560afa5fe1e0b8d17806e85be885d9
+      PREVIEW_ORIGIN: https://441dad9b.printpreplab.pages.dev
+
+    steps:
+      - name: Checkout exact reviewed application SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.REVIEWED_SHA }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install test dependencies only
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.63.0
+
+      - name: Verify immutable deployment identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/" -o /tmp/live-home.html
+          curl --silent --show-error --fail "$PREVIEW_ORIGIN/enterprise-suite.js" -o /tmp/live-suite.js
+          grep -Fq "ppl-final-build-marker:${REVIEWED_SHA}" /tmp/live-suite.js
+          echo "Verified immutable Preview build marker: ${REVIEWED_SHA}"
+
+      - name: Verify all seven tools live in HTML and browser EN/AR
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/qa-tool-content-live /tmp/qa-content-live
+          mkdir -p /tmp/qa-tool-content-live /tmp/qa-content-live
+          node tests/tool-content-runtime-qa.mjs "$PREVIEW_ORIGIN" /tmp/qa-tool-content-live
+          node tests/content-value-audit.mjs "$PREVIEW_ORIGIN" /tmp/qa-content-live remediated
+
+      - name: Upload immutable Preview evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: print-prep-lab-immutable-preview-live-evidence
+          path: |
+            /tmp/qa-tool-content-live/
+            /tmp/qa-content-live/
+            /tmp/live-suite.js
+          if-no-files-found: error
+          retention-days: 14
