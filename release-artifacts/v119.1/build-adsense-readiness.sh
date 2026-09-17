@@ -41,7 +41,9 @@ check_has "Arabic audience section" "${staging}/home-v112.html" "لمن صُمم
 check_not "sample job default removed" "${staging}/job-core.html" "value=\"Sample print job\""
 check_not "adjustable weights claim removed" "${staging}/supplier-intelligence.html" "user-controlled weights"
 echo "CHECK example-value notice"; grep -R -Fq 'Example values are pre-filled.' "${staging}" || { echo "FAILED example-value notice" >&2; exit 1; }
-echo "CHECK mobile guard"; grep -R -Fq 'final-readiness-mobile-guard' "${staging}" || { echo "FAILED mobile guard" >&2; exit 1; }
+# The CSS bundler strips comments, so verify the source patch marker here;
+# browser QA later verifies the actual mobile layout on every size route.
+check_has "mobile source guard" "${repo_root}/app/globals.css" "final-readiness-mobile-guard"
 check_has "reload conditional-header fix" "${staging}/_worker.js" 'headers.delete("If-None-Match")'
 echo "CHECK social image"; test -s "${staging}/og-image.png" || { echo "FAILED social image missing" >&2; exit 1; }
 python3 - "${staging}/search-index.json" <<'PY'
