@@ -6,7 +6,7 @@ import { PrintReadinessLab } from "@/components/print-readiness-lab";
 import { ToolCalculator } from "@/components/tool-calculators";
 import { TOOL_ARABIC } from "@/lib/source-arabic";
 import { TOOL_CONTEXT, TOOL_PAGES } from "@/lib/site-content";
-import { TOOL_EDITORIAL } from "@/lib/tool-editorial-content";
+import { getToolEditorial } from "@/lib/tool-editorial-corrections";
 import { pageMetadata } from "@/lib/seo";
 
 const GUIDE_LINKS: Record<string, { href: string; label: string; arLabel: string }> = {
@@ -34,7 +34,7 @@ export default async function ToolDetail({ params }: { params: Promise<{ slug: s
   const ar = TOOL_ARABIC[tool.slug];
   const guideLink = GUIDE_LINKS[tool.slug];
   const context = TOOL_CONTEXT[tool.slug];
-  const editorial = TOOL_EDITORIAL[tool.slug];
+  const editorial = getToolEditorial(tool.slug);
   const relatedTools = tool.related.map((relatedSlug) => TOOL_PAGES.find((item) => item.slug === relatedSlug)).filter((item): item is (typeof TOOL_PAGES)[number] => Boolean(item));
   const localizedFaq = tool.faq.map((item, index) => ({ ...item, questionAr: ar?.faq[index]?.question, answerAr: ar?.faq[index]?.answer }));
 
