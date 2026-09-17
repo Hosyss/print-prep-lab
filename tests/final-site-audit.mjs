@@ -14,10 +14,15 @@ const decode=s=>String(s||'').replace(/&amp;/g,'&').replace(/&#x2F;/gi,'/');
 const normPath=(u)=>{try{const x=new URL(u,canonicalOrigin);return x.pathname==='/'?'/':x.pathname.replace(/\/$/,'')}catch{return null}};
 async function get(route,opts={}){const r=await fetch(base+route,{redirect:opts.redirect||'follow',headers:{'cache-control':'no-cache'}});return r}
 
-// Discover every static HTML route in the actual release artifact.
+// Discover public static routes from the release artifact. Helper HTML files are
+// mapped to their real public route (or skipped when they are verification-only).
 const htmlFiles=fs.readdirSync(artifactDir).filter(n=>n.endsWith('.html')).sort();
 const staticRoutes=new Map();
-for(const name of htmlFiles){const route=name==='home-v112.html'?'/':`/${name.slice(0,-5)}`;staticRoutes.set(route,name)}
+for(const name of htmlFiles){
+  if(/^google.*\.html$/i.test(name)) continue;
+  const route=name==='home-v112.html'?'/':name==='print-readiness-v111.html'?'/tools/print-readiness-checker':`/${name.slice(0,-5)}`;
+  staticRoutes.set(route,name);
+}
 add('artifact contains static HTML pages',staticRoutes.size>0,`count=${staticRoutes.size}`);
 
 // Read runtime discovery surfaces.
@@ -33,15 +38,16 @@ add('private workspace pages are absent from sitemap',privatePaths.every(p=>!sit
 add('robots advertises sitemap',/Sitemap:\s*https:\/\/printpreplab\.pages\.dev\/sitemap\.xml/i.test(robotsText));
 add('robots does not block ads.txt',!/Disallow:\s*\/ads\.txt/i.test(robotsText));
 
-// ads.txt must be a crawlable root resource; format check is structural, not an account-state claim.
+// ads.txt and Google verification must remain crawlable root resources.
 try{const r=await get('/ads.txt');const t=(await r.text()).trim();add('ads.txt HTTP 200',r.status===200,`status=${r.status}`);add('ads.txt has valid Google seller line',/^google\.com,\s*pub-\d+,\s*DIRECT,\s*f08c47fec0942fa0$/mi.test(t),t.split('\n')[0]||'empty')}catch(e){add('ads.txt available',false,e.message)}
+try{const r=await get('/google6d67c58ff3b5201c.html');const t=(await r.text()).trim();add('Google verification HTTP 200',r.status===200,`status=${r.status}`);add('Google verification body matches',t==='google-site-verification: google6d67c58ff3b5201c.html',t)}catch(e){add('Google verification available',false,e.message)}
 
 // Check every discovered static or sitemap route. This is the exhaustive route inventory for this artifact.
 const discovered=[...new Set([...staticRoutes.keys(),...sitemapRoutes])].sort();
 const routeRecords=[];
 for(const route of discovered){
   try{
-    const r=await get(route);const text=await r.text();const finalPath=normPath(r.url.replace(base,canonicalOrigin));
+    const r=await get(route);const text=await r.text();
     const ok=r.status===200;routeRecords.push({route,status:r.status,finalUrl:r.url,source:[staticRoutes.has(route)?'static':null,sitemapRoutes.includes(route)?'sitemap':null].filter(Boolean)});add(`HTTP ${route}`,ok,`status=${r.status}`);
     if(sitemapRoutes.includes(route)){
       const m=text.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i)||text.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
