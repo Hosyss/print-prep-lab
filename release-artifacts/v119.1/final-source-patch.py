@@ -24,8 +24,16 @@ if marker not in css:
     css+='''\n\n/* final-readiness-mobile-guard */\n.size-detail-grid,.size-detail-grid > *,.standalone-tool,.standalone-tool-body,.comparison-table{min-width:0;max-width:100%}\n.data-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}\n.tool-field .field-error{display:block;margin-top:5px;color:var(--red);font-size:11px;line-height:1.4}\n.tool-field input[aria-invalid="true"]{border-color:var(--red);box-shadow:0 0 0 2px rgba(169,52,46,.08)}\n.example-input-note{margin:-6px 0 20px;padding:9px 11px;border-left:3px solid var(--cyan);background:var(--cyan-soft);color:var(--ink-2);font-size:12px;line-height:1.55}\n@media(max-width:720px){\n  .size-detail-grid{grid-template-columns:minmax(0,1fr);gap:28px}\n  .data-table{min-width:560px}\n  .standalone-tool-head{align-items:flex-start;gap:10px;flex-direction:column}\n  .standalone-tool-head code{max-width:100%;white-space:normal;overflow-wrap:anywhere}\n  .result-grid,.result-metrics,.result-metrics.three{grid-template-columns:minmax(0,1fr)}\n}\n'''
 p.write_text(css,encoding='utf-8')
 
+# Privacy copy must describe local workspace records accurately rather than claiming projects are never saved.
+p=root/'app/privacy/page.tsx'; privacy=p.read_text(encoding='utf-8')
+old_privacy='The current tools do not create user accounts, save projects or maintain a server-side image library.'
+new_privacy='The site does not create user accounts or maintain a server-side image library. Professional workspace features may save job records and settings in this browser’s local storage until you clear or export them.'
+if old_privacy not in privacy: raise SystemExit('privacy accuracy marker changed')
+privacy=privacy.replace(old_privacy,new_privacy)
+p.write_text(privacy,encoding='utf-8')
+
 # Freshness metadata follows the reviewed release rather than the August baseline.
 p=root/'lib/seo.ts'; seo=p.read_text(encoding='utf-8')
 seo=seo.replace('export const SITE_UPDATED_AT = "2026-08-24";','export const SITE_UPDATED_AT = "2026-09-17";')
 p.write_text(seo,encoding='utf-8')
-print('Applied final source patch: explicit invalid inputs, example labeling, mobile overflow guard, SEO freshness')
+print('Applied final source patch: inputs, examples, mobile overflow, privacy accuracy, SEO freshness')
