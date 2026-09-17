@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { chromium, request as playwrightRequest } from 'playwright';
+import { request as playwrightRequest } from 'playwright';
 
 const base=(process.argv[2]||'http://127.0.0.1:4175').replace(/\/$/,'');
 const root=process.argv[3]||'/tmp/ppl-final';
@@ -9,7 +9,9 @@ fs.mkdirSync(outDir,{recursive:true});
 const failures=[]; const checked=[];
 const operational=new Set(['/jobs','/qa-history','/operations','/change-impact','/risk-register','/queue-planner','/waste-ledger','/approval-matrix','/release-packet','/revision-diff','/calibration-registry','/capa','/audit-log','/job-core','/digital-twin','/supplier-intelligence','/release-center','/automation-lab','/production-analytics','/schedule-optimizer','/material-intelligence','/customer-handoff','/vendor-handoff','/production-archive','/compliance-center','/knowledge-base','/enterprise-dashboard','/readiness-audit','/command-center','/search','/vault','/file-manifest','/job-brief','/workspace']);
 const api=await playwrightRequest.newContext({ignoreHTTPSErrors:true});
-const norm=(u)=>{try{const x=new URL(u,base);return x.origin===new URL(base).origin?(x.pathname.replace(/\/$/,'')||'/'):null}catch{return null}};
+const origin=new URL(base).origin;
+const norm=(u)=>{try{const x=new URL(u,base);return x.origin===origin?(x.pathname.replace(/\/$/,'')||'/'):null}catch{return null}};
+const dest=(u)=>{try{const x=new URL(u,base);return x.origin===origin?`${x.pathname.replace(/\/$/,'')||'/'}${x.hash||''}`:null}catch{return null}};
 function fail(route,msg){failures.push({route,msg});console.error('FAIL',route,msg)}
 function pass(route,msg){checked.push({route,msg});console.log('PASS',route,msg)}
 
@@ -37,14 +39,15 @@ for(const route of [...routes].sort()){
  for(const m of body.matchAll(/href=["']([^"'#?]+(?:\?[^"']*)?)["']/gi)){const r=norm(m[1]);if(r)internalLinks.add(r)}
 }
 for(const route of [...internalLinks].sort()){
- if(/^\/(?:admin)$/.test(route))continue;
+ if(route==='/admin')continue;
  const res=await api.get(base+route,{maxRedirects:5});
  if(res.status()>=400)fail(route,'internal link HTTP '+res.status());
 }
 
-// Genuine legacy replacements must redirect; non-equivalent ghosts must not remain discoverable.
-const genuine={'/workflow':'/workspace','/tools/best-print-size-finder':'/scenarios','/tools/saddle-stitch-booklet-calculator':'/signature-planner','/guides/choose-best-photo-print-size':'/scenarios','/guides/saddle-stitch-booklet-page-count':'/signature-planner','/guides/rgb-vs-cmyk-printing':'/prepress-lab','/guides/best-file-format-for-printing':'/guides/print-file-preflight-checklist'};
-for(const [from,to] of Object.entries(genuine)){const r=await api.get(base+from,{maxRedirects:0});if(![301,302,307,308].includes(r.status()))fail(from,'expected redirect, got '+r.status());else {const loc=norm(r.headers().location||'');if(loc!==to)fail(from,`redirected to ${loc}, expected ${to}`);else pass(from,'redirect '+to)}}
+const permanent={'/workflow':'/#workflow','/tools/best-print-size-finder':'/scenarios','/tools/saddle-stitch-booklet-calculator':'/signature-planner','/guides/choose-best-photo-print-size':'/scenarios','/guides/saddle-stitch-booklet-page-count':'/signature-planner','/guides/rgb-vs-cmyk-printing':'/prepress-lab','/guides/best-file-format-for-printing':'/guides/print-file-preflight-checklist'};
+for(const [from,to] of Object.entries(permanent)){const r=await api.get(base+from,{maxRedirects:0});if(![301,308].includes(r.status()))fail(from,'expected permanent redirect, got '+r.status());else {const loc=dest(r.headers().location||'');if(loc!==to)fail(from,`redirected to ${loc}, expected ${to}`);else pass(from,'permanent redirect '+to)}}
+const fallback={'/tools/mat-frame-calculator':'/tools','/tools/poster-tiling-calculator':'/guides/export-images-for-large-format-printing','/guides/mat-frame-sizing-guide':'/guides','/guides/tiled-poster-printing-guide':'/guides/export-images-for-large-format-printing'};
+for(const [from,to] of Object.entries(fallback)){const r=await api.get(base+from,{maxRedirects:0});if(![302,307].includes(r.status()))fail(from,'expected temporary fallback redirect, got '+r.status());else {const loc=dest(r.headers().location||'');if(loc!==to)fail(from,`fallback redirected to ${loc}, expected ${to}`);else pass(from,'temporary fallback '+to)}}
 
 await api.dispose();
 fs.writeFileSync(path.join(outDir,'crawl-results.json'),JSON.stringify({generatedAt:new Date().toISOString(),base,routeCount:routes.size,internalLinkCount:internalLinks.size,checked,failures},null,2));
