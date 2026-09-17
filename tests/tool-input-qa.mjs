@@ -16,7 +16,11 @@ try{
  let body=await page.locator('body').innerText();check('invalid entry never renders NaN/Infinity',!/NaN|Infinity/.test(body));
  await inputs.nth(0).blur();await page.waitForTimeout(50);check('invalid draft reverts on blur',(await inputs.nth(0).inputValue())===originalWidth,await inputs.nth(0).inputValue());
  const originalPpi=await inputs.nth(2).inputValue();await inputs.nth(2).fill('0');await page.waitForTimeout(50);check('zero PPI is visibly invalid',(await inputs.nth(2).getAttribute('aria-invalid'))==='true',await inputs.nth(2).inputValue());await inputs.nth(2).blur();check('invalid PPI reverts on blur',(await inputs.nth(2).inputValue())===originalPpi,await inputs.nth(2).inputValue());
- body=await page.locator('body').innerText();check('calculated results are labelled',body.includes('Calculated results'));check('worked example is separately labelled',body.includes('Worked example'));check('prefilled values are disclosed as examples',body.includes('Example values are pre-filled.'));
+ body=await page.locator('body').innerText();
+ const resultSection=page.locator('section.tool-results[aria-label="Calculated results"]');
+ check('calculated results are labelled',await resultSection.count()===1&&await resultSection.locator('.tool-results-heading strong').count()===1,await resultSection.getAttribute('aria-label')||'missing');
+ check('worked example is separately labelled',body.includes('Worked example'));
+ check('prefilled values are disclosed as examples',body.includes('Example values are pre-filled.'));
  r=await page.goto(base+'/tools/bleed-safe-area-calculator',{waitUntil:'domcontentloaded'});check('bleed tool route',r?.status()===200,String(r?.status()));
  const bleedInputs=page.locator('input[type="number"]');await bleedInputs.nth(0).fill('-1');await page.waitForTimeout(100);check('negative trim is visibly invalid',(await bleedInputs.nth(0).getAttribute('aria-invalid'))==='true');const bleedBody=await page.locator('body').innerText();check('negative trim never produces invalid result',!/NaN|Infinity/.test(bleedBody));
  fs.writeFileSync(path.join(outDir,'tool-input-results.json'),JSON.stringify({generatedAt:new Date().toISOString(),base,results},null,2));
