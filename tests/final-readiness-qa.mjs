@@ -13,13 +13,14 @@ let context,page,storageState;
 const viewport={width:1440,height:1000};
 function wire(p){p.on('pageerror',e=>console.log('BROWSER pageerror:',e.message));}
 async function resetContext(vp=viewport){if(context)await context.close();context=await browser.newContext({viewport:vp,storageState});page=await context.newPage();wire(page)}
-async function seed(data={},raw={},lang='en',vp=viewport){storageState=undefined;await resetContext(vp);let res=await page.goto(base+'/',{waitUntil:'domcontentloaded'});if(!res||res.status()!==200)throw new Error(`seed / -> ${res?.status()}`);await page.evaluate(({data,raw,prefix,lang})=>{localStorage.clear();for(const [k,v] of Object.entries(data))localStorage.setItem(prefix+k,JSON.stringify(v));for(const [k,v] of Object.entries(raw))localStorage.setItem(k,typeof v==='string'?v:JSON.stringify(v));localStorage.setItem('print-prep-lab-language',lang);localStorage.setItem('ppl-interface-language',lang);},{data,raw,prefix,lang});storageState=await context.storageState();await resetContext(vp)}
+async function seed(data={},raw={},lang='en',vp=viewport){storageState=undefined;await resetContext(vp);let res=await page.goto(base+'/',{waitUntil:'domcontentloaded'});if(!res||res.status()!==200)throw new Error(`seed / -> ${res?.status()}`);await page.evaluate(({data,raw,prefix,lang})=>{localStorage.clear();for(const [k,v]of Object.entries(data))localStorage.setItem(prefix+k,JSON.stringify(v));for(const [k,v]of Object.entries(raw))localStorage.setItem(k,typeof v==='string'?v:JSON.stringify(v));localStorage.setItem('print-prep-lab-language',lang);localStorage.setItem('ppl-interface-language',lang);},{data,raw,prefix,lang});storageState=await context.storageState();await resetContext(vp)}
 async function open(route){const res=await page.goto(base+route,{waitUntil:'domcontentloaded'});console.log(`NAV ${route} -> ${res?.status()} ${page.url()}`);if(!res||res.status()!==200)throw new Error(`${route} -> ${res?.status()}`);await page.waitForTimeout(400)}
 async function readLocal(key){return page.evaluate(key=>{const v=localStorage.getItem(key);return v?JSON.parse(v):null},key)}
 async function pRead(key){return readLocal(prefix+key)}
 async function shot(name){await page.screenshot({path:path.join(outDir,name),fullPage:true})}
 const provider=(id,name,eligibility,score)=>({id,name,cap:score,quality:score,lead:score,price:score,risk:100-score,...(eligibility?{eligibility}:{})});
 const job=(id,name,qty)=>({schema:'print-prep-lab-job',version:1,id,name,provider:'',product:'Poster',quantity:qty,due:'',priority:'Normal',notes:'',stages:{brief:false,specs:false,files:false,preflight:false,quote:false,signoff:false},createdAt:'2026-09-17T00:00:00Z',updatedAt:'2026-09-17T00:00:00Z'});
+const coreFor=(cores,id)=>Array.isArray(cores)?cores.find(x=>x&&x.jobId===id):cores?.[id];
 try{
   await seed({'enterprise-suppliers-v1':[provider('bad','High score but ineligible','ineligible',100),provider('good','Eligible lower score','eligible',70)]});
   await open('/supplier-intelligence');
@@ -43,12 +44,12 @@ try{
   storageState=await context.storageState();await resetContext();await open('/job-core');
   check('selected job B populates Job Core',(await page.locator('#ec-name').inputValue())==='Job B');
   await page.locator('#ec-size').fill('420 × 594 mm');await page.locator('#ec-save').click();await page.waitForTimeout(200);
-  let coreMap=await pRead('enterprise-job-cores-v2');
-  check('job B core saved by jobId',coreMap?.['job-b']?.jobId==='job-b'&&coreMap['job-b'].trim==='420 × 594 mm');
+  let coreMap=await pRead('enterprise-job-cores-v2'),jobBCore=coreFor(coreMap,'job-b');
+  check('job B core saved by jobId',jobBCore?.jobId==='job-b'&&jobBCore.trim==='420 × 594 mm');
   storageState=await context.storageState();await resetContext();await open('/jobs');await page.locator('[data-id="job-a"] [data-select]').click();storageState=await context.storageState();await resetContext();await open('/job-core');
   check('switching to job A changes Job Core',(await page.locator('#ec-name').inputValue())==='Job A');
   await page.locator('#ec-material').fill('Uncoated stock');await page.locator('#ec-save').click();await page.waitForTimeout(200);
-  coreMap=await pRead('enterprise-job-cores-v2');check('job A core saved separately',coreMap?.['job-a']?.material==='Uncoated stock');
+  coreMap=await pRead('enterprise-job-cores-v2');const jobACore=coreFor(coreMap,'job-a');check('job A core saved separately',jobACore?.material==='Uncoated stock');
   storageState=await context.storageState();await resetContext();await open('/jobs');await page.locator('[data-id="job-b"] [data-select]').click();storageState=await context.storageState();await resetContext();await open('/job-core');
   check('job B update survives switching',(await page.locator('#ec-size').inputValue())==='420 × 594 mm');
   await seed({});await open('/job-core');
