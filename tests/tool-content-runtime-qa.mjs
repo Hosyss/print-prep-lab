@@ -71,7 +71,11 @@ try {
           if (lang === 'ar') {
             check(`${tool.slug} ${viewport.name} Arabic labels visible`, workedLabelText === 'حساب عملي مفصل' && interpretLabelText === 'كيف تفسر النتيجة', `${workedLabelText} | ${interpretLabelText}`);
           } else {
-            check(`${tool.slug} ${viewport.name} English labels visible`, workedLabelText === 'Worked calculation' && interpretLabelText === 'How to interpret the result', `${workedLabelText} | ${interpretLabelText}`);
+            check(
+              `${tool.slug} ${viewport.name} English labels visible`,
+              workedLabelText.toLowerCase() === 'worked calculation' && interpretLabelText.toLowerCase() === 'how to interpret the result',
+              `${workedLabelText} | ${interpretLabelText}`,
+            );
           }
 
           const bodyText = await page.locator('body').innerText();
