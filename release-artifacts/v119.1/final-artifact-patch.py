@@ -14,7 +14,7 @@ replacements={
  '/workflow':'/#workflow',
  '/tools/saddle-stitch-booklet-calculator':'/signature-planner',
  '/guides/best-file-format-for-printing':'/guides/print-file-preflight-checklist',
- '/guides/rgb-vs-cmyk-printing':'/guides/print-file-preflight-checklist',
+ '/guides/rgb-vs-cmyk-printing':'/prepress-lab',
 }
 for p in root.glob('*.html'):
     s=p.read_text(encoding='utf-8'); orig=s
@@ -34,24 +34,33 @@ for x in items:
 d['items']=items;d['count']=len(items);d['generatedAt']='2026-09-17T00:00:00.000Z'
 idx.write_text(json.dumps(d,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
 
+# Keep a plain Pages redirect file for compatibility, while the advanced Worker
+# implements the same aliases at runtime. Permanent redirects are used only for
+# genuine replacements; broader fallbacks remain temporary.
 redirects=(root/'_redirects').read_text(encoding='utf-8').rstrip()+"\n"
-aliases={
+permanent={
  '/workflow':'/#workflow',
  '/tools/best-print-size-finder':'/scenarios',
- '/tools/mat-frame-calculator':'/tools',
- '/tools/poster-tiling-calculator':'/guides/export-images-for-large-format-printing',
  '/tools/saddle-stitch-booklet-calculator':'/signature-planner',
  '/guides/best-file-format-for-printing':'/guides/print-file-preflight-checklist',
  '/guides/choose-best-photo-print-size':'/scenarios',
- '/guides/mat-frame-sizing-guide':'/guides',
- '/guides/rgb-vs-cmyk-printing':'/guides/print-file-preflight-checklist',
+ '/guides/rgb-vs-cmyk-printing':'/prepress-lab',
  '/guides/saddle-stitch-booklet-page-count':'/signature-planner',
+}
+fallback={
+ '/tools/mat-frame-calculator':'/tools',
+ '/tools/poster-tiling-calculator':'/guides/export-images-for-large-format-printing',
+ '/guides/mat-frame-sizing-guide':'/guides',
  '/guides/tiled-poster-printing-guide':'/guides/export-images-for-large-format-printing',
 }
-for old,new in aliases.items():
-    line=f'{old} {new} 301'
-    if line not in redirects: redirects+=line+'\n'
-(root/'_redirects').write_text(redirects,encoding='utf-8')
+known=set(permanent)|set(fallback)
+lines=[]
+for line in redirects.splitlines():
+    src=line.split(maxsplit=1)[0] if line.strip() else ''
+    if src not in known: lines.append(line)
+for old,new in permanent.items(): lines.append(f'{old} {new} 301')
+for old,new in fallback.items(): lines.append(f'{old} {new} 302')
+(root/'_redirects').write_text('\n'.join(lines).rstrip()+'\n',encoding='utf-8')
 
 footer='''<footer class="site-footer"><div class="shell footer-grid"><div><a class="brand footer-brand" href="/"><span aria-hidden="true" class="brand-mark"><i></i><i></i><i></i><i></i></span><span>Print Prep <b>Lab</b></span></a><p data-en="Clear print math, file checks and preparation guidance." data-ar="حسابات واضحة وفحوصات للملفات وإرشادات لتجهيز الطباعة.">Clear print math, file checks and preparation guidance.</p></div><div class="footer-links"><div><strong data-en="Explore" data-ar="استكشف">Explore</strong><a href="/tools" data-en="Tools" data-ar="الأدوات">Tools</a><a href="/sizes" data-en="Print sizes" data-ar="مقاسات الطباعة">Print sizes</a><a href="/guides" data-en="Guides" data-ar="الأدلة">Guides</a></div><div><strong data-en="Trust" data-ar="الموثوقية">Trust</strong><a href="/methodology" data-en="Methodology" data-ar="المنهجية">Methodology</a><a href="/sources" data-en="Sources" data-ar="المصادر">Sources</a><a href="/privacy" data-en="Privacy" data-ar="الخصوصية">Privacy</a></div><div><strong data-en="Company" data-ar="عن الموقع">Company</strong><a href="/about" data-en="About" data-ar="حول الموقع">About</a><a href="/editorial-policy" data-en="Editorial policy" data-ar="السياسة التحريرية">Editorial policy</a><a href="/contact" data-en="Contact" data-ar="تواصل معنا">Contact</a><a href="/terms" data-en="Terms" data-ar="الشروط">Terms</a></div></div></div><div class="shell footer-bottom"><span>© 2026 Print Prep Lab</span><span data-en="Local browser workspace." data-ar="مساحة عمل محلية داخل المتصفح.">Local browser workspace.</span></div></footer>'''
 footer_count=0
@@ -69,6 +78,13 @@ for p in root.glob('*.html'):
         s=s.replace('</head>','<link href="/final-readiness.css" rel="stylesheet"/></head>',1)
         p.write_text(s,encoding='utf-8')
 
+# Route the generated CSS directly as a Pages asset instead of through the app Worker.
+routes_path=root/'_routes.json'
+routes=json.loads(routes_path.read_text(encoding='utf-8'))
+exclude=routes.setdefault('exclude',[])
+if '/final-readiness.css' not in exclude: exclude.append('/final-readiness.css')
+routes_path.write_text(json.dumps(routes,separators=(',',':'))+'\n',encoding='utf-8')
+
 # User/workspace-state surfaces stay crawlable enough for robots to see noindex, but are not index targets.
 private_routes={'jobs.html','job-core.html','supplier-intelligence.html','release-center.html','readiness-audit.html','command-center.html','enterprise-dashboard.html','digital-twin.html','vault.html','operations.html','file-manifest.html','production-archive.html'}
 for name in private_routes:
@@ -82,7 +98,7 @@ for name in private_routes:
     p.write_text(s,encoding='utf-8')
 
 h=root/'_headers'; headers=h.read_text(encoding='utf-8').rstrip()+"\n"
-for asset in ['/enterprise-core.js','/enterprise-suite.js','/jobs.js','/search.js','/search-index.json']:
+for asset in ['/enterprise-core.js','/enterprise-suite.js','/jobs.js','/search.js','/search-index.json','/final-readiness.css']:
     rule=f'{asset}\n  Cache-Control: public, max-age=0, must-revalidate'
     if rule not in headers: headers+='\n'+rule+'\n'
 h.write_text(headers,encoding='utf-8')
