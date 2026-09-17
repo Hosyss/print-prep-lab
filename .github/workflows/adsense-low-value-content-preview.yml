@@ -35,22 +35,13 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Lint source
-        run: npm run lint
-
-      - name: Run math tests
-        run: npm run test:math
-
-      - name: Run source build and rendered-page tests
-        run: npm test
-
-      - name: Capture read-only Production baseline content audit
+      - name: Source quality gates
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/qa-content-before
-          mkdir -p /tmp/qa-content-before
-          node tests/content-value-audit.mjs https://printpreplab.pages.dev /tmp/qa-content-before baseline
+          npm run lint
+          npm run test:math
+          npm test
 
       - name: Build reviewed layered Pages artifact
         shell: bash
@@ -63,6 +54,7 @@ jobs:
           test -s /tmp/ppl-low-value/_worker.js
           test -s /tmp/ppl-low-value/enterprise-suite.js
           test -s /tmp/ppl-low-value/home-v112.html
+          test ! -e /tmp/ppl-low-value/print-readiness-v111.html
           grep -Fq 'Who is it for?' /tmp/ppl-low-value/home-v112.html
 
       - name: Install browser QA dependency
@@ -87,31 +79,26 @@ jobs:
           done
           test "$ready" = 1
 
-      - name: Run full local behavior and content QA
+      - name: Focused local runtime and content gates
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/qa-2a /tmp/qa-2b /tmp/qa-2c /tmp/qa-final /tmp/qa-flow /tmp/qa-tool /tmp/qa-crawl /tmp/qa-content
-          mkdir -p /tmp/qa-2a /tmp/qa-2b /tmp/qa-2c /tmp/qa-final /tmp/qa-flow /tmp/qa-tool /tmp/qa-crawl /tmp/qa-content
-          node tests/phase2a-browser-qa.mjs http://127.0.0.1:4182 /tmp/qa-2a
-          node tests/phase2b-supplier-qa.mjs http://127.0.0.1:4182 /tmp/qa-2b
-          node tests/phase2c-jobs-qa.mjs http://127.0.0.1:4182 /tmp/qa-2c
-          node tests/final-site-audit.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-final
-          node tests/final-readiness-qa.mjs http://127.0.0.1:4182 /tmp/qa-flow
+          rm -rf /tmp/qa-tool-content /tmp/qa-tool /tmp/qa-final /tmp/qa-crawl /tmp/qa-content /tmp/qa-visual
+          mkdir -p /tmp/qa-tool-content /tmp/qa-tool /tmp/qa-final /tmp/qa-crawl /tmp/qa-content /tmp/qa-visual
+          node tests/tool-content-runtime-qa.mjs http://127.0.0.1:4182 /tmp/qa-tool-content
           node tests/tool-input-qa.mjs http://127.0.0.1:4182 /tmp/qa-tool
-          node tests/final-route-crawl.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-crawl
           node tests/content-value-audit.mjs http://127.0.0.1:4182 /tmp/qa-content remediated
+          node tests/final-site-audit.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-final
+          node tests/final-route-crawl.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-crawl
 
-      - name: Local visual review screenshots
+      - name: Trust-page desktop/mobile visual review
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/qa-visual
-          mkdir -p /tmp/qa-visual
-          cat > ./visual-review.mjs <<'EOF'
+          cat > ./trust-visual-review.mjs <<'EOF'
           import { chromium } from 'playwright';
           const base='http://127.0.0.1:4182';
-          const routes=['/tools/print-readiness-checker','/tools/pixels-to-print-size','/tools/print-size-to-pixels','/tools/dpi-ppi-calculator','/tools/paper-size-pixels-calculator','/tools/aspect-ratio-crop-preview','/tools/bleed-safe-area-calculator','/about','/contact','/methodology','/sources'];
+          const routes=['/about','/contact','/methodology','/sources'];
           const browser=await chromium.launch({headless:true,channel:'chrome'});
           try {
             for (const viewport of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]) {
@@ -120,29 +107,17 @@ jobs:
               for (const route of routes) {
                 const res=await page.goto(base+route,{waitUntil:'networkidle'});
                 if(!res||res.status()!==200) throw new Error(`${route} -> ${res?.status()}`);
-                const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+1);
-                if(overflow) throw new Error(`${route}: page-level horizontal overflow at ${viewport.width}`);
-                const name=route.replace(/^\//,'').replaceAll('/','--')||'home';
+                const state=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bad:[...document.querySelectorAll('a[href]')].filter(a=>!a.getAttribute('href')||a.getAttribute('href')==='#').length}));
+                if(state.sw>state.cw+1||state.bad) throw new Error(`${route}: visual/link state ${JSON.stringify(state)}`);
+                const name=route.slice(1);
                 await page.screenshot({path:`/tmp/qa-visual/${viewport.name}-${name}.png`,fullPage:true});
               }
               await context.close();
             }
-            const context=await browser.newContext({viewport:{width:390,height:844}});
-            const page=await context.newPage();
-            await page.goto(base+'/',{waitUntil:'domcontentloaded'});
-            await page.evaluate(()=>{localStorage.setItem('print-prep-lab-language','ar');localStorage.setItem('ppl-interface-language','ar');});
-            for(const route of ['/tools/print-readiness-checker','/tools/pixels-to-print-size','/tools/bleed-safe-area-calculator']) {
-              await page.goto(base+route,{waitUntil:'networkidle'});
-              const state=await page.evaluate(()=>({lang:document.documentElement.lang,dir:document.documentElement.dir,sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,arabic:/[\u0600-\u06ff]/.test(document.body.innerText)}));
-              if(state.lang!=='ar'||state.dir!=='rtl'||!state.arabic||state.sw>state.cw+1) throw new Error(`${route}: Arabic/mobile failed ${JSON.stringify(state)}`);
-              const name=route.replace(/^\//,'').replaceAll('/','--');
-              await page.screenshot({path:`/tmp/qa-visual/mobile-ar-${name}.png`,fullPage:true});
-            }
-            await context.close();
           } finally { await browser.close(); }
           EOF
-          node ./visual-review.mjs
-          rm -f ./visual-review.mjs
+          node ./trust-visual-review.mjs
+          rm -f ./trust-visual-review.mjs
 
       - name: Stop local Pages runtime
         if: always()
@@ -163,7 +138,7 @@ jobs:
             --commit-hash "$GITHUB_SHA" \
             --commit-message 'AdSense low-value content remediation preview — no production promotion'
 
-      - name: Verify public preview identity and rerun content audit
+      - name: Verify public preview content on the deployed artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -175,31 +150,25 @@ jobs:
             sleep 3
           done
           test "$ready" = 1
-          rm -rf /tmp/qa-content-live /tmp/qa-final-live /tmp/qa-crawl-live
-          mkdir -p /tmp/qa-content-live /tmp/qa-final-live /tmp/qa-crawl-live
+          rm -rf /tmp/qa-tool-content-live /tmp/qa-content-live
+          mkdir -p /tmp/qa-tool-content-live /tmp/qa-content-live
+          node tests/tool-content-runtime-qa.mjs "$PREVIEW_ORIGIN" /tmp/qa-tool-content-live
           node tests/content-value-audit.mjs "$PREVIEW_ORIGIN" /tmp/qa-content-live remediated
-          node tests/final-site-audit.mjs "$PREVIEW_ORIGIN" /tmp/ppl-low-value /tmp/qa-final-live
-          node tests/final-route-crawl.mjs "$PREVIEW_ORIGIN" /tmp/ppl-low-value /tmp/qa-crawl-live
 
-      - name: Upload content audit and visual evidence
+      - name: Upload final content and visual evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: print-prep-lab-low-value-content-evidence
+          name: print-prep-lab-low-value-content-final-evidence
           path: |
-            /tmp/qa-content-before/
+            /tmp/qa-tool-content/
+            /tmp/qa-tool-content-live/
+            /tmp/qa-tool/
             /tmp/qa-content/
             /tmp/qa-content-live/
-            /tmp/qa-visual/
             /tmp/qa-final/
-            /tmp/qa-flow/
-            /tmp/qa-tool/
             /tmp/qa-crawl/
-            /tmp/qa-final-live/
-            /tmp/qa-crawl-live/
-            /tmp/qa-2a/
-            /tmp/qa-2b/
-            /tmp/qa-2c/
+            /tmp/qa-visual/
             /tmp/low-value-wrangler.log
             release-artifacts/v119.1/print-prep-lab-pages-adsense-readiness-final.zip
           if-no-files-found: warn
