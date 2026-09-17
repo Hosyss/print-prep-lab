@@ -37,12 +37,12 @@ idx.write_text(json.dumps(d,ensure_ascii=False,separators=(',',':'))+'\n',encodi
 redirects=(root/'_redirects').read_text(encoding='utf-8').rstrip()+"\n"
 aliases={
  '/workflow':'/#workflow',
- '/tools/best-print-size-finder':'/tools/print-readiness-checker',
+ '/tools/best-print-size-finder':'/scenarios',
  '/tools/mat-frame-calculator':'/tools',
  '/tools/poster-tiling-calculator':'/guides/export-images-for-large-format-printing',
  '/tools/saddle-stitch-booklet-calculator':'/signature-planner',
  '/guides/best-file-format-for-printing':'/guides/print-file-preflight-checklist',
- '/guides/choose-best-photo-print-size':'/guides/aspect-ratio-cropping-print',
+ '/guides/choose-best-photo-print-size':'/scenarios',
  '/guides/mat-frame-sizing-guide':'/guides',
  '/guides/rgb-vs-cmyk-printing':'/guides/print-file-preflight-checklist',
  '/guides/saddle-stitch-booklet-page-count':'/signature-planner',
@@ -59,6 +59,27 @@ for p in root.glob('*.html'):
     s=p.read_text(encoding='utf-8')
     s2,n=re.subn(r'<footer class="site-footer">.*?</footer>',footer,s,count=1,flags=re.S)
     if n:p.write_text(s2,encoding='utf-8');footer_count+=1
+
+# Static professional pages use a shared containment guard; tables scroll rather than losing columns.
+css=root/'final-readiness.css'
+css.write_text('''html,body{max-width:100%;overflow-x:clip}\n.ppl-global-stage,main,.shell,.ep-shell,.ep-card,.panel,.cell,article,aside{min-width:0}\n.table-wrap,.data-table-wrap,.batch-table-wrap,.ep-table-wrap,.comparison-table{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}\ntable{max-width:100%}\n.ep-card label,.ep-row span,.notice,.footer-grid p{color:#475569}\n.selected-job{outline:2px solid #087f92;outline-offset:-2px;background:#f0fbfc}\n@media(max-width:760px){.ep-shell,.shell{width:min(100% - 24px,1180px)}.ep-grid,.grid2,.footer-grid{grid-template-columns:1fr!important}.footer-links{grid-template-columns:1fr 1fr;gap:18px}.footer-links>div:last-child{grid-column:1/-1}.ep-fields,.ep-fields.three{grid-template-columns:1fr}.table-wrap table,.data-table-wrap table,.ep-table-wrap table{min-width:620px}.ppl-global-stage{overflow:visible}}\n''',encoding='utf-8')
+for p in root.glob('*.html'):
+    s=p.read_text(encoding='utf-8')
+    if '/final-readiness.css' not in s:
+        s=s.replace('</head>','<link href="/final-readiness.css" rel="stylesheet"/></head>',1)
+        p.write_text(s,encoding='utf-8')
+
+# User/workspace-state surfaces stay crawlable enough for robots to see noindex, but are not index targets.
+private_routes={'jobs.html','job-core.html','supplier-intelligence.html','release-center.html','readiness-audit.html','command-center.html','enterprise-dashboard.html','digital-twin.html','vault.html','operations.html','file-manifest.html','production-archive.html'}
+for name in private_routes:
+    p=root/name
+    if not p.exists(): continue
+    s=p.read_text(encoding='utf-8')
+    if re.search(r'<meta[^>]+name="robots"[^>]*>',s,re.I):
+        s=re.sub(r'<meta[^>]+name="robots"[^>]*>', '<meta name="robots" content="noindex,follow">', s, count=1, flags=re.I)
+    else:
+        s=s.replace('</title>','</title><meta name="robots" content="noindex,follow">',1)
+    p.write_text(s,encoding='utf-8')
 
 h=root/'_headers'; headers=h.read_text(encoding='utf-8').rstrip()+"\n"
 for asset in ['/enterprise-core.js','/enterprise-suite.js','/jobs.js','/search.js','/search-index.json']:
