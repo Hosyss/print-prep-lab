@@ -23,24 +23,27 @@ marker="${GITHUB_SHA:-manual-final-readiness}"
 python3 "${release_dir}/final-artifact-patch.py" "${staging}" "${marker}"
 python3 "${release_dir}/final-artifact-review-patch.py" "${staging}"
 
-node --check "${staging}/enterprise-suite.js"
-node --check "${staging}/jobs.js"
-grep -Fq "decisionModel:'explicit-fields-v2'" "${staging}/enterprise-suite.js"
-grep -Fq "decisionModel:'explicit-eligibility-v1'" "${staging}/enterprise-suite.js"
-grep -Fq 'enterprise-job-cores-v2' "${staging}/enterprise-suite.js"
-grep -Fq 'selected-job-id-v1' "${staging}/enterprise-suite.js"
-grep -Fq 'JSON.stringify(id)' "${staging}/jobs.js"
-grep -Fq 'ppl-final-build-marker:' "${staging}/enterprise-suite.js"
-grep -Fq 'max-age=0, must-revalidate' "${staging}/_headers"
-grep -Fq 'id="workflow"' "${staging}/home-v112.html"
-grep -Fq 'Who is it for?' "${staging}/home-v112.html"
-grep -Fq 'لمن صُمم؟' "${staging}/home-v112.html"
-! grep -Fq 'value="Sample print job"' "${staging}/job-core.html"
-! grep -Fq 'user-controlled weights' "${staging}/supplier-intelligence.html"
-grep -R -Fq 'Example values are pre-filled.' "${staging}"
-grep -R -Fq 'final-readiness-mobile-guard' "${staging}"
-grep -Fq 'headers.delete("If-None-Match")' "${staging}/_worker.js"
-test -s "${staging}/og-image.png"
+check_has(){ local label="$1" file="$2" needle="$3"; echo "CHECK $label"; grep -Fq "$needle" "$file" || { echo "FAILED $label: missing [$needle] in $file" >&2; exit 1; }; }
+check_not(){ local label="$1" file="$2" needle="$3"; echo "CHECK $label"; ! grep -Fq "$needle" "$file" || { echo "FAILED $label: unexpected [$needle] in $file" >&2; exit 1; }; }
+
+echo "CHECK enterprise-suite syntax"; node --check "${staging}/enterprise-suite.js"
+echo "CHECK jobs syntax"; node --check "${staging}/jobs.js"
+check_has "2a decision model" "${staging}/enterprise-suite.js" "decisionModel:'explicit-fields-v2'"
+check_has "2b decision model" "${staging}/enterprise-suite.js" "decisionModel:'explicit-eligibility-v1'"
+check_has "per-job core storage" "${staging}/enterprise-suite.js" "enterprise-job-cores-v2"
+check_has "selected job key" "${staging}/enterprise-suite.js" "selected-job-id-v1"
+check_has "selected job JSON storage" "${staging}/jobs.js" "JSON.stringify(id)"
+check_has "final build marker" "${staging}/enterprise-suite.js" "ppl-final-build-marker:"
+check_has "mutable asset cache rule" "${staging}/_headers" "max-age=0, must-revalidate"
+check_has "workflow anchor" "${staging}/home-v112.html" "id=\"workflow\""
+check_has "English audience section" "${staging}/home-v112.html" "Who is it for?"
+check_has "Arabic audience section" "${staging}/home-v112.html" "لمن صُمم؟"
+check_not "sample job default removed" "${staging}/job-core.html" "value=\"Sample print job\""
+check_not "adjustable weights claim removed" "${staging}/supplier-intelligence.html" "user-controlled weights"
+echo "CHECK example-value notice"; grep -R -Fq 'Example values are pre-filled.' "${staging}" || { echo "FAILED example-value notice" >&2; exit 1; }
+echo "CHECK mobile guard"; grep -R -Fq 'final-readiness-mobile-guard' "${staging}" || { echo "FAILED mobile guard" >&2; exit 1; }
+check_has "reload conditional-header fix" "${staging}/_worker.js" 'headers.delete("If-None-Match")'
+echo "CHECK social image"; test -s "${staging}/og-image.png" || { echo "FAILED social image missing" >&2; exit 1; }
 python3 - "${staging}/search-index.json" <<'PY'
 import json,sys
 p=sys.argv[1]; d=json.load(open(p,encoding='utf-8'))
@@ -50,7 +53,8 @@ assert not any(x.get('path') in ghosts for x in d['items'])
 print('search-index routes reconciled:',d['count'])
 PY
 for p in jobs.html job-core.html supplier-intelligence.html release-center.html readiness-audit.html command-center.html enterprise-dashboard.html digital-twin.html vault.html operations.html file-manifest.html production-archive.html; do
-  grep -Fq 'noindex,follow' "${staging}/${p}"
+  echo "CHECK noindex $p"
+  grep -Fq 'noindex,follow' "${staging}/${p}" || { echo "FAILED noindex $p" >&2; exit 1; }
 done
 
 rm -f -- "${output}"
