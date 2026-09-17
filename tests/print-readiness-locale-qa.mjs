@@ -36,10 +36,11 @@ try {
       const orientation = calculator.locator('.control-label button').first();
       const quality240 = calculator.locator('.segment-control button').filter({ hasText: '240' });
       const quality300 = calculator.locator('.segment-control button').filter({ hasText: '300' });
+      const waitForCalculatorLanguage = (lang) => page.waitForFunction((expected) => document.querySelector('.lab-card')?.getAttribute('data-readiness-language') === expected, lang);
 
       await locale.selectOption('ar');
       await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
-      await calculator.locator('[data-readiness-language="ar"]').waitFor({ state: 'visible' });
+      await waitForCalculatorLanguage('ar');
       let calcText = await calculator.innerText();
       check(`${viewport.name} Arabic controls translated`, calcText.includes('أبعاد الصورة') && calcText.includes('العرض') && calcText.includes('الارتفاع') && calcText.includes('الطباعة المستهدفة') && calcText.includes('الجودة المطلوبة'), calcText.slice(0, 500));
       check(`${viewport.name} Arabic action and quality labels translated`, calcText.includes('أفقي') && calcText.includes('بوستر') && calcText.includes('تفاصيل جيدة') && calcText.includes('طباعة دقيقة'));
@@ -69,7 +70,7 @@ try {
 
       await locale.selectOption('en');
       await page.waitForFunction(() => document.documentElement.lang === 'en' && document.documentElement.dir === 'ltr');
-      await calculator.locator('[data-readiness-language="en"]').waitFor({ state: 'visible' });
+      await waitForCalculatorLanguage('en');
       calcText = await calculator.innerText();
       check(`${viewport.name} English controls restored on language toggle`, calcText.includes('Image dimensions') && calcText.includes('Width') && calcText.includes('Height') && calcText.includes('Target print') && calcText.includes('Quality target'));
       check(`${viewport.name} English dynamic result restored on language toggle`, (await calculator.locator('[data-readiness-status]').innerText()).trim() === 'Below target', await calculator.locator('[data-readiness-status]').innerText());
@@ -82,7 +83,7 @@ try {
       await orientation.click();
       await locale.selectOption('ar');
       await page.waitForFunction(() => document.documentElement.lang === 'ar' && document.documentElement.dir === 'rtl');
-      await calculator.locator('[data-readiness-language="ar"]').waitFor({ state: 'visible' });
+      await waitForCalculatorLanguage('ar');
       check(`${viewport.name} Arabic dynamic ready status after second value change`, (await calculator.locator('[data-readiness-status]').innerText()).trim() === 'مناسب للهدف', await calculator.locator('[data-readiness-status]').innerText());
       check(`${viewport.name} values survive EN to AR round-trip`, (await numeric.nth(0).inputValue()) === '4200' && (await numeric.nth(1).inputValue()) === '2800', `${await numeric.nth(0).inputValue()}×${await numeric.nth(1).inputValue()}`);
 
