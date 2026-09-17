@@ -91,18 +91,24 @@ const weak = pages.filter((p) => p.wordCount < minimumWords[p.kind]);
 
 if (mode !== 'baseline') {
   const toolPages = pages.filter((p) => p.kind === 'tool');
+  const requiredToolPhrases = ['Worked calculation', 'How to interpret the result', 'Assumptions', 'Limits and provider checks'];
   for (const page of toolPages) {
-    for (const marker of ['data-content-value="worked-calculation"', 'data-content-value="assumptions-and-limits"', 'How to interpret the result']) {
-      if (!page.html.includes(marker)) throw new Error(`${page.route}: missing tool value marker ${marker}`);
+    for (const phrase of requiredToolPhrases) {
+      if (!page.text.includes(phrase)) throw new Error(`${page.route}: missing substantive section ${phrase}`);
     }
   }
-  for (const route of ['/about', '/methodology', '/sources']) {
+  const trustChecks = {
+    '/about': ['Verify the project, publisher and calculation code', 'Calculation implementation', 'Calculation tests'],
+    '/methodology': ['Methodology you can inspect and reproduce', 'Shared print-math module', 'NIST SI length conversion reference'],
+    '/sources': ['Primary references and what each one supports', 'ISO 216:2007', 'NIST — SI units of length'],
+    '/contact': ['What happens when a calculation report is valid', 'Public source and publisher profile', 'Calculation report template'],
+  };
+  for (const [route, phrases] of Object.entries(trustChecks)) {
     const page = pages.find((p) => p.route === route);
-    if (!page?.html.includes('data-content-value="verifiable-evidence"')) throw new Error(`${route}: missing verifiable evidence section`);
-  }
-  const contact = pages.find((p) => p.route === '/contact');
-  if (!contact?.html.includes('data-content-value="correction-process"') || !contact.html.includes('data-content-value="verifiable-contact-records"')) {
-    throw new Error('/contact: missing correction workflow evidence');
+    if (!page) throw new Error(`${route}: missing from sitemap inventory`);
+    for (const phrase of phrases) {
+      if (!page.text.includes(phrase)) throw new Error(`${route}: missing verifiable content ${phrase}`);
+    }
   }
 }
 
