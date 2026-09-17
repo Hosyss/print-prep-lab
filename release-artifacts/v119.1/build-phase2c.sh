@@ -14,10 +14,12 @@ python3 "${release_dir}/phase2c-jobs-patch.py" \
   "${staging}/jobs.js" \
   "${staging}/jobs.html" \
   "${staging}/job-core.html"
+python3 "${release_dir}/phase2c-storage-review-patch.py" "${staging}/jobs.js"
 node --check "${staging}/enterprise-suite.js"
 node --check "${staging}/jobs.js"
 grep -Fq 'selected-job-id-v1' "${staging}/enterprise-suite.js"
 grep -Fq 'enterprise-job-cores-v2' "${staging}/enterprise-suite.js"
+grep -Fq 'JSON.stringify(id)' "${staging}/jobs.js"
 grep -Fq 'data-select' "${staging}/jobs.js"
 grep -Fq 'id="ec-selected-job"' "${staging}/job-core.html"
 ! grep -Fq 'value="Sample print job"' "${staging}/job-core.html"
