@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumbs, PageCta, PageHero } from "@/components/content-shell";
 import { TRUST_PAGES } from "@/lib/site-content";
+import { TRUST_EVIDENCE } from "@/lib/trust-evidence";
 import { AUTHOR_NAME, SITE_URL, pageMetadata } from "@/lib/seo";
 
 const TRUST_SEO_TITLES: Record<string, string> = {
@@ -31,6 +32,7 @@ export default async function TrustPage({ params }: { params: Promise<{ slug: st
   const { slug } = await params;
   const page = TRUST_PAGES[slug];
   if (!page) notFound();
+  const evidence = TRUST_EVIDENCE[slug];
 
   const profileStructuredData = slug === "about" ? {
     "@context": "https://schema.org",
@@ -63,32 +65,24 @@ export default async function TrustPage({ params }: { params: Promise<{ slug: st
             </div>
           </section>
         ))}
-        {slug === "sources" && (
-          <div className="source-links">
-            <a href="https://www.iso.org/standard/36631.html" target="_blank" rel="noreferrer">
-              ISO 216:2007 <b>↗</b>
-            </a>
-            <a href="https://www.nist.gov/pml/owm/si-units-length" target="_blank" rel="noreferrer">
-              NIST inch conversion <b>↗</b>
-            </a>
-            <a
-              href="https://helpx.adobe.com/photoshop/desktop/crop-resize-transform/resize-adjust-resolution/resolution-specs-for-printing-images.html"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Adobe print resolution guidance <b>↗</b>
-            </a>
-          </div>
-        )}
-        {slug === "about" && (
-          <div className="source-links">
-            <a href="https://github.com/Hosyss/print-prep-lab" target="_blank" rel="noreferrer">
-              Public source and change history <b>↗</b>
-            </a>
-            <a href="https://github.com/Hosyss/print-prep-lab/issues" target="_blank" rel="noreferrer">
-              Public calculation reports <b>↗</b>
-            </a>
-          </div>
+        {evidence && (
+          <section data-content-value="verifiable-evidence">
+            <span>{String(page.sections.length + 1).padStart(2, "0")}</span>
+            <div>
+              <h2>{evidence.heading}</h2>
+              <p>{evidence.intro}</p>
+              <div className="source-links">
+                {evidence.links.map((item) => {
+                  const external = item.href.startsWith("http");
+                  return <a key={item.href} href={item.href} {...(external ? { target: "_blank", rel: "noreferrer" } : {})}>
+                    <strong>{item.label}</strong>
+                    <small>{item.description}</small>
+                    <b>{external ? "↗" : "→"}</b>
+                  </a>;
+                })}
+              </div>
+            </div>
+          </section>
         )}
       </article>
       <div className="shell">
