@@ -1,0 +1,63 @@
+name: Print Prep Lab final preview screenshot evidence
+
+on:
+  push:
+    branches:
+      - evidence/adsense-preview-screenshots-20260917
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PREVIEW: https://da60f490.printpreplab.pages.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.63.0
+      - name: Capture verified-preview evidence only
+        shell: bash
+        run: |
+          mkdir -p /tmp/screens
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const base=process.env.PREVIEW;
+          const browser=await chromium.launch({headless:true,channel:'chrome'});
+          async function shot(name,path,lang,viewport,locator){
+            const context=await browser.newContext({viewport});
+            const page=await context.newPage();
+            const response=await page.goto(`${base}${path}?lang=${lang}`,{waitUntil:'domcontentloaded'});
+            if(!response || response.status()!==200) throw new Error(`${path} ${lang} HTTP ${response?.status()}`);
+            await page.waitForTimeout(900);
+            if(locator){
+              const target=page.locator(locator).first();
+              await target.waitFor({state:'visible'});
+              await target.screenshot({path:`/tmp/screens/${name}.png`});
+            } else {
+              await page.screenshot({path:`/tmp/screens/${name}.png`,fullPage:true});
+            }
+            await context.close();
+          }
+          await shot('desktop-en-digital-twin','/digital-twin','en',{width:1440,height:1000},'.ep-shell');
+          await shot('desktop-ar-digital-twin','/digital-twin','ar',{width:1440,height:1000},'.ep-shell');
+          await shot('mobile-en-a4','/sizes/a4','en',{width:390,height:844},null);
+          await shot('mobile-ar-a4','/sizes/a4','ar',{width:390,height:844},null);
+          await shot('mobile-en-home','/','en',{width:390,height:844},null);
+          await shot('mobile-ar-home','/','ar',{width:390,height:844},null);
+          await browser.close();
+          NODE
+      - name: Upload screenshot evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: print-prep-lab-final-preview-screenshots
+          path: /tmp/screens/*.png
+          if-no-files-found: error
+          retention-days: 14
