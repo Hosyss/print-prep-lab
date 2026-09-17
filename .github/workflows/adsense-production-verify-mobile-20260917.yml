@@ -1,0 +1,104 @@
+name: Print Prep Lab Production mobile Arabic verification
+
+on:
+  push:
+    branches:
+      - release/adsense-production-deploy-20260917
+    paths:
+      - .github/workflows/adsense-production-verify-mobile-20260917.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROD_ORIGIN: https://printpreplab.pages.dev
+      REVIEWED_SHA: 5ef274ceb758b5dbde12d8d2ef1094774bea3e50
+    steps:
+      - name: Check out reviewed QA source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.REVIEWED_SHA }}
+
+      - name: Confirm Production is still the reviewed SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 20); do
+            code="$(curl -sS -o /tmp/home.html -w '%{http_code}' "$PROD_ORIGIN/" || true)"
+            curl -sS --fail "$PROD_ORIGIN/enterprise-suite.js" -o /tmp/enterprise-suite.js || true
+            if [[ "$code" == 200 ]] && grep -Fq "ppl-final-build-marker:${REVIEWED_SHA}" /tmp/enterprise-suite.js 2>/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          test "$ready" = 1
+          echo "Production marker PASS: $REVIEWED_SHA"
+
+      - name: Install QA dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.63.0
+
+      - name: Verify 390px English and Arabic on affected pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > ./production-mobile-ar-check.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const origin = process.env.PROD_ORIGIN;
+          const routes = ['/', '/sizes/a4', '/tools/print-readiness-checker', '/jobs', '/job-core', '/supplier-intelligence'];
+          const browser = await chromium.launch({headless:true, channel:'chrome'});
+          try {
+            for (const lang of ['en','ar']) {
+              const context = await browser.newContext({viewport:{width:390,height:844}});
+              const page = await context.newPage();
+              await page.goto(origin + '/', {waitUntil:'domcontentloaded'});
+              await page.evaluate(lang => {
+                localStorage.setItem('print-prep-lab-language', lang);
+                localStorage.setItem('ppl-interface-language', lang);
+              }, lang);
+              for (const route of routes) {
+                const res = await page.goto(origin + route, {waitUntil:'domcontentloaded'});
+                if (!res || res.status() !== 200) throw new Error(`${lang} ${route}: HTTP ${res?.status()}`);
+                await page.waitForTimeout(350);
+                const m = await page.evaluate(() => ({
+                  lang: document.documentElement.lang,
+                  dir: document.documentElement.dir,
+                  sw: document.documentElement.scrollWidth,
+                  cw: document.documentElement.clientWidth,
+                  arabic: /[\u0600-\u06ff]/.test(document.body.innerText)
+                }));
+                if (m.sw > m.cw + 1) throw new Error(`${lang} ${route}: horizontal overflow ${m.sw}/${m.cw}`);
+                if (lang === 'ar' && (m.lang !== 'ar' || m.dir !== 'rtl' || !m.arabic)) throw new Error(`ar ${route}: lang=${m.lang} dir=${m.dir} arabic=${m.arabic}`);
+                if (lang === 'en' && m.dir === 'rtl') throw new Error(`en ${route}: unexpected RTL`);
+                console.log(`PASS ${lang} ${route} mobile ${m.cw}px dir=${m.dir}`);
+              }
+              await context.close();
+            }
+          } finally {
+            await browser.close();
+          }
+          EOF
+          node ./production-mobile-ar-check.mjs
+
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo '## Production mobile/Arabic verification'
+            echo
+            echo "- Production marker: $REVIEWED_SHA"
+            echo '- Viewport: 390x844'
+            echo '- English + Arabic affected pages: PASS'
+            echo '- No page-level horizontal overflow: PASS'
+            echo '- Arabic RTL/UI: PASS'
+            echo '- No deployment or Production mutation was performed by this verification workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"
