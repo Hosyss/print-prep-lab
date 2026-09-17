@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const base = (process.argv[2] || 'http://127.0.0.1:4176').replace(/\/$/, '');
 const outDir = process.argv[3] || '/tmp/content-value-audit';
+const mode = process.argv[4] || 'remediated';
 fs.mkdirSync(outDir, { recursive: true });
 
 const decode = (s) => s
@@ -43,9 +44,9 @@ function jaccard(a, b) {
 }
 
 function kind(route) {
-  if (route.startsWith('/tools/') && route !== '/tools/') return 'tool';
-  if (route.startsWith('/sizes/') && route !== '/sizes/') return 'size';
-  if (route.startsWith('/guides/') && route !== '/guides/') return 'guide';
+  if (route.startsWith('/tools/')) return 'tool';
+  if (route.startsWith('/sizes/')) return 'size';
+  if (route.startsWith('/guides/')) return 'guide';
   if (['/about', '/methodology', '/sources', '/editorial-policy', '/contact'].includes(route)) return 'trust';
   if (['/privacy', '/terms'].includes(route)) return 'policy';
   return 'hub';
@@ -88,19 +89,21 @@ pairs.sort((a, b) => b.similarity - a.similarity);
 
 const weak = pages.filter((p) => p.wordCount < minimumWords[p.kind]);
 
-const toolPages = pages.filter((p) => p.kind === 'tool');
-for (const page of toolPages) {
-  for (const marker of ['data-content-value="worked-calculation"', 'data-content-value="assumptions-and-limits"', 'How to interpret the result']) {
-    if (!page.html.includes(marker)) throw new Error(`${page.route}: missing tool value marker ${marker}`);
+if (mode !== 'baseline') {
+  const toolPages = pages.filter((p) => p.kind === 'tool');
+  for (const page of toolPages) {
+    for (const marker of ['data-content-value="worked-calculation"', 'data-content-value="assumptions-and-limits"', 'How to interpret the result']) {
+      if (!page.html.includes(marker)) throw new Error(`${page.route}: missing tool value marker ${marker}`);
+    }
   }
-}
-for (const route of ['/about', '/methodology', '/sources']) {
-  const page = pages.find((p) => p.route === route);
-  if (!page?.html.includes('data-content-value="verifiable-evidence"')) throw new Error(`${route}: missing verifiable evidence section`);
-}
-const contact = pages.find((p) => p.route === '/contact');
-if (!contact?.html.includes('data-content-value="correction-process"') || !contact.html.includes('data-content-value="verifiable-contact-records"')) {
-  throw new Error('/contact: missing correction workflow evidence');
+  for (const route of ['/about', '/methodology', '/sources']) {
+    const page = pages.find((p) => p.route === route);
+    if (!page?.html.includes('data-content-value="verifiable-evidence"')) throw new Error(`${route}: missing verifiable evidence section`);
+  }
+  const contact = pages.find((p) => p.route === '/contact');
+  if (!contact?.html.includes('data-content-value="correction-process"') || !contact.html.includes('data-content-value="verifiable-contact-records"')) {
+    throw new Error('/contact: missing correction workflow evidence');
+  }
 }
 
 const excluded = {
@@ -134,6 +137,7 @@ const inventory = pages.map(({ route, kind, wordCount, headings }) => ({
 const report = {
   generatedAt: new Date().toISOString(),
   base,
+  mode,
   sitemapPages: pages.length,
   inventory,
   belowEditorialThreshold: weak.map(({ route, kind, wordCount }) => ({ route, kind, wordCount, minimum: minimumWords[kind] })),
@@ -146,6 +150,8 @@ fs.writeFileSync(path.join(outDir, 'content-value-audit.json'), JSON.stringify(r
 const md = [];
 md.push('# Content value audit');
 md.push('');
+md.push(`- Mode: ${mode}`);
+md.push(`- Base: ${base}`);
 md.push(`- Sitemap pages checked: ${pages.length}`);
 md.push(`- Exact duplicate main-content pairs: 0`);
 md.push(`- Pages below editorial word threshold: ${weak.length}`);
@@ -169,6 +175,6 @@ md.push('|---|---|');
 for (const item of noindex) md.push(`| ${item.route} | ${item.reason} |`);
 fs.writeFileSync(path.join(outDir, 'content-value-audit.md'), md.join('\n') + '\n');
 
-console.log(`CONTENT VALUE AUDIT: ${pages.length} sitemap pages, ${weak.length} below threshold, 0 exact duplicate main-content pairs.`);
+console.log(`CONTENT VALUE AUDIT (${mode}): ${pages.length} sitemap pages, ${weak.length} below threshold, 0 exact duplicate main-content pairs.`);
 if (pairs[0]) console.log(`Highest observed similarity: ${pairs[0].similarity.toFixed(3)} ${pairs[0].a} <> ${pairs[0].b}`);
 for (const item of weak) console.log(`REVIEW ${item.route}: ${item.wordCount} words < ${minimumWords[item.kind]} (${item.kind})`);
