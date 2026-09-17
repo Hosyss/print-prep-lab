@@ -1,0 +1,196 @@
+name: Print Prep Lab low-value content remediation preview
+
+on:
+  push:
+    branches:
+      - content/adsense-low-value-20260917
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: print-prep-lab-low-value-content-preview
+  cancel-in-progress: true
+
+jobs:
+  content-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+      PAGES_PROJECT: printpreplab
+      PREVIEW_BRANCH: adsense-low-value-content-preview
+      PREVIEW_ORIGIN: https://adsense-low-value-content-preview.printpreplab.pages.dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint source
+        run: npm run lint
+
+      - name: Run math tests
+        run: npm run test:math
+
+      - name: Run source build and rendered-page tests
+        run: npm test
+
+      - name: Build reviewed layered Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash release-artifacts/v119.1/build-adsense-readiness.sh
+          rm -rf /tmp/ppl-low-value
+          mkdir -p /tmp/ppl-low-value
+          unzip -q release-artifacts/v119.1/print-prep-lab-pages-adsense-readiness-final.zip -d /tmp/ppl-low-value
+          grep -Fq 'data-content-value="worked-calculation"' /tmp/ppl-low-value/_worker.js
+          grep -Fq 'data-content-value="verifiable-evidence"' /tmp/ppl-low-value/_worker.js
+          grep -Fq 'data-content-value="correction-process"' /tmp/ppl-low-value/_worker.js
+          grep -Fq 'Who is it for?' /tmp/ppl-low-value/home-v112.html
+
+      - name: Install browser QA dependency
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.63.0
+
+      - name: Start isolated local Pages runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd /tmp/ppl-low-value
+            env -u CLOUDFLARE_API_TOKEN -u CLOUDFLARE_ACCOUNT_ID \
+              npx --yes wrangler@4.131.1 pages dev . \
+              --ip 127.0.0.1 --port 4182 \
+              --compatibility-date=2026-05-22 --compatibility-flags=nodejs_compat
+          ) >/tmp/low-value-wrangler.log 2>&1 &
+          echo $! >/tmp/low-value-wrangler.pid
+          ready=0
+          for attempt in $(seq 1 80); do
+            if curl --silent --fail http://127.0.0.1:4182/ >/dev/null; then ready=1; break; fi
+            sleep .5
+          done
+          test "$ready" = 1
+
+      - name: Run full local behavior and content QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/qa-2a /tmp/qa-2b /tmp/qa-2c /tmp/qa-final /tmp/qa-flow /tmp/qa-tool /tmp/qa-crawl /tmp/qa-content
+          mkdir -p /tmp/qa-2a /tmp/qa-2b /tmp/qa-2c /tmp/qa-final /tmp/qa-flow /tmp/qa-tool /tmp/qa-crawl /tmp/qa-content
+          node tests/phase2a-browser-qa.mjs http://127.0.0.1:4182 /tmp/qa-2a
+          node tests/phase2b-supplier-qa.mjs http://127.0.0.1:4182 /tmp/qa-2b
+          node tests/phase2c-jobs-qa.mjs http://127.0.0.1:4182 /tmp/qa-2c
+          node tests/final-site-audit.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-final
+          node tests/final-readiness-qa.mjs http://127.0.0.1:4182 /tmp/qa-flow
+          node tests/tool-input-qa.mjs http://127.0.0.1:4182 /tmp/qa-tool
+          node tests/final-route-crawl.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-crawl
+          node tests/content-value-audit.mjs http://127.0.0.1:4182 /tmp/qa-content
+
+      - name: Local visual review screenshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/qa-visual
+          mkdir -p /tmp/qa-visual
+          cat > /tmp/visual-review.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const base='http://127.0.0.1:4182';
+          const routes=['/tools/print-readiness-checker','/tools/pixels-to-print-size','/tools/print-size-to-pixels','/tools/dpi-ppi-calculator','/tools/paper-size-pixels-calculator','/tools/aspect-ratio-crop-preview','/tools/bleed-safe-area-calculator','/about','/contact','/methodology','/sources'];
+          const browser=await chromium.launch({headless:true,channel:'chrome'});
+          try {
+            for (const viewport of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]) {
+              const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height}});
+              const page=await context.newPage();
+              for (const route of routes) {
+                const res=await page.goto(base+route,{waitUntil:'networkidle'});
+                if(!res||res.status()!==200) throw new Error(`${route} -> ${res?.status()}`);
+                const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth+1);
+                if(overflow) throw new Error(`${route}: page-level horizontal overflow at ${viewport.width}`);
+                const name=route.replace(/^\//,'').replaceAll('/','--')||'home';
+                await page.screenshot({path:`/tmp/qa-visual/${viewport.name}-${name}.png`,fullPage:true});
+              }
+              await context.close();
+            }
+            const context=await browser.newContext({viewport:{width:390,height:844}});
+            const page=await context.newPage();
+            await page.goto(base+'/',{waitUntil:'domcontentloaded'});
+            await page.evaluate(()=>{localStorage.setItem('print-prep-lab-language','ar');localStorage.setItem('ppl-interface-language','ar');});
+            for(const route of ['/tools/print-readiness-checker','/tools/pixels-to-print-size','/tools/bleed-safe-area-calculator']) {
+              await page.goto(base+route,{waitUntil:'networkidle'});
+              const state=await page.evaluate(()=>({lang:document.documentElement.lang,dir:document.documentElement.dir,sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,arabic:/[\u0600-\u06ff]/.test(document.body.innerText)}));
+              if(state.lang!=='ar'||state.dir!=='rtl'||!state.arabic||state.sw>state.cw+1) throw new Error(`${route}: Arabic/mobile failed ${JSON.stringify(state)}`);
+              const name=route.replace(/^\//,'').replaceAll('/','--');
+              await page.screenshot({path:`/tmp/qa-visual/mobile-ar-${name}.png`,fullPage:true});
+            }
+            await context.close();
+          } finally { await browser.close(); }
+          EOF
+          node /tmp/visual-review.mjs
+
+      - name: Stop local Pages runtime
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/low-value-wrangler.pid ]]; then kill "$(cat /tmp/low-value-wrangler.pid)" 2>/dev/null || true; fi
+
+      - name: Deploy isolated content preview only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          cd /tmp/ppl-low-value
+          npx --yes wrangler@4.131.1 pages deploy . \
+            --project-name "$PAGES_PROJECT" \
+            --branch "$PREVIEW_BRANCH" \
+            --commit-hash "$GITHUB_SHA" \
+            --commit-message 'AdSense low-value content remediation preview — no production promotion'
+
+      - name: Verify public preview identity and rerun content audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 30); do
+            code="$(curl --silent --show-error --output /tmp/live-home.html --write-out '%{http_code}' "$PREVIEW_ORIGIN/" || true)"
+            curl --silent --show-error --fail "$PREVIEW_ORIGIN/enterprise-suite.js" -o /tmp/live-suite.js || true
+            if [[ "$code" == 200 ]] && grep -Fq "ppl-final-build-marker:${GITHUB_SHA}" /tmp/live-suite.js 2>/dev/null; then ready=1; break; fi
+            sleep 3
+          done
+          test "$ready" = 1
+          rm -rf /tmp/qa-content-live
+          mkdir -p /tmp/qa-content-live
+          node tests/content-value-audit.mjs "$PREVIEW_ORIGIN" /tmp/qa-content-live
+          node tests/final-site-audit.mjs "$PREVIEW_ORIGIN" /tmp/ppl-low-value /tmp/qa-final-live
+          node tests/final-route-crawl.mjs "$PREVIEW_ORIGIN" /tmp/ppl-low-value /tmp/qa-crawl-live
+
+      - name: Upload content audit and visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: print-prep-lab-low-value-content-evidence
+          path: |
+            /tmp/qa-content/
+            /tmp/qa-content-live/
+            /tmp/qa-visual/
+            /tmp/qa-final/
+            /tmp/qa-flow/
+            /tmp/qa-tool/
+            /tmp/qa-crawl/
+            /tmp/qa-final-live/
+            /tmp/qa-crawl-live/
+            /tmp/qa-2a/
+            /tmp/qa-2b/
+            /tmp/qa-2c/
+            /tmp/low-value-wrangler.log
+            release-artifacts/v119.1/print-prep-lab-pages-adsense-readiness-final.zip
+          if-no-files-found: warn
+          retention-days: 14
