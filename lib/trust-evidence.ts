@@ -21,9 +21,9 @@ export const TRUST_EVIDENCE: Record<string, TrustEvidence> = {
         description: "Public GitHub profile for the account that owns and maintains the Print Prep Lab repository.",
       },
       {
-        label: "Print Prep Lab source repository",
+        label: "Public source and change history",
         href: "https://github.com/Hosyss/print-prep-lab",
-        description: "Public source, commit history, issue tracker and release work for the project.",
+        description: "Public source repository, commit history, issue tracker and release work for Print Prep Lab.",
       },
       {
         label: "Calculation implementation",
