@@ -19,6 +19,15 @@ python3 "${release_dir}/final-source-patch.py" "${repo_root}"
 bash "${release_dir}/build-phase2c.sh"
 [[ -s "${base_zip}" ]] || { echo "Missing Phase 2c base artifact" >&2; exit 66; }
 unzip -q "${base_zip}" -d "${staging}"
+
+# The v118 baseline still contains print-readiness-v111.html. The hybrid worker
+# serves a static page only when that file exists, so leaving it here shadows the
+# current App Router /tools/print-readiness-checker page. Remove only this legacy
+# compatibility file so the current source route (and its reviewed editorial
+# content) is authoritative; other proven operational static pages stay intact.
+rm -f -- "${staging}/print-readiness-v111.html"
+test ! -e "${staging}/print-readiness-v111.html"
+
 marker="${GITHUB_SHA:-manual-final-readiness}"
 python3 "${release_dir}/final-artifact-patch.py" "${staging}" "${marker}"
 python3 "${release_dir}/final-artifact-review-patch.py" "${staging}"
@@ -45,6 +54,7 @@ echo "CHECK example-value notice"; grep -R -Fq 'Example values are pre-filled.' 
 # browser QA later verifies the actual mobile layout on every size route.
 check_has "mobile source guard" "${repo_root}/app/globals.css" "final-readiness-mobile-guard"
 check_has "reload conditional-header fix" "${staging}/_worker.js" 'headers.delete("If-None-Match")'
+echo "CHECK current print-readiness route is not shadowed"; test ! -e "${staging}/print-readiness-v111.html" || { echo "FAILED legacy print readiness still shadows App Router" >&2; exit 1; }
 echo "CHECK social image"; test -s "${staging}/og-image.png" || { echo "FAILED social image missing" >&2; exit 1; }
 python3 - "${staging}/search-index.json" <<'PY'
 import json,sys
