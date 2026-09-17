@@ -44,6 +44,14 @@ jobs:
       - name: Run source build and rendered-page tests
         run: npm test
 
+      - name: Capture read-only Production baseline content audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/qa-content-before
+          mkdir -p /tmp/qa-content-before
+          node tests/content-value-audit.mjs https://printpreplab.pages.dev /tmp/qa-content-before baseline
+
       - name: Build reviewed layered Pages artifact
         shell: bash
         run: |
@@ -92,7 +100,7 @@ jobs:
           node tests/final-readiness-qa.mjs http://127.0.0.1:4182 /tmp/qa-flow
           node tests/tool-input-qa.mjs http://127.0.0.1:4182 /tmp/qa-tool
           node tests/final-route-crawl.mjs http://127.0.0.1:4182 /tmp/ppl-low-value /tmp/qa-crawl
-          node tests/content-value-audit.mjs http://127.0.0.1:4182 /tmp/qa-content
+          node tests/content-value-audit.mjs http://127.0.0.1:4182 /tmp/qa-content remediated
 
       - name: Local visual review screenshots
         shell: bash
@@ -100,7 +108,7 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/qa-visual
           mkdir -p /tmp/qa-visual
-          cat > /tmp/visual-review.mjs <<'EOF'
+          cat > ./visual-review.mjs <<'EOF'
           import { chromium } from 'playwright';
           const base='http://127.0.0.1:4182';
           const routes=['/tools/print-readiness-checker','/tools/pixels-to-print-size','/tools/print-size-to-pixels','/tools/dpi-ppi-calculator','/tools/paper-size-pixels-calculator','/tools/aspect-ratio-crop-preview','/tools/bleed-safe-area-calculator','/about','/contact','/methodology','/sources'];
@@ -133,7 +141,8 @@ jobs:
             await context.close();
           } finally { await browser.close(); }
           EOF
-          node /tmp/visual-review.mjs
+          node ./visual-review.mjs
+          rm -f ./visual-review.mjs
 
       - name: Stop local Pages runtime
         if: always()
@@ -166,9 +175,9 @@ jobs:
             sleep 3
           done
           test "$ready" = 1
-          rm -rf /tmp/qa-content-live
-          mkdir -p /tmp/qa-content-live
-          node tests/content-value-audit.mjs "$PREVIEW_ORIGIN" /tmp/qa-content-live
+          rm -rf /tmp/qa-content-live /tmp/qa-final-live /tmp/qa-crawl-live
+          mkdir -p /tmp/qa-content-live /tmp/qa-final-live /tmp/qa-crawl-live
+          node tests/content-value-audit.mjs "$PREVIEW_ORIGIN" /tmp/qa-content-live remediated
           node tests/final-site-audit.mjs "$PREVIEW_ORIGIN" /tmp/ppl-low-value /tmp/qa-final-live
           node tests/final-route-crawl.mjs "$PREVIEW_ORIGIN" /tmp/ppl-low-value /tmp/qa-crawl-live
 
@@ -178,6 +187,7 @@ jobs:
         with:
           name: print-prep-lab-low-value-content-evidence
           path: |
+            /tmp/qa-content-before/
             /tmp/qa-content/
             /tmp/qa-content-live/
             /tmp/qa-visual/
