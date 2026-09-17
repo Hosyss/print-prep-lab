@@ -18,7 +18,7 @@ test('all seven editorial worked examples agree with calculator math', () => {
   const readinessCrop = cropRetention(4200, 2800, 14 * 25.4, 10 * 25.4);
   closeTo(readinessCrop.croppedPercent, 6.666666666666665);
   const croppedWidth = 2800 * (14 / 10);
-  assert.equal(croppedWidth, 3920);
+  closeTo(croppedWidth, 3920);
   const readinessPpi = effectivePpiDetails(croppedWidth, 2800, 14 * 25.4, 10 * 25.4);
   closeTo(readinessPpi.widthPpi, 280);
   closeTo(readinessPpi.heightPpi, 280);
