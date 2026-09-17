@@ -21,8 +21,10 @@ try{
  body=await page.locator('body').innerText();
  const resultSection=page.locator('section.tool-results[aria-label="Calculated results"]');
  check('calculated results are labelled',await resultSection.count()===1&&await resultSection.locator('.tool-results-heading strong').count()===1,await resultSection.getAttribute('aria-label')||'missing');
- check('worked example is separately labelled',body.includes('Worked example'));
- check('prefilled values are disclosed as examples',body.includes('Example values are pre-filled.'));
+ const workedExample=page.locator('.tool-learning-grid [data-en="Worked example"]');
+ check('worked example is separately labelled',await workedExample.count()===1,await workedExample.first().getAttribute('data-en')||'missing');
+ const exampleNote=page.locator('.example-input-note[data-en^="Example values are pre-filled."]');
+ check('prefilled values are disclosed as examples',await exampleNote.count()===1,await exampleNote.first().getAttribute('data-en')||'missing');
  r=await page.goto(base+'/tools/bleed-safe-area-calculator',{waitUntil:'domcontentloaded'});check('bleed tool route',r?.status()===200,String(r?.status()));
  const bleedInput=page.locator('input[type="number"]').nth(0);await bleedInput.fill('-1');check('negative trim is visibly invalid',await waitForAttr(bleedInput,'aria-invalid','true'),await bleedInput.inputValue());const bleedBody=await page.locator('body').innerText();check('negative trim never produces invalid result',!/NaN|Infinity/.test(bleedBody));
  fs.writeFileSync(path.join(outDir,'tool-input-results.json'),JSON.stringify({generatedAt:new Date().toISOString(),base,results},null,2));
