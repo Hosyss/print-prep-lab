@@ -41,6 +41,7 @@ jobs:
           set -euo pipefail
           npm run lint
           npm run test:math
+          node --experimental-strip-types --test tests/editorial-example-math.test.mjs
           npm test
 
       - name: Build reviewed layered Pages artifact
