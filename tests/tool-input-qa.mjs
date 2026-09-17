@@ -7,21 +7,23 @@ fs.mkdirSync(outDir,{recursive:true});
 const browser=await chromium.launch({headless:true,channel:'chrome'});
 const context=await browser.newContext({viewport:{width:1280,height:900}});const page=await context.newPage();
 const results=[];const check=(name,ok,detail='')=>{if(!ok)throw new Error(`${name}: ${detail}`);results.push({name,detail});console.log('PASS',name,detail)};
+async function waitForAttr(locator,name,value,timeout=2000){const end=Date.now()+timeout;while(Date.now()<end){if(await locator.getAttribute(name)===value)return true;await page.waitForTimeout(25)}return false}
+async function waitForValue(locator,value,timeout=2000){const end=Date.now()+timeout;while(Date.now()<end){if(await locator.inputValue()===value)return true;await page.waitForTimeout(25)}return false}
 try{
  let r=await page.goto(base+'/tools/pixels-to-print-size',{waitUntil:'domcontentloaded'});check('pixels tool route',r?.status()===200,String(r?.status()));
  const inputs=page.locator('input[type="number"]');check('pixels tool has numeric inputs',await inputs.count()>=3,String(await inputs.count()));
- const originalWidth=await inputs.nth(0).inputValue();
- await inputs.nth(0).fill('-25');await page.waitForTimeout(100);check('negative pixel width is visibly invalid',(await inputs.nth(0).getAttribute('aria-invalid'))==='true',await inputs.nth(0).inputValue());
- check('invalid field explains minimum',(await page.locator('.field-error').first().innerText()).length>0);
+ const widthInput=inputs.nth(0),ppiInput=inputs.nth(2),originalWidth=await widthInput.inputValue();
+ await widthInput.fill('-25');check('negative pixel width is visibly invalid',await waitForAttr(widthInput,'aria-invalid','true'),await widthInput.inputValue());
+ const fieldError=page.locator('.field-error').first();await fieldError.waitFor({state:'visible',timeout:2000});check('invalid field explains minimum',(await fieldError.innerText()).length>0);
  let body=await page.locator('body').innerText();check('invalid entry never renders NaN/Infinity',!/NaN|Infinity/.test(body));
- await inputs.nth(0).blur();await page.waitForTimeout(50);check('invalid draft reverts on blur',(await inputs.nth(0).inputValue())===originalWidth,await inputs.nth(0).inputValue());
- const originalPpi=await inputs.nth(2).inputValue();await inputs.nth(2).fill('0');await page.waitForTimeout(50);check('zero PPI is visibly invalid',(await inputs.nth(2).getAttribute('aria-invalid'))==='true',await inputs.nth(2).inputValue());await inputs.nth(2).blur();check('invalid PPI reverts on blur',(await inputs.nth(2).inputValue())===originalPpi,await inputs.nth(2).inputValue());
+ await widthInput.blur();check('invalid draft reverts on blur',await waitForValue(widthInput,originalWidth),await widthInput.inputValue());
+ const originalPpi=await ppiInput.inputValue();await ppiInput.fill('0');check('zero PPI is visibly invalid',await waitForAttr(ppiInput,'aria-invalid','true'),await ppiInput.inputValue());await ppiInput.blur();check('invalid PPI reverts on blur',await waitForValue(ppiInput,originalPpi),await ppiInput.inputValue());
  body=await page.locator('body').innerText();
  const resultSection=page.locator('section.tool-results[aria-label="Calculated results"]');
  check('calculated results are labelled',await resultSection.count()===1&&await resultSection.locator('.tool-results-heading strong').count()===1,await resultSection.getAttribute('aria-label')||'missing');
  check('worked example is separately labelled',body.includes('Worked example'));
  check('prefilled values are disclosed as examples',body.includes('Example values are pre-filled.'));
  r=await page.goto(base+'/tools/bleed-safe-area-calculator',{waitUntil:'domcontentloaded'});check('bleed tool route',r?.status()===200,String(r?.status()));
- const bleedInputs=page.locator('input[type="number"]');await bleedInputs.nth(0).fill('-1');await page.waitForTimeout(100);check('negative trim is visibly invalid',(await bleedInputs.nth(0).getAttribute('aria-invalid'))==='true');const bleedBody=await page.locator('body').innerText();check('negative trim never produces invalid result',!/NaN|Infinity/.test(bleedBody));
+ const bleedInput=page.locator('input[type="number"]').nth(0);await bleedInput.fill('-1');check('negative trim is visibly invalid',await waitForAttr(bleedInput,'aria-invalid','true'),await bleedInput.inputValue());const bleedBody=await page.locator('body').innerText();check('negative trim never produces invalid result',!/NaN|Infinity/.test(bleedBody));
  fs.writeFileSync(path.join(outDir,'tool-input-results.json'),JSON.stringify({generatedAt:new Date().toISOString(),base,results},null,2));
 } finally {await context.close();await browser.close()}
