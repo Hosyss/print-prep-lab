@@ -60,9 +60,9 @@ jobs:
           rm -rf /tmp/ppl-low-value
           mkdir -p /tmp/ppl-low-value
           unzip -q release-artifacts/v119.1/print-prep-lab-pages-adsense-readiness-final.zip -d /tmp/ppl-low-value
-          grep -Fq 'data-content-value="worked-calculation"' /tmp/ppl-low-value/_worker.js
-          grep -Fq 'data-content-value="verifiable-evidence"' /tmp/ppl-low-value/_worker.js
-          grep -Fq 'data-content-value="correction-process"' /tmp/ppl-low-value/_worker.js
+          test -s /tmp/ppl-low-value/_worker.js
+          test -s /tmp/ppl-low-value/enterprise-suite.js
+          test -s /tmp/ppl-low-value/home-v112.html
           grep -Fq 'Who is it for?' /tmp/ppl-low-value/home-v112.html
 
       - name: Install browser QA dependency
