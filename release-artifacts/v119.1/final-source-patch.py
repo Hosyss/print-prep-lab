@@ -32,18 +32,30 @@ if old_privacy not in privacy: raise SystemExit('privacy accuracy marker changed
 privacy=privacy.replace(old_privacy,new_privacy)
 p.write_text(privacy,encoding='utf-8')
 
-# A static route is backed by an internal HTML asset. Browser conditional headers
-# must not be forwarded to that internal fetch: a matching ETag can make ASSETS
-# return 304, Response.ok becomes false, and the old code fell through to App Router
-# as a false 404 on reload. The outer route owns cache validation.
+# Worker fixes: conditional reloads for static-backed routes and explicit runtime
+# aliases. Advanced-mode Pages routes requests through the Worker, so _redirects
+# alone is not sufficient for these legacy paths.
 p=root/'worker/index.ts'; worker=p.read_text(encoding='utf-8')
 old_worker='''  const assetRequest = new Request(new URL(target, request.url), { method: request.method, headers: request.headers });\n  const response = await env.ASSETS.fetch(assetRequest);\n  return response.ok ? withSecurityHeaders(response, request) : null;'''
 new_worker='''  const headers = new Headers(request.headers);\n  headers.delete("If-None-Match");\n  headers.delete("If-Modified-Since");\n  const assetRequest = new Request(new URL(target, request.url), { method: request.method, headers });\n  const response = await env.ASSETS.fetch(assetRequest);\n  return response.ok ? withSecurityHeaders(response, request) : null;'''
 if old_worker not in worker: raise SystemExit('static route asset fetch marker changed')
-p.write_text(worker.replace(old_worker,new_worker,1),encoding='utf-8')
+worker=worker.replace(old_worker,new_worker,1)
+legacy_marker='const GOOGLE_VERIFICATION_PATH = "/google6d67c58ff3b5201c.html";'
+alias_block='''const LEGACY_ROUTE_ALIASES: Record<string, { target: string; status: 301 | 302 }> = {\n  "/workflow": { target: "/#workflow", status: 301 },\n  "/tools/best-print-size-finder": { target: "/scenarios", status: 301 },\n  "/tools/saddle-stitch-booklet-calculator": { target: "/signature-planner", status: 301 },\n  "/guides/best-file-format-for-printing": { target: "/guides/print-file-preflight-checklist", status: 301 },\n  "/guides/choose-best-photo-print-size": { target: "/scenarios", status: 301 },\n  "/guides/rgb-vs-cmyk-printing": { target: "/prepress-lab", status: 301 },\n  "/guides/saddle-stitch-booklet-page-count": { target: "/signature-planner", status: 301 },\n  "/tools/mat-frame-calculator": { target: "/tools", status: 302 },\n  "/tools/poster-tiling-calculator": { target: "/guides/export-images-for-large-format-printing", status: 302 },\n  "/guides/mat-frame-sizing-guide": { target: "/guides", status: 302 },\n  "/guides/tiled-poster-printing-guide": { target: "/guides/export-images-for-large-format-printing", status: 302 },\n};\n'''
+if legacy_marker not in worker: raise SystemExit('legacy alias insertion marker changed')
+worker=worker.replace(legacy_marker,alias_block+legacy_marker,1)
+func_marker='''function legacyRedirect(url: URL): Response | null {\n  if (!LEGACY_HOSTS.has(url.hostname)) return null;'''
+route_func='''function legacyRouteRedirect(url: URL): Response | null {\n  const rule = LEGACY_ROUTE_ALIASES[normalizedPath(url.pathname)];\n  if (!rule) return null;\n  const destination = new URL(rule.target, url.origin);\n  if (url.search) destination.search = url.search;\n  return new Response(null, {\n    status: rule.status,\n    headers: { Location: destination.toString(), "Cache-Control": rule.status === 301 ? "public, max-age=3600" : "no-cache" },\n  });\n}\n\n'''
+if func_marker not in worker: raise SystemExit('legacy redirect function marker changed')
+worker=worker.replace(func_marker,route_func+func_marker,1)
+call_marker='''    const redirectResponse = legacyRedirect(url);\n    if (redirectResponse) return redirectResponse;\n\n    if (url.pathname === "/admin" || url.pathname === "/admin/") {'''
+call_replacement='''    const redirectResponse = legacyRedirect(url);\n    if (redirectResponse) return redirectResponse;\n    const routeRedirectResponse = legacyRouteRedirect(url);\n    if (routeRedirectResponse) return routeRedirectResponse;\n\n    if (url.pathname === "/admin" || url.pathname === "/admin/") {'''
+if call_marker not in worker: raise SystemExit('legacy route redirect call marker changed')
+worker=worker.replace(call_marker,call_replacement,1)
+p.write_text(worker,encoding='utf-8')
 
 # Freshness metadata follows the reviewed release rather than the August baseline.
 p=root/'lib/seo.ts'; seo=p.read_text(encoding='utf-8')
 seo=seo.replace('export const SITE_UPDATED_AT = "2026-08-24";','export const SITE_UPDATED_AT = "2026-09-17";')
 p.write_text(seo,encoding='utf-8')
-print('Applied final source patch: inputs, examples, mobile overflow, privacy accuracy, reload cache, SEO freshness')
+print('Applied final source patch: inputs, examples, mobile overflow, privacy accuracy, reload cache, legacy aliases, SEO freshness')
