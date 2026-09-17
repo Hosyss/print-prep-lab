@@ -102,7 +102,7 @@ export default function ContactPage() {
         <section data-content-value="verifiable-contact-records">
           <span>06</span>
           <div>
-            <h2>Public records you can inspect</h2>
+            <h2>Public source and publisher profile</h2>
             <p>
               The repository contains the report template, shared calculation module and regression tests used by the project. These records make the contact route useful for verifiable corrections rather than a generic feedback form.
             </p>
