@@ -7,7 +7,7 @@ output="${release_dir}/print-prep-lab-pages-adsense-readiness-final.zip"
 staging="$(mktemp -d)"
 trap 'rm -rf -- "${staging}"' EXIT
 
-# Apply source-only corrections before Vinext builds the public app routes.
+# Apply source-only corrections once, then build the current public app.
 python3 "${release_dir}/final-source-patch.py" "${repo_root}"
 (
   cd "${repo_root}"
@@ -21,6 +21,7 @@ bash "${release_dir}/build-phase2c.sh"
 unzip -q "${base_zip}" -d "${staging}"
 marker="${GITHUB_SHA:-manual-final-readiness}"
 python3 "${release_dir}/final-artifact-patch.py" "${staging}" "${marker}"
+python3 "${release_dir}/final-artifact-review-patch.py" "${staging}"
 
 node --check "${staging}/enterprise-suite.js"
 node --check "${staging}/jobs.js"
@@ -28,6 +29,7 @@ grep -Fq "decisionModel:'explicit-fields-v2'" "${staging}/enterprise-suite.js"
 grep -Fq "decisionModel:'explicit-eligibility-v1'" "${staging}/enterprise-suite.js"
 grep -Fq 'enterprise-job-cores-v2' "${staging}/enterprise-suite.js"
 grep -Fq 'selected-job-id-v1' "${staging}/enterprise-suite.js"
+grep -Fq 'JSON.stringify(id)' "${staging}/jobs.js"
 grep -Fq 'ppl-final-build-marker:' "${staging}/enterprise-suite.js"
 grep -Fq 'max-age=0, must-revalidate' "${staging}/_headers"
 grep -Fq 'id="workflow"' "${staging}/home-v112.html"
@@ -37,6 +39,7 @@ grep -Fq 'لمن صُمم؟' "${staging}/home-v112.html"
 ! grep -Fq 'user-controlled weights' "${staging}/supplier-intelligence.html"
 grep -R -Fq 'Example values are pre-filled.' "${staging}"
 grep -R -Fq 'final-readiness-mobile-guard' "${staging}"
+grep -Fq 'headers.delete("If-None-Match")' "${staging}/_worker.js"
 test -s "${staging}/og-image.png"
 python3 - "${staging}/search-index.json" <<'PY'
 import json,sys
