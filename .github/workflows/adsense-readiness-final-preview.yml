@@ -48,7 +48,12 @@ jobs:
           grep -Fq "decisionModel:'explicit-fields-v2'" /tmp/ppl-final/enterprise-suite.js
           grep -Fq "decisionModel:'explicit-eligibility-v1'" /tmp/ppl-final/enterprise-suite.js
           grep -Fq 'enterprise-job-cores-v2' /tmp/ppl-final/enterprise-suite.js
+          grep -Fq 'JSON.stringify(id)' /tmp/ppl-final/jobs.js
+          grep -Fq 'headers.delete("If-None-Match")' /tmp/ppl-final/_worker.js
           grep -Fq "ppl-final-build-marker:${GITHUB_SHA}" /tmp/ppl-final/enterprise-suite.js
+          ! grep -Eq 'blockedWord|okayWord' /tmp/ppl-final/enterprise-suite.js
+          ! grep -Fq 'value="Sample print job"' /tmp/ppl-final/job-core.html
+          grep -Fq 'Who is it for?' /tmp/ppl-final/home-v112.html
 
       - name: Run affected state regressions
         shell: bash
@@ -78,16 +83,26 @@ jobs:
           done
           test "$ready" = 1
 
-      - name: Run local affected-flow QA
+      - name: Run local affected-flow and whole-site QA
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/qa-2a /tmp/qa-2b /tmp/qa-2c /tmp/qa-final-local
-          mkdir -p /tmp/qa-2a /tmp/qa-2b /tmp/qa-2c /tmp/qa-final-local
+          rm -rf /tmp/qa-2a /tmp/qa-2b /tmp/qa-2c /tmp/qa-final-local /tmp/qa-final-flow /tmp/qa-tool-input /tmp/qa-crawl
+          mkdir -p /tmp/qa-2a /tmp/qa-2b /tmp/qa-2c /tmp/qa-final-local /tmp/qa-final-flow /tmp/qa-tool-input /tmp/qa-crawl
           node tests/phase2a-browser-qa.mjs http://127.0.0.1:4176 /tmp/qa-2a
           node tests/phase2b-supplier-qa.mjs http://127.0.0.1:4176 /tmp/qa-2b
           node tests/phase2c-jobs-qa.mjs http://127.0.0.1:4176 /tmp/qa-2c
           node tests/final-site-audit.mjs http://127.0.0.1:4176 /tmp/ppl-final /tmp/qa-final-local
+          node tests/final-readiness-qa.mjs http://127.0.0.1:4176 /tmp/qa-final-flow
+          node tests/tool-input-qa.mjs http://127.0.0.1:4176 /tmp/qa-tool-input
+          node tests/final-route-crawl.mjs http://127.0.0.1:4176 /tmp/ppl-final /tmp/qa-crawl
+          curl -sS -D /tmp/reload-first.headers -o /tmp/reload-first.html http://127.0.0.1:4176/digital-twin
+          etag="$(awk 'BEGIN{IGNORECASE=1} /^etag:/{sub(/\r$/,"",$2); print $2; exit}' /tmp/reload-first.headers)"
+          test -n "$etag"
+          code="$(curl -sS -o /tmp/reload-second.html -w '%{http_code}' -H "If-None-Match: $etag" http://127.0.0.1:4176/digital-twin)"
+          echo "local conditional reload -> $code"
+          test "$code" = 200
+          grep -Fq '/enterprise-suite.js' /tmp/reload-second.html
 
       - name: Stop local Pages runtime
         if: always()
@@ -108,7 +123,7 @@ jobs:
             --commit-hash "$GITHUB_SHA" \
             --commit-message 'final AdSense readiness preview — no production promotion'
 
-      - name: Verify preview identity and critical HTTP surfaces
+      - name: Verify preview identity critical HTTP and conditional reload
         shell: bash
         run: |
           set -euo pipefail
@@ -129,16 +144,27 @@ jobs:
           grep -Eiq 'cache-control:.*max-age=0.*must-revalidate' /tmp/live-suite-headers
           test "$(curl --silent --output /tmp/ads.txt --write-out '%{http_code}' "$PREVIEW_ORIGIN/ads.txt")" = 200
           grep -Eq '^google\.com, *pub-[0-9]+, *DIRECT, *f08c47fec0942fa0' /tmp/ads.txt
+          curl -sS -D /tmp/live-reload-first.headers -o /tmp/live-reload-first.html "$PREVIEW_ORIGIN/digital-twin"
+          etag="$(awk 'BEGIN{IGNORECASE=1} /^etag:/{sub(/\r$/,"",$2); print $2; exit}' /tmp/live-reload-first.headers)"
+          test -n "$etag"
+          code="$(curl -sS -o /tmp/live-reload-second.html -w '%{http_code}' -H "If-None-Match: $etag" "$PREVIEW_ORIGIN/digital-twin")"
+          echo "public conditional reload -> $code"
+          test "$code" = 200
+          grep -Fq '/enterprise-suite.js' /tmp/live-reload-second.html
 
       - name: Run public-preview QA for changed flows and whole site
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/qa-2b-live /tmp/qa-2c-live /tmp/qa-final-live
-          mkdir -p /tmp/qa-2b-live /tmp/qa-2c-live /tmp/qa-final-live
+          rm -rf /tmp/qa-2a-live /tmp/qa-2b-live /tmp/qa-2c-live /tmp/qa-final-live /tmp/qa-final-flow-live /tmp/qa-tool-input-live /tmp/qa-crawl-live
+          mkdir -p /tmp/qa-2a-live /tmp/qa-2b-live /tmp/qa-2c-live /tmp/qa-final-live /tmp/qa-final-flow-live /tmp/qa-tool-input-live /tmp/qa-crawl-live
+          node tests/phase2a-browser-qa.mjs "$PREVIEW_ORIGIN" /tmp/qa-2a-live
           node tests/phase2b-supplier-qa.mjs "$PREVIEW_ORIGIN" /tmp/qa-2b-live
           node tests/phase2c-jobs-qa.mjs "$PREVIEW_ORIGIN" /tmp/qa-2c-live
           node tests/final-site-audit.mjs "$PREVIEW_ORIGIN" /tmp/ppl-final /tmp/qa-final-live
+          node tests/final-readiness-qa.mjs "$PREVIEW_ORIGIN" /tmp/qa-final-flow-live
+          node tests/tool-input-qa.mjs "$PREVIEW_ORIGIN" /tmp/qa-tool-input-live
+          node tests/final-route-crawl.mjs "$PREVIEW_ORIGIN" /tmp/ppl-final /tmp/qa-crawl-live
 
       - name: Upload final artifact and QA evidence
         uses: actions/upload-artifact@v4
@@ -150,9 +176,18 @@ jobs:
             /tmp/qa-2b/
             /tmp/qa-2c/
             /tmp/qa-final-local/
+            /tmp/qa-final-flow/
+            /tmp/qa-tool-input/
+            /tmp/qa-crawl/
+            /tmp/qa-2a-live/
             /tmp/qa-2b-live/
             /tmp/qa-2c-live/
             /tmp/qa-final-live/
+            /tmp/qa-final-flow-live/
+            /tmp/qa-tool-input-live/
+            /tmp/qa-crawl-live/
             /tmp/final-wrangler.log
+            /tmp/reload-first.headers
+            /tmp/live-reload-first.headers
           if-no-files-found: error
           retention-days: 14
