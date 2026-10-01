@@ -1,3 +1,4 @@
+import { GUIDE_ARABIC } from "@/lib/source-arabic-guides";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, PageCta, PageHero } from "@/components/content-shell";
@@ -43,7 +44,7 @@ export default function GuidesIndex() {
 
     <section className="content-section shell">
       <div className="section-kicker" data-en="All guides" data-ar="كل الأدلة">All guides</div>
-      <div className="guide-index">{GUIDE_PAGES.map((guide, index) => <Link href={`/guides/${guide.slug}`} key={guide.slug}><span>{String(index + 1).padStart(2, "0")}</span><div><small data-en="Guide" data-ar="دليل">Guide</small><h2>{guide.title}</h2><p>{guide.description}</p></div><b data-en="Read guide →" data-ar="اقرأ الدليل ←">Read guide →</b></Link>)}</div>
+      <div className="guide-index">{GUIDE_PAGES.map((guide, index) => <Link href={`/guides/${guide.slug}`} key={guide.slug}><span>{String(index + 1).padStart(2, "0")}</span><div><small data-en="Guide" data-ar="دليل">Guide</small><h2 data-en={guide.title} data-ar={GUIDE_ARABIC[guide.slug]?.heading}>{guide.title}</h2><p data-en={guide.description} data-ar={GUIDE_ARABIC[guide.slug]?.description}>{guide.description}</p></div><b data-en="Read guide →" data-ar="اقرأ الدليل ←">Read guide →</b></Link>)}</div>
     </section>
 
     <section className="content-section paper-section">

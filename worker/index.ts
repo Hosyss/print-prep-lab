@@ -22,6 +22,18 @@ interface ExecutionContext {
 const CANONICAL_ORIGIN = "https://printpreplab.pages.dev";
 const ADMIN_ORIGIN = "https://print-prep-lab-admin.buildtools.workers.dev";
 const LEGACY_HOSTS = new Set(["print-prep-lab.hosys.chatgpt.site"]);
+const LEGACY_ROUTE_ALIASES: Record<string, { target: string; status: 301 | 302 }> = {
+  "/workflow": { target: "/#workflow", status: 301 },
+  "/tools/best-print-size-finder": { target: "/scenarios", status: 301 },
+  "/tools/saddle-stitch-booklet-calculator": { target: "/signature-planner", status: 301 },
+  "/guides/best-file-format-for-printing": { target: "/guides/print-file-preflight-checklist", status: 301 },
+  "/guides/choose-best-photo-print-size": { target: "/scenarios", status: 301 },
+  "/guides/saddle-stitch-booklet-page-count": { target: "/signature-planner", status: 301 },
+  "/tools/mat-frame-calculator": { target: "/tools", status: 302 },
+  "/tools/poster-tiling-calculator": { target: "/guides/export-images-for-large-format-printing", status: 302 },
+  "/guides/mat-frame-sizing-guide": { target: "/guides", status: 302 },
+  "/guides/tiled-poster-printing-guide": { target: "/guides/export-images-for-large-format-printing", status: 302 },
+};
 const GOOGLE_VERIFICATION_PATH = "/google6d67c58ff3b5201c.html";
 const GOOGLE_VERIFICATION_BODY = "google-site-verification: google6d67c58ff3b5201c.html";
 
@@ -41,8 +53,7 @@ const OPERATIONAL_NOINDEX_PATHS = new Set([
    hybrid artifact the files are present, so the current professional pages remain
    available while public tools/guides/sizes come from current source. */
 const STATIC_PAGE_ROUTES: Record<string, string> = {
-  "/": "/home-v112.html",
-  "/tools/print-readiness-checker": "/print-readiness-v111.html",
+
   "/jobs": "/jobs.html",
   "/inspector": "/inspector.html",
   "/proof-sheet": "/proof-sheet.html",
@@ -147,9 +158,20 @@ function withSecurityHeaders(response: Response, request: Request): Response {
     headers.set("Link", existingLink ? `${existingLink}, ${canonicalLink}` : canonicalLink);
     headers.set("Cache-Control", "public, max-age=0, must-revalidate");
     headers.set("CDN-Cache-Control", "public, max-age=600, stale-while-revalidate=86400");
-    if (OPERATIONAL_NOINDEX_PATHS.has(path)) headers.set("X-Robots-Tag", "noindex, follow");
+    if (OPERATIONAL_NOINDEX_PATHS.has(path) || (path in STATIC_PAGE_ROUTES && path !== "/glossary")) headers.set("X-Robots-Tag", "noindex, follow");
   }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+function legacyRouteRedirect(url: URL): Response | null {
+  const rule = LEGACY_ROUTE_ALIASES[normalizedPath(url.pathname)];
+  if (!rule) return null;
+  const destination = new URL(rule.target, url.origin);
+  if (url.search) destination.search = url.search;
+  return new Response(null, {
+    status: rule.status,
+    headers: { Location: destination.toString(), "Cache-Control": rule.status === 301 ? "public, max-age=3600" : "no-cache" },
+  });
 }
 
 function legacyRedirect(url: URL): Response | null {
@@ -165,7 +187,10 @@ function legacyRedirect(url: URL): Response | null {
 
 async function staticPageResponse(request: Request, env: Env, target: string): Promise<Response | null> {
   if (!env.ASSETS || (request.method !== "GET" && request.method !== "HEAD")) return null;
-  const assetRequest = new Request(new URL(target, request.url), { method: request.method, headers: request.headers });
+  const headers = new Headers(request.headers);
+  headers.delete("If-None-Match");
+  headers.delete("If-Modified-Since");
+  const assetRequest = new Request(new URL(target, request.url), { method: request.method, headers });
   const response = await env.ASSETS.fetch(assetRequest);
   return response.ok ? withSecurityHeaders(response, request) : null;
 }
@@ -175,6 +200,8 @@ const worker = {
     const url = new URL(request.url);
     const redirectResponse = legacyRedirect(url);
     if (redirectResponse) return redirectResponse;
+    const routeRedirectResponse = legacyRouteRedirect(url);
+    if (routeRedirectResponse) return routeRedirectResponse;
 
     if (url.pathname === "/admin" || url.pathname === "/admin/") {
       return new Response(null, {

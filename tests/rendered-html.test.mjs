@@ -18,6 +18,8 @@ const EXPECTED_PATHS = [
   "/guides/print-resolution-guide", "/guides/bleed-trim-safe-area",
   "/guides/aspect-ratio-cropping-print", "/guides/print-file-preflight-checklist",
   "/guides/export-images-for-large-format-printing", "/guides/a4-vs-us-letter-printing",
+  "/guides/rgb-vs-cmyk-printing", "/guides/prepare-pdf-for-print",
+  "/guides/low-resolution-images-for-print", "/guides/business-card-bleed-and-safe-area",
   "/about", "/methodology", "/sources", "/editorial-policy",
   "/privacy", "/terms", "/contact",
 ];
@@ -108,7 +110,7 @@ test("serves a clean robots file, a complete sitemap and an authorized ads.txt",
   const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
   assert.deepEqual(new Set(locations), new Set(EXPECTED_PATHS.map((path) => `${SITE_URL}${path}`)));
   assert.equal(new Set(locations).size, EXPECTED_PATHS.length);
-  assert.equal((sitemap.match(/<lastmod>2026-08-24T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length);
+  assert.equal((sitemap.match(/<lastmod>2026-10-01T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length);
   assert.doesNotMatch(sitemap, /<priority>|<changefreq>/);
 
   const adsText = (await readFile(new URL("../public/ads.txt", import.meta.url), "utf8")).trim();
@@ -190,24 +192,24 @@ test("renders all twelve size references with format-specific editorial context"
   assert.equal(bodyFingerprints.size, 12);
 });
 
-test("renders eight original guides with authorship, review, sources and practical decisions", async () => {
+test("renders twelve original guides with authorship, review, sources and practical decisions", async () => {
   const worker = await loadWorker();
   const guidePaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/guides/"));
-  assert.equal(guidePaths.length, 8);
+  assert.equal(guidePaths.length, 12);
 
   const homeHtml = await renderPath(worker, "/");
-  assert.match(homeHtml, /Eight original guides/);
+  assert.match(homeHtml, /THE PRINT PREPARATION LIBRARY/);
   const homeGuideLinks = new Set(
     [...homeHtml.matchAll(/<a\b[^>]*\bhref="(\/guides\/[^"#?]+)"/g)].map((match) => match[1]),
   );
-  assert.deepEqual(homeGuideLinks, new Set(guidePaths), "the home page must expose all eight guides");
+  assert.deepEqual(homeGuideLinks, new Set(guidePaths), "the home page must expose all twelve guides");
 
   for (const path of guidePaths) {
     const html = await renderPath(worker, path);
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
     assert.match(html, /Written and maintained by/);
     assert.match(html, /Hossam Eldeen/);
-    assert.match(html, /Reviewed and updated August 24, 2026/);
+    assert.match(html, /Updated October 1, 2026/);
     assert.match(html, /Decision table/);
     assert.match(html, /Practical workflow/);
     assert.match(html, /Common mistakes/);
@@ -245,6 +247,8 @@ test("audits every sitemap page for indexability, distinct metadata and valid in
   for (const path of EXPECTED_PATHS) {
     const html = await renderPath(worker, path);
     assert.doesNotMatch(html, developmentPreviewMeta, `${path} exposes preview metadata`);
+    const indexResponse = await requestPath(worker, path);
+    assert.doesNotMatch(indexResponse.headers.get("x-robots-tag") ?? "", /noindex/i, `${path} HTTP headers must permit indexing`);
     assert.doesNotMatch(html, /helpx\.adobe\.com\/photoshop\/using\/image-size-resolution\.html/i, `${path} links to Adobe's retired resolution page`);
     assert.doesNotMatch(html, /helpx\.adobe\.com\/indesign\/using\/printers-marks-bleeds\.html/i, `${path} links to Adobe's retired bleed page`);
     assert.doesNotMatch(html, /<meta[^>]+content="noindex/i, `${path} must be indexable`);
@@ -269,7 +273,7 @@ test("audits every sitemap page for indexability, distinct metadata and valid in
       const href = match[1];
       if (!href.startsWith("/")) continue;
       const linkedPath = new URL(href, SITE_URL).pathname;
-      assert.ok(expectedPathSet.has(linkedPath), `${path} links to a route missing from the sitemap: ${href}`);
+      assert.ok(expectedPathSet.has(linkedPath) || linkedPath === "/workspace", `${path} links to a route missing from the sitemap: ${href}`);
     }
   }
   assert.equal(titles.size, EXPECTED_PATHS.length);

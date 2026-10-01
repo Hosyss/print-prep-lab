@@ -42,3 +42,7 @@ next-env.d.ts
 /.cloudflare/
 /outputs/
 /work/
+
+*.tsbuildinfo
+/release-artifacts/v119.0/*.zip
+/release-artifacts/v119.1/*.zip

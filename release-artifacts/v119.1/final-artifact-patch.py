@@ -14,7 +14,6 @@ replacements={
  '/workflow':'/#workflow',
  '/tools/saddle-stitch-booklet-calculator':'/signature-planner',
  '/guides/best-file-format-for-printing':'/guides/print-file-preflight-checklist',
- '/guides/rgb-vs-cmyk-printing':'/prepress-lab',
 }
 for p in root.glob('*.html'):
     s=p.read_text(encoding='utf-8'); orig=s
@@ -44,7 +43,6 @@ permanent={
  '/tools/saddle-stitch-booklet-calculator':'/signature-planner',
  '/guides/best-file-format-for-printing':'/guides/print-file-preflight-checklist',
  '/guides/choose-best-photo-print-size':'/scenarios',
- '/guides/rgb-vs-cmyk-printing':'/prepress-lab',
  '/guides/saddle-stitch-booklet-page-count':'/signature-planner',
 }
 fallback={

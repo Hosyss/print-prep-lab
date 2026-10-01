@@ -10,7 +10,6 @@ permanent={
  '/tools/saddle-stitch-booklet-calculator':'/signature-planner',
  '/guides/best-file-format-for-printing':'/guides/print-file-preflight-checklist',
  '/guides/choose-best-photo-print-size':'/scenarios',
- '/guides/rgb-vs-cmyk-printing':'/prepress-lab',
  '/guides/saddle-stitch-booklet-page-count':'/signature-planner',
 }
 fallback={
@@ -28,14 +27,17 @@ for a,b in permanent.items(): lines.append(f'{a} {b} 301')
 for a,b in fallback.items(): lines.append(f'{a} {b} 302')
 p.write_text('\n'.join(lines).rstrip()+'\n',encoding='utf-8')
 
-operational={
- 'jobs','qa-history','operations','change-impact','risk-register','queue-planner','waste-ledger','approval-matrix','release-packet','revision-diff','calibration-registry','capa','audit-log','job-core','digital-twin','supplier-intelligence','release-center','automation-lab','production-analytics','schedule-optimizer','material-intelligence','customer-handoff','vendor-handoff','production-archive','compliance-center','knowledge-base','enterprise-dashboard','readiness-audit','command-center','search','vault','file-manifest','job-brief','workspace'
-}
+# Workspace and legacy utility pages are retained for visitors but do not belong
+# in the public editorial index. The glossary remains a reading reference.
+operational={page.stem for page in root.glob('*.html') if page.name != 'glossary.html' and not page.name.startswith('google')}
 count=0
 for stem in operational:
     page=root/f'{stem}.html'
     if not page.exists(): continue
     s=page.read_text(encoding='utf-8')
+    # Ads are restricted to the current public content routes, not local-state
+    # application screens or compatibility HTML files.
+    s=re.sub(r'<script\b[^>]*src=["\'][^"\']*pagead2\.googlesyndication\.com[^"\']*["\'][^>]*>.*?</script>', '', s, flags=re.I|re.S)
     tag='<meta name="robots" content="noindex,follow">'
     if re.search(r'<meta[^>]+name=["\']robots["\'][^>]*>',s,re.I):
         s=re.sub(r'<meta[^>]+name=["\']robots["\'][^>]*>',tag,s,count=1,flags=re.I)

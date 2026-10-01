@@ -1,0 +1,69 @@
+name: Print Prep Lab editorial content review
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: printprep-editorial-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check types and calculation examples
+        run: |
+          node node_modules/typescript/bin/tsc --noEmit
+          npm run test:math
+          node --experimental-strip-types --test tests/editorial-example-math.test.mjs
+      - name: Build retained workspace and current public content
+        run: |
+          bash release-artifacts/v119.1/build-adsense-readiness.sh
+          mkdir -p work/editorial-artifact
+          unzip -q release-artifacts/v119.1/print-prep-lab-pages-adsense-readiness-final.zip -d work/editorial-artifact
+      - name: Verify public indexing, translations and retained links
+        run: |
+          node --test tests/rendered-html.test.mjs
+          PRINTPREP_ASSET_DIR=work/editorial-artifact node scripts/check-review.mjs
+      - name: Install browser test dependency
+        run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.63.0
+      - name: Verify language switching and calculators on desktop and mobile
+        env:
+          PRINTPREP_BLOCK_REMOTE: '1'
+        run: |
+          set -euo pipefail
+          node node_modules/wrangler/bin/wrangler.js pages dev work/editorial-artifact --ip 127.0.0.1 --port 4182 --compatibility-date=2026-05-22 --compatibility-flags=nodejs_compat > /tmp/printprep-runtime.log 2>&1 &
+          runtime_pid=$!
+          trap 'kill "$runtime_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:4182/tools/print-readiness-checker > /dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          node tests/print-readiness-locale-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
+          node tests/editorial-locale-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
+      - name: Save review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: printprep-editorial-review-evidence
+          path: |
+            work/editorial-browser-qa/
+            /tmp/printprep-runtime.log
+            release-artifacts/v119.1/print-prep-lab-pages-adsense-readiness-final.zip
+          if-no-files-found: warn
+          retention-days: 7

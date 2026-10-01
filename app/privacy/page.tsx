@@ -43,7 +43,7 @@ export default function PrivacyPage() {
               Pixel counts, physical sizes, PPI, orientation, bleed and safe-margin values are used in the browser session to calculate results. No confidential information is required to use the calculators.
             </p>
             <p>
-              The site stores an analytics consent preference in local browser storage so it can remember whether Microsoft Clarity may load. The current tools do not create user accounts, save projects or maintain a server-side image library.
+              The site stores an analytics consent preference in local browser storage so it can remember whether Microsoft Clarity may load. The site does not create user accounts or maintain a server-side image library. Professional workspace features may save job records and settings in this browser’s local storage until you clear or export them.
             </p>
           </div>
         </section>

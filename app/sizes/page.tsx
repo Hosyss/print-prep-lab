@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs, PageCta, PageHero } from "@/components/content-shell";
 import { PRINT_PRESETS, pixelsForMm } from "@/lib/print-math";
+import { SIZE_ARABIC } from "@/lib/size-arabic";
 import { SIZE_DETAILS } from "@/lib/site-content";
 import { pageMetadata } from "@/lib/seo";
 
@@ -39,7 +40,7 @@ export default function SizesIndex() {
       <div className="section-kicker" data-en="Browse by category" data-ar="تصفح حسب الفئة">Browse by category</div>
       {groups.map((group) => <section key={group.key} aria-labelledby={`size-group-${group.key}`}>
         <div className="size-group-heading"><div><h2 id={`size-group-${group.key}`} data-en={group.title} data-ar={group.arTitle}>{group.title}</h2><p data-en={group.text} data-ar={group.arText}>{group.text}</p></div><span data-en={`${PRINT_PRESETS.filter((preset) => preset.group === group.key).length} references`} data-ar={`${PRINT_PRESETS.filter((preset) => preset.group === group.key).length} مراجع`}>{PRINT_PRESETS.filter((preset) => preset.group === group.key).length} references</span></div>
-        <div className="size-index-grid">{PRINT_PRESETS.filter((preset) => preset.group === group.key).map((preset) => { const detail = SIZE_DETAILS[preset.slug]; return <Link href={`/sizes/${preset.slug}`} className="size-index-card" key={preset.slug}><span className={`paper-mini ${preset.group.toLowerCase()}`}>{preset.shortLabel}</span><div><small>{preset.group}</small><h3>{preset.label}</h3><p>{preset.widthMm} × {preset.heightMm} mm · {detail.ratio}</p><strong>{pixelsForMm(preset.widthMm, 300)} × {pixelsForMm(preset.heightMm, 300)} px <i data-en="at 300 PPI" data-ar="عند 300 PPI">at 300 PPI</i></strong></div><b>↗</b></Link>; })}</div>
+        <div className="size-index-grid">{PRINT_PRESETS.filter((preset) => preset.group === group.key).map((preset) => { const detail = SIZE_DETAILS[preset.slug]; return <Link href={`/sizes/${preset.slug}`} className="size-index-card" key={preset.slug}><span className={`paper-mini ${preset.group.toLowerCase()}`}>{preset.shortLabel}</span><div><small data-en={preset.group} data-ar={preset.group === "Photo" ? "صور" : preset.group === "US" ? "ورق أمريكي" : "ISO"}>{preset.group}</small><h3 data-en={preset.label} data-ar={SIZE_ARABIC[preset.slug].label}>{preset.label}</h3><p dir="ltr" data-en={`${preset.widthMm} × ${preset.heightMm} mm · ${detail.ratio}`} data-ar={`${preset.widthMm} × ${preset.heightMm} مم · ${detail.ratio}`}>{preset.widthMm} × {preset.heightMm} mm · {detail.ratio}</p><strong>{pixelsForMm(preset.widthMm, 300)} × {pixelsForMm(preset.heightMm, 300)} px <i data-en="at 300 PPI" data-ar="عند 300 PPI">at 300 PPI</i></strong></div><b>↗</b></Link>; })}</div>
       </section>)}
     </section>
 
