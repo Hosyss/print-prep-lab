@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
 import {build} from 'esbuild';
-const contentBundle=await build({stdin:{contents:`export {GUIDE_PAGES,SIZE_USE_CASES} from './lib/site-content'; export {SIZE_ARABIC} from './lib/size-arabic'; export {FEATURED_SIZE_CONTENT} from './lib/size-editorial-content'; export {EDITORIAL_GUIDES} from './lib/editorial-guides'; export {CORE_GUIDE_ARABIC_DETAILS} from './lib/core-guide-arabic-details';`,resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,platform:'node',format:'esm'});
-const {GUIDE_PAGES,EDITORIAL_GUIDES,CORE_GUIDE_ARABIC_DETAILS,SIZE_USE_CASES,SIZE_ARABIC,FEATURED_SIZE_CONTENT}=await import('data:text/javascript;base64,'+Buffer.from(contentBundle.outputFiles[0].text).toString('base64'));
+const contentBundle=await build({stdin:{contents:`export {GUIDE_PAGES,SIZE_USE_CASES,TRUST_PAGES} from './lib/site-content'; export {TRUST_EVIDENCE} from './lib/trust-evidence'; export {TRUST_ARABIC,TRUST_EVIDENCE_ARABIC} from './lib/trust-arabic'; export {SIZE_ARABIC} from './lib/size-arabic'; export {FEATURED_SIZE_CONTENT} from './lib/size-editorial-content'; export {EDITORIAL_GUIDES} from './lib/editorial-guides'; export {CORE_GUIDE_ARABIC_DETAILS} from './lib/core-guide-arabic-details';`,resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,platform:'node',format:'esm'});
+const {GUIDE_PAGES,EDITORIAL_GUIDES,CORE_GUIDE_ARABIC_DETAILS,SIZE_USE_CASES,SIZE_ARABIC,FEATURED_SIZE_CONTENT,TRUST_PAGES,TRUST_EVIDENCE,TRUST_ARABIC,TRUST_EVIDENCE_ARABIC}=await import('data:text/javascript;base64,'+Buffer.from(contentBundle.outputFiles[0].text).toString('base64'));
 let translatedParagraphs=0;
 for(const guide of GUIDE_PAGES){
   const ar=EDITORIAL_GUIDES.find(g=>g.slug===guide.slug)?.ar??CORE_GUIDE_ARABIC_DETAILS[guide.slug];
@@ -34,6 +34,19 @@ const home=htmls.get('/');assert.match(home,/Better print decisions/);assert.mat
 for(const slug of guides){const html=htmls.get('/guides/'+slug);assert.ok(html.includes(slug),slug);if(guides.indexOf(slug)<8)assert.match(html,/WORKED EXAMPLE/);else{assert.match(html,/data-ar=/);assert.ok(html.includes('Updated October 1, 2026'));}const ar=EDITORIAL_GUIDES.find(g=>g.slug===slug)?.ar??CORE_GUIDE_ARABIC_DETAILS[slug];for(const section of ar.sections){assert.ok(html.includes(section.heading),slug+' translated heading rendered');for(const paragraph of section.paragraphs)assert.ok(html.includes(paragraph.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;')),slug+' translated paragraph rendered');}}
 let translatedSizeParagraphs=0;
 const attributeText = s => s.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll("'",'&#x27;');
+let translatedTrustParagraphs=0;
+for(const [slug,page] of Object.entries(TRUST_PAGES)){
+  const ar=TRUST_ARABIC[slug];const html=htmls.get('/'+slug);assert.ok(ar,slug+' Arabic policy');
+  assert.equal(ar.sections.length,page.sections.length,slug+' policy section coverage');
+  const translations=[ar.title,ar.description];
+  page.sections.forEach((section,index)=>{
+    const translated=ar.sections[index];assert.equal(translated.paragraphs.length,section.paragraphs.length,slug+' policy paragraph coverage');
+    translations.push(translated.heading,...translated.paragraphs);translatedTrustParagraphs+=translated.paragraphs.length;
+  });
+  const evidence=TRUST_EVIDENCE[slug];
+  if(evidence){const translated=TRUST_EVIDENCE_ARABIC[slug];assert.equal(translated.links.length,evidence.links.length,slug+' evidence links');translations.push(translated.heading,translated.intro,...translated.links.flatMap(link=>[link.label,link.description]));}
+  for(const translated of translations){assert.match(translated,/[\u0600-\u06ff]/);assert.ok(html.includes('data-ar="'+attributeText(translated)+'"'),slug+' translated policy text rendered');}
+}
 for(const slug of sizes){
   const html=htmls.get('/sizes/'+slug);assert.match(html,/WORKED PRINT SETUP/);
   const ar=SIZE_ARABIC[slug];const featured=FEATURED_SIZE_CONTENT[slug];assert.ok(ar,slug+' Arabic size');
@@ -47,4 +60,4 @@ for(const slug of sizes){
 const links=new Set();for(const html of htmls.values())for(const m of html.matchAll(/href="(\/[^"#?]*)(?:[?#][^"]*)?"/g)){const p=m[1];if(p&&!p.includes('.')&&!p.startsWith('/_'))links.add(p.replace(/\/$/,'')||'/');}
 for(const path of links){if(htmls.has(path))continue;let r=await worker.fetch(new Request('https://printprep-review.example'+path),env,ctx);if(path==='/admin'){assert.equal(r.status,302);continue;}for(let i=0;i<4 && [301,302,307,308].includes(r.status);i++){const location=r.headers.get('location');assert.ok(location.startsWith('https://printprep-review.example/'),'Same-origin redirect '+path);r=await worker.fetch(new Request(location),env,ctx);}assert.equal(r.status,200,'Internal link '+path);}
 const sitemap=await worker.fetch(new Request('https://printprep-review.example/sitemap.xml'),env,ctx);const xml=await sitemap.text();for(const g of guides)assert.ok(xml.includes('/guides/'+g),g+' sitemap');for(const path of ['/jobs','/vault','/workspace','/operations'])assert.ok(!xml.includes('https://printpreplab.pages.dev'+path+'<'),path+' excluded from sitemap');
-console.log(JSON.stringify({pages:routes.size,internal_links:links.size,guides:guides.length,translated_paragraphs:translatedParagraphs,translated_size_paragraphs:translatedSizeParagraphs,tools:tools.length,sizes:sizes.length,noindex:'operational pages verified',status:'passed'}));
+console.log(JSON.stringify({pages:routes.size,internal_links:links.size,guides:guides.length,translated_paragraphs:translatedParagraphs,translated_size_paragraphs:translatedSizeParagraphs,translated_trust_paragraphs:translatedTrustParagraphs,tools:tools.length,sizes:sizes.length,noindex:'operational pages verified',status:'passed'}));

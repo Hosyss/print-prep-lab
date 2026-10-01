@@ -7,8 +7,9 @@ const output=process.argv[3]??'work/editorial-browser-qa';
 await mkdir(output,{recursive:true});
 const guides=['dpi-vs-ppi','how-large-can-i-print-my-image','print-resolution-guide','bleed-trim-safe-area','aspect-ratio-cropping-print','print-file-preflight-checklist','export-images-for-large-format-printing','a4-vs-us-letter-printing','rgb-vs-cmyk-printing','prepare-pdf-for-print','low-resolution-images-for-print','business-card-bleed-and-safe-area'];
 const sizes=['a2','a3','a4','a5','us-letter','us-legal','4x6-photo','5x7-photo','8x10-photo','11x14-photo','12x18-photo','16x20-photo'];
-const routes=['/',...guides.map(g=>'/guides/'+g),...sizes.map(s=>'/sizes/'+s)];
-const scope='.home-opening,.article-main,.guide-comparison,.guide-summary-grid,.size-use-case,.size-insights,.size-detail-grid';
+const policyRoutes=['/about','/methodology','/sources','/editorial-policy','/privacy','/terms','/contact'];
+const routes=['/',...guides.map(g=>'/guides/'+g),...sizes.map(s=>'/sizes/'+s),...policyRoutes];
+const scope='.home-opening,.article-main,.guide-comparison,.guide-summary-grid,.size-use-case,.size-insights,.size-detail-grid,.inner-hero,.breadcrumbs,.policy-layout,.page-cta';
 const results=[];
 const browser=await chromium.launch({headless:true,channel:'chrome'});
 try{
@@ -20,6 +21,10 @@ try{
     try{
       for(const path of routes){
         const response=await page.goto(base+path,{waitUntil:'networkidle'});assert.equal(response.status(),200,path);
+        if(policyRoutes.includes(path)){
+          const untranslated=await page.locator('.policy-layout h2,.policy-layout p,.policy-layout strong,.policy-layout small,.policy-layout code,.policy-layout a').evaluateAll(elements=>elements.filter(el=>el.childElementCount===0&&el.textContent.trim()&&!el.hasAttribute('data-ar')).map(el=>el.textContent.trim()));
+          assert.deepEqual(untranslated,[],path+' policy translation coverage');
+        }
         const language=page.locator('select[data-source-lang]');
         for(const lang of ['ar','en']){
           await language.selectOption(lang);
@@ -27,9 +32,10 @@ try{
           await page.waitForFunction(({scope,lang})=>[...document.querySelectorAll(scope)].flatMap(root=>[...root.querySelectorAll('[data-en][data-ar]')]).filter(el=>el.childElementCount===0).every(el=>el.textContent.trim()===el.getAttribute('data-'+lang).trim()),{scope,lang});
           const dimensions=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
           assert.ok(dimensions.scroll<=dimensions.width+1,`${path} ${lang} viewport overflow: ${JSON.stringify(dimensions)}`);
+          if(path.startsWith('/sizes/'))assert.equal(await page.locator('[data-aspect-ratio]').evaluate(el=>getComputedStyle(el).direction),'ltr',path+' ratio direction');
           results.push({path,language:lang,viewport:viewport.width,status:'passed'});
         }
-        if(['/','/guides/dpi-vs-ppi','/sizes/a4'].includes(path)){
+        if(['/','/guides/dpi-vs-ppi','/sizes/a4','/methodology','/privacy'].includes(path)){
           await language.selectOption('ar');
           await page.waitForFunction(()=>document.documentElement.dir==='rtl');
           await page.screenshot({path:join(output,`editorial-${viewport.width}-${path.replaceAll('/','_')||'home'}.png`),fullPage:true});
