@@ -33,6 +33,10 @@ try{
           const dimensions=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));
           assert.ok(dimensions.scroll<=dimensions.width+1,`${path} ${lang} viewport overflow: ${JSON.stringify(dimensions)}`);
           if(path.startsWith('/sizes/'))assert.equal(await page.locator('[data-aspect-ratio]').evaluate(el=>getComputedStyle(el).direction),'ltr',path+' ratio direction');
+          if(path.startsWith('/sizes/')){
+            const value=await page.locator('.tool-result-grid>.featured strong').evaluate(el=>({direction:getComputedStyle(el).direction,color:getComputedStyle(el).color}));
+            assert.equal(value.direction,'ltr',path+' numerical result order');assert.equal(value.color,'rgb(255, 255, 255)',path+' readable primary result');
+          }
           if(path==='/contact'){
             const template=await page.locator('.report-template code').evaluate(el=>({font:parseFloat(getComputedStyle(el).fontSize),space:getComputedStyle(el).whiteSpace,width:el.clientWidth,scroll:el.scrollWidth}));
             assert.ok(template.font>=14,'Readable report template');assert.equal(template.space,'pre-wrap','Report template line breaks');assert.ok(template.scroll<=template.width+1,'Report template containment');

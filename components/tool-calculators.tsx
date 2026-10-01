@@ -286,7 +286,7 @@ function ResultGrid({ items }: { items: Array<{ label: string; value: string; fe
       const copyLabel = status === "copied" ? "Copied ✓" : status === "error" ? "Copy failed" : "Copy";
       return <div className={`result-card ${item.featured ? "featured" : ""}`} key={item.label}>
         <div className="result-card-heading"><small data-en={item.label} data-ar={arabicUi(item.label)}>{item.label}</small><span data-en={badge} data-ar={arabicUi(badge)}>{badge}</span></div>
-        <strong>{item.value}</strong>
+        <strong dir="ltr">{item.value}</strong>
         <button type="button" className="result-copy" aria-label={`Copy ${item.label}: ${item.value}`} onClick={() => copyResult(item.label, item.value)} data-en={copyLabel} data-ar={arabicUi(copyLabel)}>
           {copyLabel}
         </button>
