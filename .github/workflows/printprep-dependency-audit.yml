@@ -1,0 +1,31 @@
+name: Print Prep Lab locked dependency audit
+
+on:
+  push:
+    branches: ['audit/printprep-dependencies-*']
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect the locked dependency tree
+        run: |
+          mkdir -p work/dependency-audit
+          npm audit --json > work/dependency-audit/dependency-audit.json || true
+          node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("work/dependency-audit/dependency-audit.json")); console.log(JSON.stringify({metadata:r.metadata,error:r.error,vulnerabilities:r.vulnerabilities})); if(r.error)process.exitCode=1;'
+      - name: Save advisory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: printprep-dependency-audit
+          path: work/dependency-audit/
+          retention-days: 14
+          if-no-files-found: error
