@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t archives < <(rg --files work/review-evidence | rg '/print-prep-lab-pages-adsense-readiness-final\.zip$')
+          mapfile -t archives < <(rg --files --no-ignore work/review-evidence | rg '/print-prep-lab-pages-adsense-readiness-final\.zip$')
           test "${#archives[@]}" -eq 1
           mkdir -p work/production-artifact
           unzip -q "${archives[0]}" -d work/production-artifact
