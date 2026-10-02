@@ -17,7 +17,11 @@ for(const guide of GUIDE_PAGES){
 }
 const worker=(await import('../dist/server/index.js')).default;
 const root=resolve(process.env.PRINTPREP_ASSET_DIR ?? 'dist/client');
-const env={ASSETS:{async fetch(request){const path=new URL(request.url).pathname;try {const data=await readFile(resolve(root,'.'+path));return new Response(data,{headers:{'content-type':extname(path)==='.html'?'text/html; charset=utf-8':'application/octet-stream'}})}catch{return new Response('Not found',{status:404})}}}};
+// Match Pages HTML routing instead of treating the ASSETS binding as a raw file reader.
+const env={ASSETS:{async fetch(request){const path=new URL(request.url).pathname;
+  if(path.endsWith('.html'))return new Response(null,{status:308,headers:{location:path.slice(0,-5)}});
+  const assetPath=extname(path)?path:path.replace(/\/$/,'')+'.html';
+  try {const data=await readFile(resolve(root,'.'+assetPath));return new Response(request.method==='HEAD'?null:data,{headers:{'content-type':extname(assetPath)==='.html'?'text/html; charset=utf-8':'application/octet-stream'}})}catch{return new Response('Not found',{status:404})}}}};
 const ctx={waitUntil(){},passThroughOnException(){}};
 const guides=['dpi-vs-ppi','how-large-can-i-print-my-image','print-resolution-guide','bleed-trim-safe-area','aspect-ratio-cropping-print','print-file-preflight-checklist','export-images-for-large-format-printing','a4-vs-us-letter-printing','rgb-vs-cmyk-printing','prepare-pdf-for-print','low-resolution-images-for-print','business-card-bleed-and-safe-area'];
 const tools=['print-readiness-checker','pixels-to-print-size','print-size-to-pixels','dpi-ppi-calculator','paper-size-pixels-calculator','aspect-ratio-crop-preview','bleed-safe-area-calculator'];

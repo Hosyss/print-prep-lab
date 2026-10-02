@@ -146,9 +146,11 @@ function normalizedPath(pathname: string): string {
 
 function withSecurityHeaders(response: Response, request: Request): Response {
   const requestUrl = new URL(request.url);
-  if (requestUrl.protocol !== "https:") return response;
   const headers = new Headers(response.headers);
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
+  if (requestUrl.protocol === "https:") {
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
+  }
+  if (response.status === 404) headers.set("X-Robots-Tag", "noindex, follow");
   const contentType = response.headers.get("content-type") ?? "";
   if (response.ok && contentType.includes("text/html")) {
     const path = normalizedPath(requestUrl.pathname);
@@ -190,8 +192,15 @@ async function staticPageResponse(request: Request, env: Env, target: string): P
   const headers = new Headers(request.headers);
   headers.delete("If-None-Match");
   headers.delete("If-Modified-Since");
-  const assetRequest = new Request(new URL(target, request.url), { method: request.method, headers });
-  const response = await env.ASSETS.fetch(assetRequest);
+  // Pages' ASSETS binding resolves HTML through its extensionless public path.
+  // Fetching /jobs.html directly can return a redirect instead of the document.
+  const prettyPath = target.replace(/\/index\.html$/, "/").replace(/\.html$/, "");
+  const assetRequest = new Request(new URL(prettyPath, request.url), { method: request.method, headers });
+  let response = await env.ASSETS.fetch(assetRequest);
+  // Retain compatibility with file-only asset bindings used by source previews.
+  if (response.status === 404 && prettyPath !== target) {
+    response = await env.ASSETS.fetch(new Request(new URL(target, request.url), { method: request.method, headers }));
+  }
   return response.ok ? withSecurityHeaders(response, request) : null;
 }
 

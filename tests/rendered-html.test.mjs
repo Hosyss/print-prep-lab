@@ -173,6 +173,35 @@ test("renders all seven calculators with original use cases, examples, notes and
   assert.equal(bodyFingerprints.size, 7);
 });
 
+test("loads retained pages through Pages pretty URLs and preserves noindex on HTTP and HEAD", async () => {
+  const worker = await loadWorker();
+  const calls = [];
+  const env = { ASSETS: { async fetch(request) {
+    calls.push({path:new URL(request.url).pathname, method:request.method, etag:request.headers.get('if-none-match')});
+    if(new URL(request.url).pathname === '/jobs.html') return new Response(null, {status:308, headers:{location:'/jobs'}});
+    if(new URL(request.url).pathname === '/jobs') return new Response(request.method === 'HEAD' ? null : '<h1>Saved print jobs</h1>', {headers:{'content-type':'text/html'}});
+    return new Response('Missing', {status:404});
+  } } };
+  for(const origin of [SITE_URL, 'http://localhost:4182']) for(const method of ['GET','HEAD']) {
+    const response = await worker.fetch(new Request(origin+'/jobs?filter=open', {method, headers:{'if-none-match':'old'}}), env, workerContext());
+    assert.equal(response.status, 200); assert.match(response.headers.get('x-robots-tag') ?? '', /noindex/);
+    assert.match(response.headers.get('link') ?? '', /printpreplab\.pages\.dev\/jobs/);
+    if(method === 'HEAD') assert.equal(await response.text(), '');
+  }
+  assert.equal(calls.length, 4); assert.ok(calls.every(call => call.path === '/jobs' && call.etag === null));
+  const raw = await requestPath(worker, '/jobs.html');
+  assert.equal(raw.status, 404); assert.match(raw.headers.get('x-robots-tag') ?? '', /noindex/);
+});
+
+test("retains raw-file preview compatibility and falls back when operational assets are absent", async () => {
+  const worker = await loadWorker();
+  const calls=[];
+  const env={ASSETS:{async fetch(request){const path=new URL(request.url).pathname;calls.push(path);return path==='/jobs.html'?new Response('<h1>Saved print jobs</h1>',{headers:{'content-type':'text/html'}}):new Response('Missing',{status:404});}}};
+  const response=await worker.fetch(new Request(SITE_URL+'/jobs'),env,workerContext());
+  assert.equal(response.status,200);assert.deepEqual(calls,['/jobs','/jobs.html']);
+  const absent=await requestPath(worker,'/jobs');assert.equal(absent.status,404);
+});
+
 test("renders all twelve size references with format-specific editorial context", async () => {
   const worker = await loadWorker();
   const sizePaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/sizes/"));
