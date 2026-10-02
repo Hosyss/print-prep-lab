@@ -10,10 +10,12 @@ const check=(ok,message)=>{assert.ok(ok,message);assertions++;console.log('PASS'
 try {for(const viewport of [{width:1365,height:900},{width:390,height:844}]){
   const context=await browser.newContext({viewport,acceptDownloads:true});const errors=[],uploads=[];
   await context.route('**/*',route=>{const request=route.request();if(['POST','PUT','PATCH'].includes(request.method()))uploads.push(request.url());return new URL(request.url()).origin===new URL(base).origin?route.continue():route.abort();});
+  await context.addInitScript(()=>localStorage.setItem('print-prep-analytics-consent','denied'));
   const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   try{
     const response=await page.goto(base+'/tools/pdf-print-preflight',{waitUntil:'networkidle'});check(response.status()===200,'PDF route 200');
     const lab=page.locator('.pdf-lab'),file=lab.locator('input[type=file]'),locale=page.locator('select[data-source-lang]');
+    const picker=await file.boundingBox();check(picker&&picker.y+picker.height<=viewport.height,'file picker visible in first viewport: '+JSON.stringify(picker));
     await file.setInputFiles({name:'mixed-print-check.pdf',mimeType:'application/pdf',buffer:pdf});
     await page.locator('[data-pdf-count]').waitFor({timeout:60000});check(await page.locator('[data-pdf-count]').innerText()==='3','reads all three real PDF pages');
     await page.locator('[data-pdf-preview=ready]').waitFor({timeout:30000});
@@ -32,6 +34,7 @@ try {for(const viewport of [{width:1365,height:900},{width:390,height:844}]){
     await locale.selectOption('ar');await page.waitForFunction(()=>document.querySelector('.pdf-lab')?.dataset.pdfLanguage==='ar');
     check((await lab.innerText()).includes('المقاس النهائي للصفحة')&&(await lab.innerText()).includes('تحتاج مراجعة'),'Arabic dynamic results translate');
     await lab.locator('[data-pdf-target=ppi]').fill('150');check(await lab.locator('[data-check=images]').getAttribute('data-state')==='true','Arabic target editing updates PPI status');
+    await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:path.join(out,`pdf-${viewport.width}-ar.png`),fullPage:true});
     const downloadPromise=page.waitForEvent('download');await lab.locator('[data-pdf-download]').click();const download=await downloadPromise;const reportPath=path.join(out,`report-${viewport.width}-ar.txt`);await download.saveAs(reportPath);const report=await fs.readFile(reportPath,'utf8');
     check(report.includes('صفحة 1')&&report.includes('صفحة 3')&&report.includes('ملفات اللون'),'download covers all pages and scope in Arabic');
@@ -39,6 +42,7 @@ try {for(const viewport of [{width:1365,height:900},{width:390,height:844}]){
     check((await page.locator('[data-pdf-size]').innerText()).includes('864 × 1212'),'UserUnit scales physical page dimensions');
     check((await page.locator('[data-pdf-images]').innerText()).includes('75 PPI'),'nested form scale and UserUnit produce correct PPI');
     await locale.selectOption('en');await page.waitForFunction(()=>document.querySelector('.pdf-lab')?.dataset.pdfLanguage==='en');check((await lab.innerText()).includes('Check required'),'English results restored with state preserved');
+    await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:path.join(out,`pdf-${viewport.width}-en.png`),fullPage:true});
     check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no viewport horizontal overflow');
     await file.setInputFiles({name:'broken.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.7 broken')});await lab.locator('[role=alert]').waitFor();check((await lab.locator('[role=alert]').innerText()).includes('could not be inspected'),'malformed PDF actionable error');check(await lab.locator('[data-pdf-count]').count()===0,'failed file clears stale result');
