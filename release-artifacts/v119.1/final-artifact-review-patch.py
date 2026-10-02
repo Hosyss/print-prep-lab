@@ -44,3 +44,7 @@ for stem in operational:
     else:s=s.replace('</title>',f'</title>{tag}',1)
     page.write_text(s,encoding='utf-8');count+=1
 print(f'Final artifact review: redirects reconciled, noindex embedded on {count} operational pages')
+
+# Public glossary contrast: its legacy palette assumed a dark statistics panel.
+with (root/"final-readiness.css").open("a",encoding="utf-8") as css:
+    css.write("\n.ppl-page-glossary .gl-stats p{color:#475569}.ppl-page-glossary .term-card>small{color:#006b7b}\n")

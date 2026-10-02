@@ -7,7 +7,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs, FaqList, PageCta, PageHero } from "@/components/content-shell";
 import { GUIDE_ARABIC } from "@/lib/source-arabic-guides";
 import { GUIDE_PAGES } from "@/lib/site-content";
-import { AUTHOR_NAME, SITE_LAUNCHED_AT, SITE_UPDATED_AT, SITE_URL, pageMetadata } from "@/lib/seo";
+import { AUTHOR_NAME, GUIDE_FIRST_PUBLISHED, SITE_LAUNCHED_AT, SITE_UPDATED_AT, SITE_URL, pageMetadata } from "@/lib/seo";
 
 export function generateStaticParams() { return GUIDE_PAGES.map((guide) => ({ slug: guide.slug })); }
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> { const { slug } = await params; const guide = GUIDE_PAGES.find((item) => item.slug === slug); return guide ? pageMetadata({ title: guide.title, description: guide.description, path: `/guides/${slug}` }) : {}; }
@@ -18,6 +18,12 @@ export default async function GuideDetail({ params }: { params: Promise<{ slug: 
   if (!guide) notFound();
   const ar = GUIDE_ARABIC[guide.slug];
   const fullAr = EDITORIAL_GUIDES.find(g=>g.slug === guide.slug)?.ar ?? CORE_GUIDE_ARABIC_DETAILS[guide.slug];
+  const publishedAt = GUIDE_FIRST_PUBLISHED[guide.slug] ?? SITE_LAUNCHED_AT;
+  const modifiedAt = publishedAt > SITE_UPDATED_AT ? publishedAt : SITE_UPDATED_AT;
+  const updatedDate = new Date(modifiedAt);
+  const dateOptions = { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" } as const;
+  const updatedEn = `Updated ${updatedDate.toLocaleDateString("en-US", dateOptions)}`;
+  const updatedAr = `تم التحديث في ${updatedDate.toLocaleDateString("ar-EG", dateOptions)}`;
   const localizedFaq = guide.faq.map((item, index) => ({ ...item, questionAr: ar?.faq[index]?.question, answerAr: ar?.faq[index]?.answer }));
   const articleStructuredData = {
     "@context": "https://schema.org",
@@ -25,8 +31,8 @@ export default async function GuideDetail({ params }: { params: Promise<{ slug: 
     headline: guide.heading,
     description: guide.description,
     mainEntityOfPage: `${SITE_URL}/guides/${guide.slug}`,
-    datePublished: SITE_LAUNCHED_AT,
-    dateModified: SITE_UPDATED_AT,
+    datePublished: publishedAt,
+    dateModified: modifiedAt,
     inLanguage: "en",
     author: { "@type": "Person", name: AUTHOR_NAME, url: `${SITE_URL}/about` },
     publisher: { "@id": `${SITE_URL}/#organization` },
@@ -34,7 +40,7 @@ export default async function GuideDetail({ params }: { params: Promise<{ slug: 
   return <main>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleStructuredData).replace(/</g, "\\u003c") }} />
     <div className="shell"><Breadcrumbs items={[{ label: "Home", arLabel: "الرئيسية", href: "/" }, { label: "Guides", arLabel: "الأدلة", href: "/guides" }, { label: guide.heading, arLabel: ar?.heading }]} /></div>
-    <PageHero eyebrow="Print preparation guide" arEyebrow="دليل تجهيز الطباعة" title={guide.heading} arTitle={ar?.heading} description={guide.description} arDescription={ar?.description}><div className="hero-spec"><span data-en="Key takeaway" data-ar="الخلاصة الأساسية">Key takeaway</span><strong data-en={guide.takeaway} data-ar={ar?.takeaway}>{guide.takeaway}</strong><small data-en="Updated October 1, 2026" data-ar="تم التحديث في 1 أكتوبر 2026">Updated October 1, 2026</small></div></PageHero>
+    <PageHero eyebrow="Print preparation guide" arEyebrow="دليل تجهيز الطباعة" title={guide.heading} arTitle={ar?.heading} description={guide.description} arDescription={ar?.description}><div className="hero-spec"><span data-en="Key takeaway" data-ar="الخلاصة الأساسية">Key takeaway</span><strong data-en={guide.takeaway} data-ar={ar?.takeaway}>{guide.takeaway}</strong><small data-en={updatedEn} data-ar={updatedAr}>{updatedEn}</small></div></PageHero>
 
     <section className="guide-byline shell" aria-label="Guide authorship and review details"><div><span data-en="Written and maintained by" data-ar="الكتابة والصيانة">Written and maintained by</span><Link href="/about">{AUTHOR_NAME}</Link></div><div><span data-en="Calculation review" data-ar="مراجعة الحسابات">Calculation review</span><Link href="/methodology" data-en="Documented formulas and automated tests" data-ar="معادلات موثقة واختبارات آلية">Documented formulas and automated tests</Link></div><div><span data-en="Editorial standard" data-ar="المعيار التحريري">Editorial standard</span><Link href="/editorial-policy" data-en="Sources, corrections and independence" data-ar="المصادر والتصحيحات والاستقلالية">Sources, corrections and independence</Link></div></section>
 
@@ -42,7 +48,7 @@ export default async function GuideDetail({ params }: { params: Promise<{ slug: 
 
     <section className="guide-summary-grid shell" aria-label="Guide summary">{guide.summary.map((item, index) => <article key={item.label}><span data-en={item.label} data-ar={fullAr?.summary[index]?.label}>{item.label}</span><strong data-en={item.value} data-ar={fullAr?.summary[index]?.value}>{item.value}</strong><p data-en={item.note} data-ar={fullAr?.summary[index]?.note}>{item.note}</p></article>)}</section>
 
-    <section className="guide-comparison shell" aria-labelledby="guide-comparison-heading"><div className="section-kicker" data-en="Decision table" data-ar="جدول القرار">Decision table</div><h2 id="guide-comparison-heading" data-en={guide.comparison.caption} data-ar={fullAr?.comparison.caption}>{guide.comparison.caption}</h2><div className="data-table-wrap"><table className="data-table"><thead><tr>{guide.comparison.headers.map((header, index) => <th key={header} data-en={header} data-ar={fullAr?.comparison.headers[index]}>{header}</th>)}</tr></thead><tbody>{guide.comparison.rows.map((row, rowIndex) => <tr key={row.join("|")}>{row.map((cell, index) => <td key={`${index}-${cell}`}><span data-en={cell} data-ar={fullAr?.comparison.rows[rowIndex]?.[index]}>{cell}</span></td>)}</tr>)}</tbody></table></div></section>
+    <section className="guide-comparison shell" aria-labelledby="guide-comparison-heading"><div className="section-kicker" data-en="Decision table" data-ar="جدول القرار">Decision table</div><h2 id="guide-comparison-heading" data-en={guide.comparison.caption} data-ar={fullAr?.comparison.caption}>{guide.comparison.caption}</h2><div className="data-table-wrap" tabIndex={0}><table className="data-table"><thead><tr>{guide.comparison.headers.map((header, index) => <th key={header} data-en={header} data-ar={fullAr?.comparison.headers[index]}>{header}</th>)}</tr></thead><tbody>{guide.comparison.rows.map((row, rowIndex) => <tr key={row.join("|")}>{row.map((cell, index) => <td key={`${index}-${cell}`}><span data-en={cell} data-ar={fullAr?.comparison.rows[rowIndex]?.[index]}>{cell}</span></td>)}</tr>)}</tbody></table></div></section>
 
     {guide.visual === "bleed-boxes" && <section className="guide-bleed-visual shell" aria-label="Bleed, trim and safe area diagram"><div className="bleed-box"><span data-en="Bleed canvas · 216 × 303 mm" data-ar="لوحة النزف · 216 × 303 مم">Bleed canvas · 216 × 303 mm</span><div className="trim-box"><span data-en="Trim · 210 × 297 mm" data-ar="التشذيب · 210 × 297 مم">Trim · 210 × 297 mm</span><div className="safe-box"><span data-en="Safe area · 200 × 287 mm" data-ar="منطقة الأمان · 200 × 287 مم">Safe area · 200 × 287 mm</span></div></div></div><p data-en="Example only: A4 trim with 3 mm bleed and a 5 mm safe margin on every edge." data-ar="مثال فقط: تشذيب A4 مع نزف 3 مم وهامش أمان 5 مم على كل حافة.">Example only: A4 trim with 3 mm bleed and a 5 mm safe margin on every edge.</p></section>}
 

@@ -15,8 +15,10 @@ try{
  const widthInput=inputs.nth(0),ppiInput=inputs.nth(2),originalWidth=await widthInput.inputValue();
  await widthInput.fill('-25');check('negative pixel width is visibly invalid',await waitForAttr(widthInput,'aria-invalid','true'),await widthInput.inputValue());
  const fieldError=page.locator('.field-error').first();await fieldError.waitFor({state:'visible',timeout:3000});check('invalid field explains minimum',(await fieldError.innerText()).length>0);
+ check('invalid entry hides stale calculated results',!(await page.locator('.tool-results').isVisible())&&await page.locator('.invalid-results-notice').isVisible());
  let body=await page.locator('body').innerText();check('invalid entry never renders NaN/Infinity',!/NaN|Infinity/.test(body));
  await widthInput.blur();check('invalid draft reverts on blur',await waitForValue(widthInput,originalWidth),await widthInput.inputValue());
+ check('valid restored input shows calculated results again',await page.locator('.tool-results').isVisible());
  const originalPpi=await ppiInput.inputValue();await ppiInput.fill('0');check('zero PPI is visibly invalid',await waitForAttr(ppiInput,'aria-invalid','true'),await ppiInput.inputValue());await ppiInput.blur();check('invalid PPI reverts on blur',await waitForValue(ppiInput,originalPpi),await ppiInput.inputValue());
  body=await page.locator('body').innerText();
  const resultSection=page.locator('section.tool-results[aria-label="Calculated results"]');

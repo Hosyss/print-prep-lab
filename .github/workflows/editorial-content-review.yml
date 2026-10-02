@@ -41,8 +41,9 @@ jobs:
           PRINTPREP_ASSET_DIR=work/editorial-artifact node scripts/check-review.mjs
       - name: Install browser test dependency
         run: |
-          npm install --prefix "$RUNNER_TEMP/printprep-browser-tools" --no-package-lock --ignore-scripts playwright@1.63.0
+          npm install --prefix "$RUNNER_TEMP/printprep-browser-tools" --no-package-lock --ignore-scripts playwright@1.63.0 axe-core@4.10.3
           ln -s "$RUNNER_TEMP/printprep-browser-tools/node_modules/playwright" node_modules/playwright
+          ln -s "$RUNNER_TEMP/printprep-browser-tools/node_modules/axe-core" node_modules/axe-core
       - name: Verify language switching and calculators on desktop and mobile
         env:
           PRINTPREP_BLOCK_REMOTE: '1'
@@ -67,6 +68,8 @@ jobs:
           node tests/print-readiness-locale-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
           node tests/editorial-locale-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
           node tests/pdf-preflight-browser-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
+          node tests/tool-input-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
+          PRINTPREP_AUDIT_GATE=1 node tests/comprehensive-live-audit.mjs http://127.0.0.1:4182 work/editorial-browser-qa
       - name: Save review evidence
         if: always()
         uses: actions/upload-artifact@v4

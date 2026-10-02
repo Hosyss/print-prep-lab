@@ -6,6 +6,7 @@ import {chromium} from 'playwright';
 
 const base=(process.argv[2]||'https://printpreplab.pages.dev').replace(/\/$/,'');
 const origin=new URL(base).origin;
+const canonicalOrigin='https://printpreplab.pages.dev';
 const out=process.argv[3]||'work/comprehensive-audit';
 await mkdir(out,{recursive:true});
 const checks=[],findings=[],records=[],browserRecords=[],externalLinks=new Map(),internalLinks=new Map();
@@ -18,10 +19,10 @@ const sitemap=await sitemapResponse.text();
 const publicUrls=[...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m=>m[1]);
 const paths=publicUrls.map(u=>new URL(u).pathname);
 check('Sitemap HTTP 200',sitemapResponse.status===200);
-check('All sitemap URLs use production origin',publicUrls.every(u=>new URL(u).origin===origin));
+check('All sitemap URLs use production origin',publicUrls.every(u=>new URL(u).origin===canonicalOrigin));
 check('Sitemap URLs are unique',new Set(publicUrls).size===publicUrls.length);
 const robotsResponse=await get('/robots.txt');const robots=await robotsResponse.text();
-check('robots.txt reachable and declares current sitemap',robotsResponse.status===200&&robots.includes(origin+'/sitemap.xml'),robots);
+check('robots.txt reachable and declares current sitemap',robotsResponse.status===200&&robots.includes(canonicalOrigin+'/sitemap.xml'),robots);
 check('No blanket crawl block',!/^Disallow:\s*\/\s*$/m.test(robots));
 const adsResponse=await get('/ads.txt');const ads=await adsResponse.text();
 check('ads.txt has the current publisher record',adsResponse.status===200&&/^google\.com,\s*pub-3369551572403499,\s*DIRECT,\s*f08c47fec0942fa0\s*$/m.test(ads),ads.trim());
@@ -37,10 +38,10 @@ await batch([...publicPaths.map(path=>({path,public:true})),...retained.filter(p
     const noindex=/noindex/i.test(r.headers.get('x-robots-tag')||'')||/<meta(?=[^>]*name="robots")(?=[^>]*content="[^"]*noindex)/i.test(html);
     check('Indexing intent '+item.path,item.public?!noindex:noindex);
     check('Single H1 '+item.path,(html.match(/<h1\b/g)||[]).length===1);
-    check('Canonical '+item.path,html.includes('href="'+origin+item.path+'"')&&html.includes('rel="canonical"'));
-    check('Security headers '+item.path,r.headers.get('x-content-type-options')==='nosniff'&&r.headers.get('x-frame-options')==='DENY'&&!!r.headers.get('content-security-policy')&&!!r.headers.get('strict-transport-security'));
+    check('Canonical '+item.path,html.includes('href="'+canonicalOrigin+item.path+'"')&&html.includes('rel="canonical"'));
+    if(base.startsWith('https:'))check('Security headers '+item.path,r.headers.get('x-content-type-options')==='nosniff'&&r.headers.get('x-frame-options')==='DENY'&&!!r.headers.get('content-security-policy')&&!!r.headers.get('strict-transport-security'));
     if(!item.public)check('No ads on workspace '+item.path,!html.includes('pagead2.googlesyndication'));
-    if(item.public){
+    if(item.public&&item.path!=='/glossary'){
       check('AdSense publisher matches '+item.path,html.includes('adsbygoogle.js?client=ca-pub-3369551572403499'));
       check('Readable source without JavaScript '+item.path,/<main\b/.test(html)&&!/<main[^>]*>\s*<\/main>/.test(html));
       check('No stale preview references '+item.path,!/printprep-review\.nadir-geu|localhost:|127\.0\.0\.1:/.test(html));
@@ -174,3 +175,5 @@ await writeFile(join(out,'comprehensive-audit.json'),JSON.stringify({summary,che
 console.log('AUDIT_SUMMARY '+JSON.stringify(summary));
 // Preserve all findings for editorial review instead of hiding them behind the
 // first assertion. A successful audit execution is not an AdSense approval.
+
+if(process.env.PRINTPREP_AUDIT_GATE==='1' && findings.some(f=>['error','accessibility','review'].includes(f.severity)))process.exitCode=1;

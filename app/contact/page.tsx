@@ -3,7 +3,7 @@ import { Breadcrumbs, PageHero } from "@/components/content-shell";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Contact Print Prep Lab",
+  title: "Contact",
   description: "Report a calculation issue, missing print size, source conflict or site problem to Print Prep Lab through a reproducible public workflow.",
   path: "/contact",
 });
