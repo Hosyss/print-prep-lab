@@ -50,6 +50,7 @@ await batch([...publicPaths.map(path=>({path,public:true})),...retained.filter(p
 });
 await batch(['/audit-not-found-20261002','/guides/audit-not-found-20261002','/tools/audit-not-found-20261002'],async p=>{
   const r=await get(p);check('True 404 '+p,r.status===404&&/noindex/.test(r.headers.get('x-robots-tag')||''));
+  const html=await r.text();check('No advertising script on 404 '+p,!html.includes('pagead2.googlesyndication'));
 });
 const redirect=await fetch('http://printpreplab.pages.dev/',{redirect:'manual',signal:AbortSignal.timeout(20000)});
 check('HTTP redirects to HTTPS',[301,302,307,308].includes(redirect.status)&&redirect.headers.get('location')?.startsWith(canonicalOrigin));
@@ -129,7 +130,10 @@ try{
   const privacyContext=await browser.newContext({viewport:{width:1280,height:900}});
   const requests=[];
   await privacyContext.route('**/*',route=>{if(new URL(route.request().url()).origin!==origin){requests.push(route.request().url());return route.abort();}return route.continue();});
-  const privacyPage=await privacyContext.newPage();await privacyPage.goto(base+'/',{waitUntil:'networkidle'});
+  const privacyPage=await privacyContext.newPage();
+  await privacyPage.goto(base+'/audit-not-found-20261002',{waitUntil:'networkidle'});
+  check('404 does not request advertising code after hydration',!requests.some(u=>u.includes('googlesyndication')));
+  await privacyPage.goto(base+'/',{waitUntil:'networkidle'});
   check('Clarity not requested before consent',!requests.some(u=>u.includes('clarity.ms')));
   await privacyPage.locator('.privacy-choice-actions button').nth(1).click();
   await privacyPage.reload({waitUntil:'networkidle'});

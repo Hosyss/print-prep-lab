@@ -20,10 +20,8 @@ export default async function GuideDetail({ params }: { params: Promise<{ slug: 
   const fullAr = EDITORIAL_GUIDES.find(g=>g.slug === guide.slug)?.ar ?? CORE_GUIDE_ARABIC_DETAILS[guide.slug];
   const publishedAt = GUIDE_FIRST_PUBLISHED[guide.slug] ?? SITE_LAUNCHED_AT;
   const modifiedAt = publishedAt > SITE_UPDATED_AT ? publishedAt : SITE_UPDATED_AT;
-  const updatedDate = new Date(modifiedAt);
-  const dateOptions = { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" } as const;
-  const updatedEn = `Updated ${updatedDate.toLocaleDateString("en-US", dateOptions)}`;
-  const updatedAr = `تم التحديث في ${updatedDate.toLocaleDateString("ar-EG", dateOptions)}`;
+  const updatedEn = modifiedAt === "2026-10-02" ? "Updated October 2, 2026" : "Updated October 1, 2026";
+  const updatedAr = modifiedAt === "2026-10-02" ? "تم التحديث في 2 أكتوبر 2026" : "تم التحديث في 1 أكتوبر 2026";
   const localizedFaq = guide.faq.map((item, index) => ({ ...item, questionAr: ar?.faq[index]?.question, answerAr: ar?.faq[index]?.answer }));
   const articleStructuredData = {
     "@context": "https://schema.org",

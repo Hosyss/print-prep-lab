@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { AnalyticsConsent } from "@/components/analytics-consent";
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import {
-  ADSENSE_CLIENT_ID,
   DEFAULT_BING_VERIFICATION,
   DEFAULT_GOOGLE_VERIFICATION,
   SITE_DESCRIPTION,
@@ -76,11 +75,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" dir="ltr">
       <body className="ppl-source-v119">
-        <script
-          async
-          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
-          crossOrigin="anonymous"
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteStructuredData).replace(/</g, "\\u003c") }}

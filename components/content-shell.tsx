@@ -1,3 +1,4 @@
+import { PublicAdvertising } from "@/components/public-advertising";
 import Link from "next/link";
 import { SITE_URL } from "@/lib/seo";
 
@@ -19,7 +20,7 @@ export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
 }
 
 export function PageHero({ eyebrow, title, description, arEyebrow, arTitle, arDescription, children }: { eyebrow: string; title: string; description: string; arEyebrow?: string; arTitle?: string; arDescription?: string; children?: React.ReactNode }) {
-  return <section className="inner-hero"><div className="shell"><div className="section-kicker" {...(arEyebrow ? { "data-en": eyebrow, "data-ar": arEyebrow } : {})}>{eyebrow}</div><div className="inner-hero-grid"><div><h1 {...(arTitle ? { "data-en": title, "data-ar": arTitle } : {})}>{title}</h1><p {...(arDescription ? { "data-en": description, "data-ar": arDescription } : {})}>{description}</p></div>{children && <aside>{children}</aside>}</div></div></section>;
+  return <><PublicAdvertising /><section className="inner-hero"><div className="shell"><div className="section-kicker" {...(arEyebrow ? { "data-en": eyebrow, "data-ar": arEyebrow } : {})}>{eyebrow}</div><div className="inner-hero-grid"><div><h1 {...(arTitle ? { "data-en": title, "data-ar": arTitle } : {})}>{title}</h1><p {...(arDescription ? { "data-en": description, "data-ar": arDescription } : {})}>{description}</p></div>{children && <aside>{children}</aside>}</div></div></section></>;
 }
 
 export function FaqList({ items }: { items: Array<{ question: string; answer: string; questionAr?: string; answerAr?: string }> }) {
