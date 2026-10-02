@@ -18,6 +18,7 @@ const taskRoutes = [
 ];
 
 const toolArabic: Record<string, { title: string; description: string; intent: string }> = {
+  "pdf-print-preflight": {title:"فحص PDF للطباعة",description:"افحص مقاسات الصفحات وإطارات النزف وPPI الصور، وعاين PDF ونزّل التقرير داخل المتصفح.",intent:"هل يطابق PDF متطلبات المطبعة؟"},
   "print-readiness-checker": { title: "فحص جاهزية الطباعة", description: "افحص PPI الفعلي وأقصى مقاس للطباعة والقص والنزف ومنطقة الأمان باستخدام الملف الحقيقي.", intent: "هل صورتي مناسبة للطباعة؟" },
   "pixels-to-print-size": { title: "تحويل البكسل إلى مقاس طباعة", description: "حوّل أبعاد الصورة بالبكسل إلى مقاس فعلي بالبوصة أو السنتيمتر عند قيمة PPI محددة.", intent: "ما المقاس الذي يمكنني طباعته؟" },
   "print-size-to-pixels": { title: "تحويل مقاس الطباعة إلى بكسل", description: "اعرف أبعاد البكسل اللازمة لمقاس مطبوع محدد عند قيمة PPI تختارها.", intent: "كم بكسل أحتاج؟" },
@@ -36,7 +37,7 @@ const toolFaq = [
 export default function ToolsIndex() {
   return <main className="source-hub source-tools-hub">
     <div className="shell"><Breadcrumbs items={[{ label: "Home", arLabel: "الرئيسية", href: "/" }, { label: "Tools", arLabel: "الأدوات" }]} /></div>
-    <PageHero eyebrow={`${TOOL_PAGES.length} focused calculators`} arEyebrow={`${TOOL_PAGES.length} حاسبات مركزة`} title="Print preparation tools for real production decisions." arTitle="أدوات تجهيز الطباعة لقرارات إنتاج حقيقية." description="Start with what you know: the image, pixel dimensions, final print size, crop or bleed. Each calculator shows the assumption and the result instead of hiding the print math." arDescription="ابدأ بما تعرفه: الصورة أو أبعاد البكسل أو مقاس الطباعة النهائي أو القص أو النزف. كل حاسبة تعرض الافتراض والنتيجة بوضوح بدل إخفاء حسابات الطباعة.">
+    <PageHero eyebrow={`${TOOL_PAGES.length} print preparation tools`} arEyebrow={`${TOOL_PAGES.length} أدوات لتجهيز الطباعة`} title="Print preparation tools for real production decisions." arTitle="أدوات تجهيز الطباعة لقرارات إنتاج حقيقية." description="Start with what you know: the image, pixel dimensions, final print size, crop or bleed. Each calculator shows the assumption and the result instead of hiding the print math." arDescription="ابدأ بما تعرفه: الصورة أو أبعاد البكسل أو مقاس الطباعة النهائي أو القص أو النزف. كل حاسبة تعرض الافتراض والنتيجة بوضوح بدل إخفاء حسابات الطباعة.">
       <div className="hero-spec"><span data-en="Recommended first check" data-ar="الفحص المقترح أولًا">Recommended first check</span><strong data-en="Is this image actually ready to print?" data-ar="هل هذه الصورة جاهزة فعلًا للطباعة؟">Is this image actually ready to print?</strong><small data-en="Pixels · effective PPI · crop · bleed · maximum sizes" data-ar="البكسل · PPI الفعلي · القص · النزف · أقصى المقاسات">Pixels · effective PPI · crop · bleed · maximum sizes</small><Link className="text-link" href="/tools/print-readiness-checker" data-en="Open the readiness checker →" data-ar="افتح فحص الجاهزية ←">Open the readiness checker →</Link></div>
     </PageHero>
 

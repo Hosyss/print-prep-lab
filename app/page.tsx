@@ -1,90 +1,22 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { PrintReadinessLab } from "@/components/print-readiness-lab";
+import { GUIDE_PAGES, TOOL_PAGES } from "@/lib/site-content";
+import { GUIDE_ARABIC } from "@/lib/source-arabic-guides";
+import { TOOL_ARABIC } from "@/lib/source-arabic";
 import { pageMetadata } from "@/lib/seo";
-import { GUIDE_PAGES } from "@/lib/site-content";
-
-const homeMetadata = pageMetadata({
-  title: "Print Size, Pixel and Image Resolution Tools | Print Prep Lab",
-  description: "Check image quality, calculate print dimensions, preview cropping and prepare bleed with free browser-based print tools.",
-  path: "/",
-});
-
-export const metadata: Metadata = {
-  ...homeMetadata,
-  title: { absolute: "Print Size, Pixel and Image Resolution Tools | Print Prep Lab" },
-};
-
-const taskRoutes = [
-  { label: "I have an image", title: "Check print readiness", text: "Read its real pixels and see maximum print sizes, effective PPI and crop.", href: "/tools/print-readiness-checker" },
-  { label: "I know the pixels", title: "Find physical size", text: "Convert width and height in pixels to inches or centimetres at any PPI.", href: "/tools/pixels-to-print-size" },
-  { label: "I know the paper", title: "Find required pixels", text: "Choose a standard format or enter a custom size and calculate the export dimensions.", href: "/tools/paper-size-pixels-calculator" },
-  { label: "I need production setup", title: "Plan crop and bleed", text: "Preview framing, then calculate the full canvas and protected safe area.", href: "/tools/aspect-ratio-crop-preview" },
+export const metadata = pageMetadata({title:"Print preparation, explained and calculated",description:"Check real pixels, print size, crop and bleed. Learn from worked printing examples and practical guides, with calculations that stay on your device.",path:"/"});
+const cases = [
+  {tag:"PHOTO / CROP",arTag:"صورة / قص",title:"A 3:2 photo in an 8 × 10 frame",arTitle:"صورة بنسبة 3:2 داخل إطار 8 × 10",detail:"A 6000 × 4000 photo becomes 5000 × 4000 pixels after a 5:4 fill crop. That is 500 PPI at 10 × 8 inches, with 16.7% of the original area removed.",arDetail:"تصبح صورة 6000 × 4000 بكسل بحجم 5000 × 4000 بعد قص ملء بنسبة 5:4. النتيجة 500 PPI عند طباعة 10 × 8 بوصات، مع فقد 16.7% من المساحة الأصلية.",href:"/guides/aspect-ratio-cropping-print",result:"500 PPI",note:"after crop",arNote:"بعد القص"},
+  {tag:"FLYER / BLEED",arTag:"فلاير / نزف",title:"An A4 flyer with 3 mm bleed",arTitle:"فلاير A4 مع نزف 3 مم",detail:"The finished page is 210 × 297 mm. Adding 3 mm on all four edges makes a 216 × 303 mm canvas: 2551 × 3579 pixels at 300 PPI, rounded to whole pixels.",arDetail:"المقاس النهائي 210 × 297 مم. إضافة نزف 3 مم للحواف الأربع تعطي لوحة 216 × 303 مم: أي 2551 × 3579 بكسل عند 300 PPI بعد التقريب.",href:"/guides/bleed-trim-safe-area",result:"216 × 303",note:"mm artwork canvas",arNote:"مم للوحة التصميم"},
+  {tag:"SOURCE / RESOLUTION",arTag:"المصدر / الدقة",title:"A small image, an honest print limit",arTitle:"صورة صغيرة وحد طباعة واقعي",detail:"A 1200 × 800 pixel original prints 4 × 2.67 inches at 300 PPI. Changing the file’s DPI tag cannot create the missing detail. A smaller print or a better source is the first fix.",arDetail:"صورة أصلية 1200 × 800 بكسل تطبع 4 × 2.67 بوصة عند 300 PPI. تغيير قيمة DPI لا يصنع التفاصيل الناقصة. ابدأ بمقاس أصغر أو مصدر أفضل.",href:"/guides/low-resolution-images-for-print",result:"4 × 2.67",note:"inches at 300 PPI",arNote:"بوصة عند 300 PPI"},
 ];
-
-const popularSizes = [
-  { name: "A4", measure: "210 × 297 mm", pixels: "2480 × 3508 px", href: "/sizes/a4" },
-  { name: "A2", measure: "420 × 594 mm", pixels: "4961 × 7016 px", href: "/sizes/a2" },
-  { name: "US Letter", measure: "8.5 × 11 in", pixels: "2550 × 3300 px", href: "/sizes/us-letter" },
-  { name: "US Legal", measure: "8.5 × 14 in", pixels: "2550 × 4200 px", href: "/sizes/us-legal" },
-  { name: "4 × 6", measure: "2:3 photo", pixels: "1200 × 1800 px", href: "/sizes/4x6-photo" },
-  { name: "8 × 10", measure: "4:5 photo", pixels: "2400 × 3000 px", href: "/sizes/8x10-photo" },
-];
-
-const tools = [
-  { num: "01", title: "Print readiness checker", text: "Use a real image to see effective PPI, crop, bleed and maximum print sizes.", href: "/tools/print-readiness-checker" },
-  { num: "02", title: "Pixels to print size", text: "Turn pixel dimensions into inches and centimetres at any PPI target.", href: "/tools/pixels-to-print-size" },
-  { num: "03", title: "Print size to pixels", text: "Find the exact pixel dimensions required for a physical print size.", href: "/tools/print-size-to-pixels" },
-  { num: "04", title: "Bleed and safe area", text: "Calculate the full canvas, trim and safe zone in physical units and pixels.", href: "/tools/bleed-safe-area-calculator" },
-];
-
-export default function Home() {
-  return <main>
-    <section className="hero shell">
-      <div className="eyebrow"><span /> Print decisions, made clear</div>
-      <div className="hero-copy">
-        <h1>Know If Your Image{" "}<br /><em>Is Ready to Print</em></h1>
-        <p>Check real pixels, effective PPI, maximum print size, crop, bleed and safe area before you spend money printing.</p>
-        <div className="hero-actions"><a className="button primary" href="#check">Check my image <span>→</span></a><Link className="button secondary" href="/sizes">Browse print sizes</Link></div>
-        <div className="trust-row"><span>✓ Local image processing</span><span>✓ No sign-up</span><span>✓ Visible formulas</span></div>
-      </div>
-      <div className="hero-note"><strong>FROM PIXELS</strong><span className="measure-line" /><strong>TO PAPER</strong><small>Accurate sizes. Honest quality guidance.</small></div>
-    </section>
-
-    <div id="check" className="checker-section shell"><PrintReadinessLab /></div>
-
-    <section className="section shell home-route-section">
-      <div className="section-kicker">Start with what you know</div>
-      <div className="section-heading"><h2>One clear route for<br />each print question.</h2><p>Skip the terminology hunt. Choose the card that describes the information already in front of you.</p></div>
-      <div className="home-path-grid">{taskRoutes.map((route) => <Link href={route.href} key={route.label}><span>{route.label}</span><h3>{route.title}</h3><p>{route.text}</p><b>Start here →</b></Link>)}</div>
-    </section>
-
-    <section className="section paper-section">
-      <div className="shell">
-        <div className="section-kicker">Popular references</div>
-        <div className="section-heading compact"><h2>Start with the size<br />you need.</h2><Link href="/sizes#size-index" aria-label="View every print size" style={{ alignSelf: "stretch", minWidth: "220px", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", cursor: "pointer" }}>View every size →</Link></div>
-        <div className="size-grid">{popularSizes.map((size) => <Link href={size.href} className="size-card" key={size.name}><span className="paper-shape"><i>{size.name}</i></span><div><h3>{size.name}</h3><p>{size.measure}</p><strong>{size.pixels}</strong><small>at 300 PPI</small></div><b>↗</b></Link>)}</div>
-      </div>
-    </section>
-
-    <section className="section shell">
-      <div className="section-kicker">Focused tools</div>
-      <div className="section-heading"><h2>Use the right direction<br />for the question.</h2><p>Each calculator has one job, with the formula and units kept visible.</p></div>
-      <div className="tools-list">{tools.map((tool) => <Link href={tool.href} key={tool.num}><span>{tool.num}</span><div><h3>{tool.title}</h3><p>{tool.text}</p></div><b>→</b></Link>)}</div>
-      <div className="home-index-link"><Link href="/tools">Browse all seven print tools →</Link></div>
-    </section>
-
-    <section className="home-guide-section">
-      <div className="shell home-guide-grid"><div><span>Featured guide</span><h2>How large can you print an image without losing quality?</h2><p>Start with real pixel dimensions, choose a defensible PPI target and account for the final crop before calculating inches.</p><Link className="button primary" href="/guides/how-large-can-i-print-my-image">Read the print-size guide <span>→</span></Link></div><aside><strong>6000 × 4000 px</strong><p>20 × 13.33 in at 300 PPI</p><p>25 × 16.67 in at 240 PPI</p><p>40 × 26.67 in at 150 PPI</p><small>Before crop · confirm provider requirements</small></aside></div>
-      <div className="shell home-guide-library" aria-labelledby="home-guide-library-title">
-        <div className="home-guide-library-heading"><div><span>Eight original guides</span><h2 id="home-guide-library-title">Read the full print-preparation library.</h2></div><p>Move from the quick calculation to the production decision: resolution, crop, bleed, export checks and paper-format differences.</p></div>
-        <div className="home-guide-library-grid">{GUIDE_PAGES.map((guide, index) => <Link href={`/guides/${guide.slug}`} key={guide.slug}><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{guide.title}</h3><p>{guide.description}</p></div><b>Read →</b></Link>)}</div>
-        <div className="home-index-link"><Link href="/guides">Browse all eight guides in one place →</Link></div>
-      </div>
-    </section>
-
-    <section className="method-strip">
-      <div className="shell method-inner"><div><span>Methodology before marketing</span><h2>Print math you can inspect.</h2></div><p>Paper dimensions come from documented standards. Pixel results state the selected PPI and rounding rule. Quality labels describe a target—not a printer guarantee.</p><Link href="/methodology">Read our methodology →</Link></div>
-    </section>
-  </main>;
-}
+export default function Home(){return <main className="print-home">
+  <section className="home-opening shell"><div><span className="home-label" data-en="PRINT PREP LAB / PRACTICAL PREPRESS" data-ar="PRINT PREP LAB / تجهيز عملي للطباعة">PRINT PREP LAB / PRACTICAL PREPRESS</span><h1><span data-en="Better print decisions." data-ar="قرارات طباعة أفضل.">Better print decisions.</span><em data-en="Start with the real pixels." data-ar="ابدأ بالبكسلات الحقيقية.">Start with the real pixels.</em></h1></div><div><p data-en="Check image resolution, final size, crop and bleed before sending your artwork to print. Use the calculation, understand what it means, then confirm the printer’s requirements." data-ar="افحص دقة الصورة والمقاس النهائي والقص والنزف قبل إرسال التصميم للطباعة. استخدم الحساب وافهم معناه، ثم أكّد متطلبات المطبعة.">Check image resolution, final size, crop and bleed before sending your artwork to print. Use the calculation, understand what it means, then confirm the printer’s requirements.</p><div className="home-intro-links"><Link href="/tools" data-en="Explore the tools" data-ar="استكشف الأدوات">Explore the tools</Link><Link href="/guides" data-en="Learn the method" data-ar="تعلّم الطريقة">Learn the method</Link></div><div className="home-trust"><span data-en="Local image checks" data-ar="فحص الصور محليًا">Local image checks</span><span data-en="No account required" data-ar="بدون حساب">No account required</span><span data-en="Visible calculations" data-ar="حسابات واضحة">Visible calculations</span></div></div></section>
+  <div className="shell home-calculator" id="workflow"><PrintReadinessLab /></div>
+  <section className="home-pdf-feature shell"><div><span className="home-label" data-en="NEW / PDF INSPECTION" data-ar="جديد / فحص PDF">NEW / PDF INSPECTION</span><h2 data-en="Open the file. See what is inside." data-ar="افتح الملف. شاهد ما بداخله.">Open the file. See what is inside.</h2><p data-en="Inspect every PDF page: real dimensions, trim and bleed boxes, and image PPI at its placed size. Preview pages and take a report to your printer. Your file stays in your browser." data-ar="افحص كل صفحة PDF: المقاسات الحقيقية وإطارات التشذيب والنزف وPPI الصور عند مقاسها داخل الصفحة. عاين الصفحات وخذ تقريرًا للمطبعة. يبقى الملف داخل متصفحك.">Inspect every PDF page: real dimensions, trim and bleed boxes, and image PPI at its placed size. Preview pages and take a report to your printer. Your file stays in your browser.</p></div><Link className="button primary" href="/tools/pdf-print-preflight" data-en="Inspect a PDF →" data-ar="افحص PDF ←">Inspect a PDF →</Link></section>
+  <section className="home-tools shell"><div className="home-section-title"><div><span className="home-label" data-en="THE TOOLKIT" data-ar="الأدوات">THE TOOLKIT</span><h2 data-en="A tool for each print question." data-ar="أداة لكل سؤال عن الطباعة.">A tool for each print question.</h2></div><Link href="/tools" data-en="Compare all tools" data-ar="قارن الأدوات">Compare all tools</Link></div><div className="home-tool-grid">{TOOL_PAGES.map((tool,i)=><Link href={`/tools/${tool.slug}`} key={tool.slug}><span className="home-tool-number">{String(i+1).padStart(2,"0")}</span><h3 data-en={tool.shortTitle} data-ar={TOOL_ARABIC[tool.slug]?.shortTitle}>{tool.shortTitle}</h3><p data-en={tool.intent} data-ar={TOOL_ARABIC[tool.slug]?.intent}>{tool.intent}</p></Link>)}</div></section>
+  <section className="home-cases"><div className="shell"><div className="home-section-title"><div><span className="home-label" data-en="WORKED EXAMPLES" data-ar="أمثلة محسوبة">WORKED EXAMPLES</span><h2 data-en="See the number. Understand the decision." data-ar="شاهد الرقم وافهم القرار.">See the number. Understand the decision.</h2></div><p data-en="Illustrative jobs with stated assumptions. Recalculate for your own printer and product." data-ar="مهام توضيحية بافتراضات معلنة. أعد الحساب حسب منتجك ومتطلبات مطبعتك.">Illustrative jobs with stated assumptions. Recalculate for your own printer and product.</p></div><div className="home-case-grid">{cases.map(c=><article key={c.title}><span className="home-label" data-en={c.tag} data-ar={c.arTag}>{c.tag}</span><h3 data-en={c.title} data-ar={c.arTitle}>{c.title}</h3><div className="home-case-result"><strong dir="ltr">{c.result}</strong><span data-en={c.note} data-ar={c.arNote}>{c.note}</span></div><p data-en={c.detail} data-ar={c.arDetail}>{c.detail}</p><Link href={c.href} data-en="Read the calculation and next steps" data-ar="اقرأ الحساب والخطوات التالية">Read the calculation and next steps</Link></article>)}</div></div></section>
+  <section className="home-library shell"><div className="home-section-title"><div><span className="home-label" data-en="THE PRINT PREPARATION LIBRARY" data-ar="مكتبة تجهيز الطباعة">THE PRINT PREPARATION LIBRARY</span><h2 data-en="Go from an answer to a finished file." data-ar="انتقل من الإجابة إلى ملف جاهز.">Go from an answer to a finished file.</h2></div><p data-en="Learn resolution, cropping, color, export and production checks. Every guide links the decision to a practical next step." data-ar="تعلّم الدقة والقص والألوان والتصدير وفحوص الإنتاج. كل دليل يربط القرار بخطوة عملية.">Learn resolution, cropping, color, export and production checks. Every guide links the decision to a practical next step.</p></div><div className="home-guide-grid">{GUIDE_PAGES.map((g,i)=><Link key={g.slug} href={`/guides/${g.slug}`}><span>{String(i+1).padStart(2,"0")}</span><div><h3 data-en={g.title} data-ar={GUIDE_ARABIC[g.slug]?.heading}>{g.title}</h3><p data-en={g.description} data-ar={GUIDE_ARABIC[g.slug]?.description}>{g.description}</p></div></Link>)}</div></section>
+  <section className="home-about shell"><div><span className="home-label" data-en="WHO THIS IS FOR" data-ar="لمن صُمم؟">WHO THIS IS FOR</span><h2 data-en="For the person preparing the print." data-ar="لمن يُجهّز الملف للطباعة.">For the person preparing the print.</h2></div><div><p data-en="Print Prep Lab helps designers, photographers, print sellers, students and production teams turn pixel dimensions and printer specifications into a repeatable preparation process. Start with a file or a finished size; the tools show the math rather than treating a DPI label as evidence of quality." data-ar="يساعد Print Prep Lab المصممين والمصورين وبائعي المطبوعات والطلاب وفرق الإنتاج على تحويل أبعاد البكسل ومواصفات المطبعة إلى خطوات تجهيز قابلة للتكرار. ابدأ بملف أو مقاس نهائي؛ الأدوات تعرض الحساب ولا تعتبر قيمة DPI دليلًا على الجودة.">Print Prep Lab helps designers, photographers, print sellers, students and production teams turn pixel dimensions and printer specifications into a repeatable preparation process. Start with a file or a finished size; the tools show the math rather than treating a DPI label as evidence of quality.</p><p data-en="A pixel-density result is one check, not a production approval. Sharpness, compression, color profiles, fonts, paper and finishing need separate review. Our guides explain these limits and help you ask the printer the right questions." data-ar="نتيجة كثافة البكسل فحص واحد وليست اعتمادًا للإنتاج. الحدة والضغط وملفات اللون والخطوط والورق والتشطيب تحتاج مراجعة مستقلة. أدلتنا تشرح الحدود وتساعدك على توجيه الأسئلة المناسبة للمطبعة.">A pixel-density result is one check, not a production approval. Sharpness, compression, color profiles, fonts, paper and finishing need separate review. Our guides explain these limits and help you ask the printer the right questions.</p><nav><Link href="/methodology" data-en="Our calculation methodology" data-ar="منهجية الحساب">Our calculation methodology</Link><Link href="/sources" data-en="Sources and references" data-ar="المصادر والمراجع">Sources and references</Link></nav></div></section>
+  <section className="home-workspace shell"><div><h2 data-en="Managing a production job?" data-ar="تدير مهمة إنتاج؟">Managing a production job?</h2><p data-en="Keep browser-local jobs, costing, suppliers and release evidence together in the professional workspace." data-ar="اجمع المهام المحلية والتكلفة والموردين وأدلة الإصدار في مساحة العمل الاحترافية.">Keep browser-local jobs, costing, suppliers and release evidence together in the professional workspace.</p></div><Link className="button secondary" href="/workspace" data-en="Open the workspace" data-ar="افتح مساحة العمل">Open the workspace</Link></section>
+</main>}

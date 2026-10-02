@@ -22,6 +22,7 @@ try {
     { name: 'mobile', width: 390, height: 844 },
   ]) {
     const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
+    if (process.env.PRINTPREP_BLOCK_REMOTE === "1") await context.route("**/*", route => new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort());
     const page = await context.newPage();
     try {
       const response = await page.goto(base + route, { waitUntil: 'networkidle' });

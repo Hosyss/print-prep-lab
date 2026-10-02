@@ -1,0 +1,29 @@
+import type { ToolPage } from "./site-content";
+import type { ArabicToolCopy } from "./source-arabic";
+
+export const PDF_TOOL: ToolPage = {
+  slug:"pdf-print-preflight", mode:"pdf-preflight", title:"PDF Print Preflight",seoTitle:"PDF Print Preflight - Page Size, Bleed and Image PPI",heading:"Inspect your PDF before printing.",shortTitle:"PDF print preflight",
+  description:"Inspect real PDF page sizes, trim and bleed boxes, and embedded image PPI in your browser. Preview pages and download a report without uploading your file.",
+  intent:"Does my PDF match the printer's requirements?",
+  quickAnswer:"Read the actual PDF, then compare every page with the printer's required trim size, bleed and image PPI. A missing explicit TrimBox or BleedBox needs review even when the PDF looks correct on screen.",
+  formula:"mm = PDF units × UserUnit × 25.4 ÷ 72",
+  example:"An A4 flyer with a 210 × 297 mm TrimBox and a centred 216 × 303 mm BleedBox has 3 mm of geometric bleed on every edge. A 1200-pixel image placed 4 inches wide has 300 PPI; placing it 8 inches wide lowers that axis to 150 PPI.",
+  steps:["Choose an unlocked PDF up to 40 MB and 100 pages. The file remains inside the browser.","Enter the printer's required bleed, image PPI and optional trim dimensions. Check each page in the selector and all-pages table.","Review missing boxes, size mismatches and low-density image placements. Download the report and confirm the remaining production checks with your printer."],
+  mistakes:["Assuming a page displayed at A4 size contains an explicit A4 TrimBox", "Treating an existing BleedBox as proof that artwork extends to its edges", "Assuming every image has the same resolution because the PDF export used a 300 PPI setting"],
+  related:["print-readiness-checker","bleed-safe-area-calculator","dpi-ppi-calculator"],
+  faq:[{question:"Does this upload my PDF?",answer:"No. PDF parsing, image measurements and the page preview run in your browser. The report is generated locally. The PDF is not sent to Print Prep Lab."},{question:"Why are missing trim and bleed boxes flagged for review?",answer:"PDF permits TrimBox and BleedBox to default to CropBox. That fallback is useful for displaying a page, but it does not establish an intended finished size or deliberate production bleed."},{question:"Can this certify PDF/X or color and font readiness?",answer:"No. This tool measures page geometry and supported raster image placements. It does not verify font embedding, ICC profiles, spot colors, overprint, transparency, PDF/X or artwork coverage in the bleed. Ask the printer to run their production preflight."}],
+};
+export const PDF_TOOL_ARABIC: ArabicToolCopy = {
+  shortTitle:"فحص PDF للطباعة",heading:"افحص PDF قبل الطباعة.",description:"افحص مقاسات صفحات PDF وإطارات التشذيب والنزف وPPI الصور داخل المتصفح. عاين الصفحات ونزّل تقريرًا دون رفع الملف.",intent:"هل يطابق PDF متطلبات المطبعة؟",
+  quickAnswer:"اقرأ PDF الحقيقي ثم قارن كل صفحة بمتطلبات المطبعة للمقاس النهائي والنزف وPPI الصور. غياب TrimBox أو BleedBox صريح يستدعي المراجعة حتى لو بدا الملف صحيحًا على الشاشة.",
+  example:"فلاير A4 بإطار TrimBox مقاسه 210 × 297 مم وBleedBox مركزي مقاسه 216 × 303 مم يمتلك نزفًا هندسيًا 3 مم على كل حافة. صورة عرضها 1200 بكسل موضوعة بعرض 4 بوصات تحقق 300 PPI؛ وعرضها عند 8 بوصات يخفض ذلك المحور إلى 150 PPI.",
+  steps:["اختر PDF غير محمي حتى 40 ميجابايت و100 صفحة. يبقى الملف داخل المتصفح.","أدخل النزف وPPI المطلوبَين ومقاس التشذيب الاختياري. افحص كل صفحة باستخدام محدد الصفحات وجدول كل الصفحات.","راجع الإطارات المفقودة والمقاسات غير المطابقة والصور منخفضة الكثافة. نزّل التقرير وأكد باقي فحوص الإنتاج مع المطبعة."],
+  mistakes:["افتراض أن عرض الصفحة بمقاس A4 يعني احتواءها على TrimBox صريح بمقاس A4", "اعتبار وجود BleedBox دليلًا على امتداد التصميم حتى حوافه", "افتراض أن كل الصور لها نفس الدقة لأن إعداد التصدير كان 300 PPI"],
+  useCases:["افحص نسخة PDF النهائية بعد التصدير بدل الاعتماد على إعدادات ملف التصميم.","اكتشف صفحات بمقاسات مختلفة داخل ملف متعدد الصفحات، وراجع الدوران والمقاس النهائي لكل صفحة.","قارن النزف وكثافة مواضع الصور بمتطلبات المطبعة ثم أرفق التقرير بملاحظات التسليم."],
+  technicalNotes:["تُحوّل وحدات PDF إلى مم مع مراعاة UserUnit ودوران الصفحة؛ سماحية مطابقة المقاس ±0.5 مم.","تُقاس الحواف الأربع بين TrimBox وBleedBox ضمن MediaBox. لا يُعتبر الإطار الافتراضي إثباتًا للنزف.","يُحسب PPI من البكسلات والحجم الذي تشغله الصورة داخل الصفحة. الأقنعة ومجموعات الشفافية غير المقاسة تظهر للمراجعة."],
+  faq:[{question:"هل يتم رفع PDF؟",answer:"لا. تحليل PDF وقياسات الصور والمعاينة تعمل داخل المتصفح. يُنشأ التقرير محليًا ولا يُرسل PDF إلى Print Prep Lab."},{question:"لماذا تتطلب إطارات التشذيب والنزف المفقودة مراجعة؟",answer:"يسمح PDF بأن يكون CropBox بديلًا لـTrimBox وBleedBox. هذا البديل مفيد لعرض الصفحة، لكنه لا يثبت المقاس النهائي المقصود أو النزف المخصص للإنتاج."},{question:"هل يعتمد الفحص PDF/X أو جاهزية الألوان والخطوط؟",answer:"لا. يقيس الفحص هندسة الصفحات ومواضع الصور النقطية المدعومة. لا يتحقق من تضمين الخطوط أو ملفات ICC أو الألوان الخاصة أو الطباعة الفوقية أو الشفافية أو PDF/X أو امتداد التصميم داخل النزف. اطلب فحص الإنتاج من المطبعة."}],
+};
+export const PDF_TOOL_CONTEXT={
+  useCases:["Inspect the final exported PDF rather than relying on settings in the design document.","Find mixed page sizes in a multi-page document and check each page's rotation and intended trim.","Compare bleed and image-placement density with the printer's specification, then attach the local report to your handoff notes."],
+  technicalNotes:["PDF units are converted to millimetres with UserUnit and page rotation accounted for; trim-size tolerance is ±0.5 mm.","All four bleed margins are measured between TrimBox and BleedBox inside MediaBox. Default boxes do not establish bleed.","PPI uses the pixels and the size occupied by the image on the page. Unassessed masks and transparency groups remain marked for review."],
+};

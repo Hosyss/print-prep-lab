@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {pointsToMm,displayedSize,bleedMargins,imageDensity,multiply,containsBox} from '../lib/pdf-preflight-math.ts';
+const close=(actual,expected)=>assert.ok(Math.abs(actual-expected)<0.0001,`${actual} ≠ ${expected}`);
+test('PDF points and non-default UserUnit convert to physical millimetres',()=>{close(pointsToMm(72),25.4);close(pointsToMm(72,2),50.8);});
+test('rotation swaps finished dimensions while UserUnit scales both axes',()=>{const box={x:10,y:20,width:72,height:144};assert.deepEqual(displayedSize(box,90,2),{width:101.6,height:50.8});assert.deepEqual(displayedSize(box,270),{width:50.8,height:25.4});});
+test('bleed uses all edges and clips declared bleed to the physical MediaBox',()=>{const trim={x:9,y:9,width:100,height:200};const bleed={x:0,y:0,width:118,height:218};const media={x:0,y:0,width:114,height:214};const margins=bleedMargins(trim,bleed,media);close(margins[0],3.175);close(margins[2],1.7638888889);close(margins[3],1.7638888889);});
+test('invalid boxes retain negative margins and do not silently pass containment',()=>{const media={x:0,y:0,width:100,height:100};const trim={x:-5,y:0,width:105,height:100};assert.equal(containsBox(media,trim),false);assert.ok(bleedMargins(trim,media,media)[0]<0);});
+test('image placement PPI is independent of translation and respects unequal axes',()=>{const value=imageDensity(1200,600,[288,0,0,72,400,20]);close(value.x,300);close(value.y,600);close(value.minimum,300);});
+test('nested form matrices, rotation and UserUnit change density correctly',()=>{const transform=multiply([0,2,-2,0,40,90],[144,0,0,72,5,10]);const value=imageDensity(600,300,transform,2);close(value.x,75);close(value.y,75);});
+test('degenerate image transforms are unassessed instead of infinite PPI',()=>{assert.equal(imageDensity(100,100,[0,0,0,72,0,0]),null);assert.equal(imageDensity(0,100,[72,0,0,72,0,0]),null);});

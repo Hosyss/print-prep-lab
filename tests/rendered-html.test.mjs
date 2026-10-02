@@ -9,7 +9,7 @@ const EXPECTED_PATHS = [
   "/tools/print-readiness-checker", "/tools/pixels-to-print-size",
   "/tools/print-size-to-pixels", "/tools/dpi-ppi-calculator",
   "/tools/paper-size-pixels-calculator", "/tools/aspect-ratio-crop-preview",
-  "/tools/bleed-safe-area-calculator",
+  "/tools/bleed-safe-area-calculator", "/tools/pdf-print-preflight",
   "/sizes/a2", "/sizes/a3", "/sizes/a4", "/sizes/a5",
   "/sizes/us-letter", "/sizes/us-legal", "/sizes/4x6-photo",
   "/sizes/5x7-photo", "/sizes/8x10-photo", "/sizes/11x14-photo",
@@ -18,6 +18,8 @@ const EXPECTED_PATHS = [
   "/guides/print-resolution-guide", "/guides/bleed-trim-safe-area",
   "/guides/aspect-ratio-cropping-print", "/guides/print-file-preflight-checklist",
   "/guides/export-images-for-large-format-printing", "/guides/a4-vs-us-letter-printing",
+  "/guides/rgb-vs-cmyk-printing", "/guides/prepare-pdf-for-print",
+  "/guides/low-resolution-images-for-print", "/guides/business-card-bleed-and-safe-area",
   "/about", "/methodology", "/sources", "/editorial-policy",
   "/privacy", "/terms", "/contact",
 ];
@@ -108,7 +110,7 @@ test("serves a clean robots file, a complete sitemap and an authorized ads.txt",
   const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
   assert.deepEqual(new Set(locations), new Set(EXPECTED_PATHS.map((path) => `${SITE_URL}${path}`)));
   assert.equal(new Set(locations).size, EXPECTED_PATHS.length);
-  assert.equal((sitemap.match(/<lastmod>2026-08-24T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length);
+  assert.equal((sitemap.match(/<lastmod>2026-10-01T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length);
   assert.doesNotMatch(sitemap, /<priority>|<changefreq>/);
 
   const adsText = (await readFile(new URL("../public/ads.txt", import.meta.url), "utf8")).trim();
@@ -147,7 +149,7 @@ test("keeps the public Admin entry isolated from the Pages origin", async () => 
   }
 });
 
-test("renders all seven calculators with original use cases, examples, notes and FAQs", async () => {
+test("renders all eight tools with original use cases, examples, notes and FAQs", async () => {
   const worker = await loadWorker();
   const toolPaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/tools/"));
   const bodyFingerprints = new Set();
@@ -159,7 +161,7 @@ test("renders all seven calculators with original use cases, examples, notes and
     assert.match(html, /Technical notes/);
     assert.match(html, /Worked example/);
     assert.match(html, /FAQPage/);
-    if (path !== "/tools/print-readiness-checker") {
+    if (!["/tools/print-readiness-checker", "/tools/pdf-print-preflight"].includes(path)) {
       assert.match(html, /Calculated results/);
       assert.match(html, /class="result-copy"/);
     }
@@ -168,7 +170,36 @@ test("renders all seven calculators with original use cases, examples, notes and
     assert.ok(!bodyFingerprints.has(context), `${path} duplicates another tool context`);
     bodyFingerprints.add(context);
   }
-  assert.equal(bodyFingerprints.size, 7);
+  assert.equal(bodyFingerprints.size, 8);
+});
+
+test("loads retained pages through Pages pretty URLs and preserves noindex on HTTP and HEAD", async () => {
+  const worker = await loadWorker();
+  const calls = [];
+  const env = { ASSETS: { async fetch(request) {
+    calls.push({path:new URL(request.url).pathname, method:request.method, etag:request.headers.get('if-none-match')});
+    if(new URL(request.url).pathname === '/jobs.html') return new Response(null, {status:308, headers:{location:'/jobs'}});
+    if(new URL(request.url).pathname === '/jobs') return new Response(request.method === 'HEAD' ? null : '<h1>Saved print jobs</h1>', {headers:{'content-type':'text/html'}});
+    return new Response('Missing', {status:404});
+  } } };
+  for(const origin of [SITE_URL, 'http://localhost:4182']) for(const method of ['GET','HEAD']) {
+    const response = await worker.fetch(new Request(origin+'/jobs?filter=open', {method, headers:{'if-none-match':'old'}}), env, workerContext());
+    assert.equal(response.status, 200); assert.match(response.headers.get('x-robots-tag') ?? '', /noindex/);
+    assert.match(response.headers.get('link') ?? '', /printpreplab\.pages\.dev\/jobs/);
+    if(method === 'HEAD') assert.equal(await response.text(), '');
+  }
+  assert.equal(calls.length, 4); assert.ok(calls.every(call => call.path === '/jobs' && call.etag === null));
+  const raw = await requestPath(worker, '/jobs.html');
+  assert.equal(raw.status, 404); assert.match(raw.headers.get('x-robots-tag') ?? '', /noindex/);
+});
+
+test("retains raw-file preview compatibility and falls back when operational assets are absent", async () => {
+  const worker = await loadWorker();
+  const calls=[];
+  const env={ASSETS:{async fetch(request){const path=new URL(request.url).pathname;calls.push(path);return path==='/jobs.html'?new Response('<h1>Saved print jobs</h1>',{headers:{'content-type':'text/html'}}):new Response('Missing',{status:404});}}};
+  const response=await worker.fetch(new Request(SITE_URL+'/jobs'),env,workerContext());
+  assert.equal(response.status,200);assert.deepEqual(calls,['/jobs','/jobs.html']);
+  const absent=await requestPath(worker,'/jobs');assert.equal(absent.status,404);
 });
 
 test("renders all twelve size references with format-specific editorial context", async () => {
@@ -190,24 +221,24 @@ test("renders all twelve size references with format-specific editorial context"
   assert.equal(bodyFingerprints.size, 12);
 });
 
-test("renders eight original guides with authorship, review, sources and practical decisions", async () => {
+test("renders twelve original guides with authorship, review, sources and practical decisions", async () => {
   const worker = await loadWorker();
   const guidePaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/guides/"));
-  assert.equal(guidePaths.length, 8);
+  assert.equal(guidePaths.length, 12);
 
   const homeHtml = await renderPath(worker, "/");
-  assert.match(homeHtml, /Eight original guides/);
+  assert.match(homeHtml, /THE PRINT PREPARATION LIBRARY/);
   const homeGuideLinks = new Set(
     [...homeHtml.matchAll(/<a\b[^>]*\bhref="(\/guides\/[^"#?]+)"/g)].map((match) => match[1]),
   );
-  assert.deepEqual(homeGuideLinks, new Set(guidePaths), "the home page must expose all eight guides");
+  assert.deepEqual(homeGuideLinks, new Set(guidePaths), "the home page must expose all twelve guides");
 
   for (const path of guidePaths) {
     const html = await renderPath(worker, path);
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
     assert.match(html, /Written and maintained by/);
     assert.match(html, /Hossam Eldeen/);
-    assert.match(html, /Reviewed and updated August 24, 2026/);
+    assert.match(html, /Updated October 1, 2026/);
     assert.match(html, /Decision table/);
     assert.match(html, /Practical workflow/);
     assert.match(html, /Common mistakes/);
@@ -245,6 +276,8 @@ test("audits every sitemap page for indexability, distinct metadata and valid in
   for (const path of EXPECTED_PATHS) {
     const html = await renderPath(worker, path);
     assert.doesNotMatch(html, developmentPreviewMeta, `${path} exposes preview metadata`);
+    const indexResponse = await requestPath(worker, path);
+    assert.doesNotMatch(indexResponse.headers.get("x-robots-tag") ?? "", /noindex/i, `${path} HTTP headers must permit indexing`);
     assert.doesNotMatch(html, /helpx\.adobe\.com\/photoshop\/using\/image-size-resolution\.html/i, `${path} links to Adobe's retired resolution page`);
     assert.doesNotMatch(html, /helpx\.adobe\.com\/indesign\/using\/printers-marks-bleeds\.html/i, `${path} links to Adobe's retired bleed page`);
     assert.doesNotMatch(html, /<meta[^>]+content="noindex/i, `${path} must be indexable`);
@@ -269,7 +302,7 @@ test("audits every sitemap page for indexability, distinct metadata and valid in
       const href = match[1];
       if (!href.startsWith("/")) continue;
       const linkedPath = new URL(href, SITE_URL).pathname;
-      assert.ok(expectedPathSet.has(linkedPath), `${path} links to a route missing from the sitemap: ${href}`);
+      assert.ok(expectedPathSet.has(linkedPath) || linkedPath === "/workspace", `${path} links to a route missing from the sitemap: ${href}`);
     }
   }
   assert.equal(titles.size, EXPECTED_PATHS.length);

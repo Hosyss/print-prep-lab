@@ -7,8 +7,7 @@ output="${release_dir}/print-prep-lab-pages-adsense-readiness-final.zip"
 staging="$(mktemp -d)"
 trap 'rm -rf -- "${staging}"' EXIT
 
-# Apply source-only corrections once, then build the current public app.
-python3 "${release_dir}/final-source-patch.py" "${repo_root}"
+# Source corrections are tracked in Git; builds must not rewrite source files.
 (
   cd "${repo_root}"
   npm run build

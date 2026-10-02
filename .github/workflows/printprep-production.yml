@@ -1,0 +1,89 @@
+name: Print Prep Lab production release
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/printprep-production.yml
+      - scripts/pages-production.mjs
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: printprep-production
+  cancel-in-progress: false
+
+jobs:
+  access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check existing Pages credentials and production target
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/pages-production.mjs preflight
+
+  review:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/editorial-content-review.yml
+
+  publish:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [access, review]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Retrieve the artifact that passed browser and route QA
+        uses: actions/download-artifact@v4
+        with:
+          name: printprep-editorial-review-evidence
+          path: work/review-evidence
+      - name: Extract the tested release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t archives < <(rg --files work/review-evidence | rg '/print-prep-lab-pages-adsense-readiness-final\.zip$')
+          test "${#archives[@]}" -eq 1
+          mkdir -p work/production-artifact
+          unzip -q "${archives[0]}" -d work/production-artifact
+          test -s work/production-artifact/_worker.js
+          test -s work/production-artifact/_routes.json
+      - name: Publish and confirm this exact production commit
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/pages-production.mjs deploy work/production-artifact
+      - name: Check live public content, indexing and retained navigation
+        run: node tests/pages-routing-qa.mjs https://printpreplab.pages.dev work/production-qa
+      - name: Check real PDF interactions on the live site
+        env:
+          PRINTPREP_BLOCK_REMOTE: '1'
+        run: |
+          npm install --prefix "$RUNNER_TEMP/printprep-browser-tools" --no-package-lock --ignore-scripts playwright@1.63.0
+          ln -s "$RUNNER_TEMP/printprep-browser-tools/node_modules/playwright" node_modules/playwright
+          node tests/pdf-preflight-browser-qa.mjs https://printpreplab.pages.dev work/production-qa
+      - name: Retain production verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: printprep-production-evidence
+          path: work/production-qa/
+          retention-days: 7
+          if-no-files-found: warn

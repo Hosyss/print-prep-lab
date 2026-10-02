@@ -17,6 +17,7 @@ import "./v119-source.css";
 import "./v119-source-nav.css";
 import "./v119-source-polish.css";
 import "./v119-source-locale.css";
+import "./printprep-upgrade.css";
 
 const googleVerification =
   process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || DEFAULT_GOOGLE_VERIFICATION;

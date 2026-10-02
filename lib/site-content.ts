@@ -1,3 +1,5 @@
+import { PDF_TOOL, PDF_TOOL_CONTEXT } from "./pdf-tool-content";
+import { EDITORIAL_GUIDES } from "@/lib/editorial-guides";
 import { ADDITIONAL_GUIDES } from "@/lib/additional-guides";
 
 export type ToolMode =
@@ -16,7 +18,7 @@ export type ToolPage = {
   shortTitle: string;
   description: string;
   intent: string;
-  mode: ToolMode | "print-readiness-checker";
+  mode: ToolMode | "print-readiness-checker" | "pdf-preflight";
   quickAnswer: string;
   formula: string;
   example: string;
@@ -27,6 +29,7 @@ export type ToolPage = {
 };
 
 export const TOOL_PAGES: ToolPage[] = [
+  PDF_TOOL,
   {
     slug: "print-readiness-checker",
     title: "Print Readiness Checker",
@@ -143,7 +146,7 @@ export const TOOL_PAGES: ToolPage[] = [
     mode: "aspect-ratio-crop-preview",
     quickAnswer: "A full-bleed print crops whenever the image and paper have different aspect ratios. Upload a local image or enter its pixels, choose a print preset and compare fill versus fit before ordering.",
     formula: "retained area = smaller aspect ratio ÷ larger aspect ratio",
-    example: "A 3:2 camera image retains about 83.3% of its area when it fills an 8 × 10 (4:5) print, so about 16.7% is cropped from the long direction.",
+    example: "A portrait 2:3 camera image retains about 83.3% of its area when it fills an 8 × 10 (4:5) print, so about 16.7% is cropped from the long direction.",
     mistakes: ["Checking only dimensions instead of shape", "Cropping important content without repositioning the frame", "Calculating PPI before the final crop"],
     related: ["print-readiness-checker", "pixels-to-print-size", "paper-size-pixels-calculator"],
     steps: ["Enter the image dimensions to establish its aspect ratio.", "Choose the intended paper or photo size.", "Compare the retained and cropped percentages before editing the composition."],
@@ -177,6 +180,7 @@ export const TOOL_PAGES: ToolPage[] = [
 ];
 
 export const TOOL_CONTEXT: Record<string, { useCases: string[]; technicalNotes: string[] }> = {
+  "pdf-print-preflight": PDF_TOOL_CONTEXT,
   "print-readiness-checker": {
     useCases: [
       "Use it after choosing the exact image file and before ordering a standard photo, paper or wall-print size.",
@@ -272,7 +276,7 @@ export const SIZE_DETAILS: Record<string, { ratio: string; uses: string; note: s
   "us-legal": { ratio: "17:28", uses: "contracts, legal documents and long forms", note: "US Legal shares the 8.5-inch width of Letter but extends the long edge to 14 inches." },
   "4x6-photo": { ratio: "2:3", uses: "standard photo-lab prints and postcards", note: "The 2:3 ratio matches many camera files, so this format often needs little or no crop." },
   "5x7-photo": { ratio: "5:7", uses: "greeting cards, portraits and small frames", note: "A 2:3 camera image must lose a small portion of its long edge to fill 5 × 7." },
-  "8x10-photo": { ratio: "4:5", uses: "portraits, certificates and framed wall photos", note: "The 4:5 shape is noticeably less wide than a 2:3 camera frame, so crop placement matters." },
+  "8x10-photo": { ratio: "4:5", uses: "portraits, certificates and framed wall photos", note: "The portrait 4:5 shape is wider relative to its height than a portrait 2:3 camera frame, so crop placement matters." },
   "11x14-photo": { ratio: "11:14", uses: "portraits, art prints and medium frames", note: "11 × 14 does not exactly match 4:5 or 2:3, so preview the crop rather than relying on a nearby ratio." },
   "12x18-photo": { ratio: "2:3", uses: "camera-ratio enlargements and wall art", note: "The 2:3 ratio matches 4 × 6 and many camera sensors, reducing the need to crop." },
   "16x20-photo": { ratio: "4:5", uses: "large portraits, art prints and gallery frames", note: "At this physical size, verify both effective PPI and intended viewing distance before ordering." },
@@ -347,7 +351,7 @@ export const SIZE_USE_CASES: Record<string, { heading: string; paragraphs: strin
     heading: "8 × 10 for close-viewed portraits and display prints",
     paragraphs: [
       "The 8 × 10 is a traditional portrait, certificate and small wall-display format. It is usually viewed closely, so skin detail, eyes, text and retouching deserve more scrutiny than they would on a distant-viewed poster.",
-      "Its 4:5 ratio removes about 16.7% of a 3:2 camera image when filled. The crop is substantial enough to cut shoulders, hands or environmental context. Recompose deliberately, use a 4:5 camera crop when available, or fit the whole image with a border.",
+      "Its 4:5 ratio removes about 16.7% of a portrait 2:3 camera image when filled. The crop is substantial enough to cut shoulders, hands or environmental context. Recompose deliberately, use a 4:5 camera crop when available, or fit the whole image with a border.",
       "At 300 PPI, the trim needs 2400 × 3000 pixels. The same 4:5 crop also fits 16 × 20 by shape, but doubling each physical edge doubles the pixel requirement for equal PPI. Do not assume one exported file is equally dense at both sizes.",
     ],
   },
@@ -371,7 +375,7 @@ export const SIZE_USE_CASES: Record<string, { heading: string; paragraphs: strin
     heading: "16 × 20 for large portraits and 4:5 wall art",
     paragraphs: [
       "The 16 × 20 is widely used for large portraits, gallery walls and art reproductions. Its 4:5 shape matches 8 × 10, making it convenient when a composition has already been prepared for that ratio.",
-      "A 3:2 camera image loses about 16.7% of its area when filled to 4:5. Apply that crop before calculating resolution: the removed long-edge pixels are no longer available to support the enlargement. Protect faces and deliberate negative space rather than relying on a centred default.",
+      "A portrait 2:3 camera image loses about 16.7% of its area when filled to 4:5. Apply that crop before calculating resolution: the removed long-edge pixels are no longer available to support the enlargement. Protect faces and deliberate negative space rather than relying on a centred default.",
       "At 300 PPI, 16 × 20 requires 4800 × 6000 pixels, or 28.8 megapixels after the final crop. Some providers accept a lower target for wall viewing, but fine portrait detail and close inspection can justify the denser file. Confirm the product and proof it when the job is important.",
     ],
   },
@@ -466,7 +470,7 @@ const CORE_GUIDE_PAGES: GuidePage[] = [
     sections: [
       { heading: "Start with the real pixel dimensions", paragraphs: ["Find the width and height in pixels—not the file size in megabytes and not only the embedded DPI label. Those dimensions define the raster detail available for the final print.", "Megabytes change with compression, format, layers and metadata. Two files can have very different file sizes while containing the same number of printable pixels."] },
       { heading: "Choose a target for the actual product", paragraphs: ["Detailed prints viewed closely often target 300 PPI. A provider may accept 240 PPI for photographic work, while a larger display viewed farther away may use 150 PPI or another specified target.", "These are planning bands, not guarantees. Paper, sharpening, source quality, print process and viewing distance all affect the visible result."] },
-      { heading: "Crop before calculating the final size", paragraphs: ["A 6000 × 4000 image has a 3:2 ratio. Filling a 4:5 print keeps 5000 × 4000 pixels and removes about 16.7% of the image area. At 300 PPI, the cropped image is therefore about 16.67 × 13.33 inches—not the uncropped 20 × 13.33 inches."] },
+      { heading: "Crop before calculating the final size", paragraphs: ["A 6000 × 4000 image has a 3:2 ratio. Filling a landscape 5:4 print keeps 5000 × 4000 pixels and removes about 16.7% of the image area. At 300 PPI, the cropped image is therefore about 16.67 × 13.33 inches—not the uncropped 20 × 13.33 inches."] },
       { heading: "Resampling changes pixels, not the original capture", paragraphs: ["Downsampling removes pixels. Upsampling creates estimated pixels between existing ones. Good software can make enlargement artifacts less obvious, but entering a larger number does not reveal detail that was never recorded.", "Keep the original file, apply the final crop once, and export according to the provider's format, color and sharpening instructions."] },
       { heading: "Use the smaller limiting dimension", paragraphs: ["Calculate width and height separately. If a target frame or crop makes one direction fall below the intended PPI, that lower direction limits the whole print. This is why a full two-dimensional check is safer than dividing only the longest edge."] },
     ],
@@ -598,16 +602,16 @@ const CORE_GUIDE_PAGES: GuidePage[] = [
       ],
     },
     sections: [
-      { heading: "Aspect ratio describes shape, not size", paragraphs: ["A 4 × 6 and a 12 × 18 have the same 2:3 ratio even though one is much larger. An 8 × 10 and a 16 × 20 both use 4:5, so they share a shape but require different pixel counts.", "Orientation does not change the ratio match. A 3:2 landscape becomes 2:3 in portrait while keeping the same proportions."] },
+      { heading: "Aspect ratio describes shape, not size", paragraphs: ["A 4 × 6 and a 12 × 18 have the same 2:3 ratio even though one is much larger. An 8 × 10 and a 16 × 20 both use 4:5, so they share a shape but require different pixel counts.", "Rotate the image and print together when comparing equivalent shapes. A 3:2 landscape becomes 2:3 in portrait; rotating only one of them changes the crop. The percentages in this table assume corresponding orientations are aligned."] },
       { heading: "Fill, fit or add a border", paragraphs: ["Fill covers the paper and crops image content that falls outside the target ratio. Fit shows the complete image and can leave borders on two sides. Expanding the canvas creates a deliberate border while preserving the source composition.", "None is automatically correct. The subject placement, frame, lab product and intended design decide the best option."] },
       { heading: "Crop position protects the subject", paragraphs: ["A centered crop is only a mathematical default. Faces, text, horizons and important objects may need the crop shifted horizontally or vertically.", "Preview the exact print ratio, then inspect the edges at the final size. Labs can also apply a small production crop for borderless output."] },
-      { heading: "Cropping changes effective PPI", paragraphs: ["Cropping removes pixels. A 6000 × 4000 px 3:2 image cropped to 4:5 retains approximately 5000 × 4000 px. Calculate print resolution from those remaining dimensions, not from the original file."] },
+      { heading: "Cropping changes effective PPI", paragraphs: ["Cropping removes pixels. A 6000 × 4000 px 3:2 image cropped to a landscape 5:4 frame retains approximately 5000 × 4000 px. Calculate print resolution from those remaining dimensions, not from the original file."] },
       { heading: "Choose a ratio-friendly size when composition matters", paragraphs: ["If an edge-to-edge crop damages the image, choose a print that matches the camera ratio, add a border, or extend the canvas intentionally. A 3:2 source naturally fits 4 × 6, 12 × 18 and other 2:3 sizes."] },
     ],
     workflow: ["Identify the source image ratio.", "Select the exact print size and orientation.", "Compare fill and fit, then position the subject-safe crop.", "Calculate effective PPI from the pixels that remain."],
     mistakes: ["Assuming every common photo size uses the same ratio", "Checking resolution before applying the crop", "Letting an automatic center crop remove faces or text"],
     faq: [
-      { question: "Why does an 8 × 10 crop a 4 × 6 photo?", answer: "A 4 × 6 uses a 2:3 ratio, while 8 × 10 uses 4:5. Filling the 4:5 print removes about 16.7% of a 3:2 image area." },
+      { question: "Why does an 8 × 10 crop a 4 × 6 photo?", answer: "A 4 × 6 uses a 2:3 ratio, while 8 × 10 uses 4:5. Filling the portrait 4:5 print removes about 16.7% of a portrait 2:3 image area." },
       { question: "Which print sizes fit a 3:2 camera image?", answer: "Sizes such as 4 × 6 and 12 × 18 share the 2:3 shape. Other products may still apply a small production crop for borderless output." },
       { question: "Can I avoid cropping by adding borders?", answer: "Yes. Fit the whole image inside the print ratio and leave or design the remaining border area. Confirm how the lab handles borders before ordering." },
       { question: "Does moving the crop change the cropped percentage?", answer: "No. Position changes which content is removed, while the ratio determines how much area is removed for a fill crop." },
@@ -621,7 +625,7 @@ const CORE_GUIDE_PAGES: GuidePage[] = [
   },
 ];
 
-export const GUIDE_PAGES: GuidePage[] = [...CORE_GUIDE_PAGES, ...ADDITIONAL_GUIDES];
+export const GUIDE_PAGES: GuidePage[] = [...CORE_GUIDE_PAGES, ...ADDITIONAL_GUIDES, ...EDITORIAL_GUIDES];
 
 export const TRUST_PAGES: Record<string, { title: string; description: string; sections: Array<{ heading: string; paragraphs: string[] }> }> = {
   about: {
@@ -643,7 +647,7 @@ export const TRUST_PAGES: Record<string, { title: string; description: string; s
       { heading: "Units and stored dimensions", paragraphs: ["One inch equals exactly 25.4 millimetres. ISO A-series presets are stored in millimetres; US paper and photo formats are converted from their native inch dimensions. This avoids repeatedly copying rounded inch equivalents back into later calculations.", "Centimetres are converted to millimetres by multiplying by 10. Inches are converted by multiplying by 25.4. Orientation swaps the two stored edges but does not alter the physical format or aspect ratio."] },
       { heading: "Pixels and physical print size", paragraphs: ["Required pixels equal physical inches multiplied by the selected PPI. Available print inches equal source pixels divided by PPI. Width and height are calculated separately because a file and a print can have different proportions.", "All displayed raster dimensions are rounded to the nearest whole pixel only after the full unit conversion and multiplication. Intermediate values remain unrounded. Pixel inputs are positive whole numbers; physical sizes and PPI must be positive finite values."] },
       { heading: "Effective PPI", paragraphs: ["Horizontal effective PPI equals usable pixel width divided by printed width in inches. Vertical effective PPI uses usable pixel height and printed height. The lower value is reported as the limiting density when the image fills the target.", "Effective PPI is different from a resolution tag saved in file metadata. Changing a tag from 72 to 300 without resampling changes the suggested physical scale, not the number of image pixels or the captured detail."] },
-      { heading: "Aspect ratio and crop retention", paragraphs: ["The fill-crop estimate compares the source width-to-height ratio with the target ratio. Retained area is the smaller ratio divided by the larger ratio after the orientations are aligned; cropped percentage is one minus that retained fraction.", "For example, a 3:2 image filling a 4:5 print retains about 83.3% of its area and removes about 16.7%. Moving the crop changes which part is removed, but the ratio still determines the amount removed. A print laboratory may apply an additional production crop that this geometric estimate cannot predict."] },
+      { heading: "Aspect ratio and crop retention", paragraphs: ["The fill-crop estimate compares the source width-to-height ratio with the target ratio. Retained area is the smaller ratio divided by the larger ratio after the orientations are aligned; cropped percentage is one minus that retained fraction.", "For example, a portrait 2:3 image filling a portrait 4:5 print retains about 83.3% of its area and removes about 16.7%. Moving the crop changes which part is removed, but the ratio still determines the amount removed. A print laboratory may apply an additional production crop that this geometric estimate cannot predict."] },
       { heading: "Bleed, trim and safe area", paragraphs: ["The full artwork canvas equals trim size plus bleed on both opposing edges. A 210 × 297 mm trim with 3 mm bleed therefore becomes 216 × 303 mm. The safe area equals trim size minus the chosen safe margin on both edges.", "Bleed and safe margin are deliberately editable because provider requirements differ. The calculator does not silently assume that 3 mm bleed or a 5 mm safe margin applies to every product."] },
       { heading: "Quality labels and tolerance", paragraphs: ["Meets target allows a 0.1% tolerance for unavoidable whole-pixel rounding. Close to target means at least 80% of the selected target; Limited means at least 50%. Below that level, the interface warns that more source pixels or a smaller print is needed.", "These labels compare a calculated density with the visitor's selected target. They do not judge focus, motion blur, compression, sharpening, color, paper, printer screening or viewing distance and must not be treated as a production guarantee."] },
       { heading: "Verification and correction process", paragraphs: ["Automated tests cover known conversions, common paper presets, orientation changes, crop ratios, bleed boxes, readiness thresholds and invalid input. Rendered-page checks cover crawlable links, self-canonical URLs, structured metadata and public sitemap entries.", "When a calculation report is received, the numerical inputs are reproduced in a deterministic test before the displayed explanation is changed. Material content revisions update the public review date and sitemap last-modified value."] },

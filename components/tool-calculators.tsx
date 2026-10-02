@@ -87,11 +87,16 @@ function arabicUi(value: string): string {
 }
 
 function NumericField({ label, value, onChange, suffix, minimum = 0, integer = false }: { label: string; value: number; onChange: (value: number) => void; suffix?: string; minimum?: number; integer?: boolean }) {
-  return <label className="tool-field"><span data-en={label} data-ar={arabicUi(label)}>{label}</span><div><input type="number" min={minimum} step={integer ? 1 : "any"} inputMode={integer ? "numeric" : "decimal"} value={value} onChange={(event) => {
-    const parsed = Number(event.target.value);
-    const normalized = Number.isFinite(parsed) ? Math.max(minimum, parsed) : minimum;
-    onChange(integer ? Math.round(normalized) : normalized);
-  }} />{suffix && <small>{suffix}</small>}</div></label>;
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const parsed = Number(draft);
+  const invalid = draft.trim() === "" || !Number.isFinite(parsed) || parsed < minimum || (integer && !Number.isInteger(parsed));
+  return <label className="tool-field"><span data-en={label} data-ar={arabicUi(label)}>{label}</span><div><input type="number" min={minimum} step={integer ? 1 : "any"} inputMode={integer ? "numeric" : "decimal"} value={draft} aria-invalid={invalid} onChange={(event) => {
+    const next = event.target.value;
+    setDraft(next);
+    const candidate = Number(next);
+    if (next.trim() !== "" && Number.isFinite(candidate) && candidate >= minimum && (!integer || Number.isInteger(candidate))) onChange(candidate);
+  }} onBlur={() => { if (invalid) setDraft(String(value)); }} />{suffix && <small>{suffix}</small>}</div>{invalid && <small className="field-error" data-en={`Enter ${integer ? "a whole number" : "a number"} of at least ${minimum}.`} data-ar={`أدخل ${integer ? "عددًا صحيحًا" : "رقمًا"} لا يقل عن ${minimum}.`}>Enter {integer ? "a whole number" : "a number"} of at least {minimum}.</small>}</label>;
 }
 
 function UnitPicker({ unit, onChange }: { unit: PhysicalUnit; onChange: (unit: PhysicalUnit) => void }) {
@@ -244,7 +249,7 @@ function PresetControls({ presetSlug, setPresetSlug, landscape, setLandscape }: 
 }
 
 function CalculatorFrame({ title, formula, children }: { title: string; formula: string; children: React.ReactNode }) {
-  return <section className="standalone-tool"><div className="standalone-tool-head"><div><span className="live-dot" /><span data-en="Interactive calculator" data-ar="حاسبة تفاعلية">Interactive calculator</span></div><code>{formula}</code></div><div className="standalone-tool-body"><h2 data-en={title} data-ar={arabicUi(title)}>{title}</h2>{children}</div></section>;
+  return <section className="standalone-tool"><div className="standalone-tool-head"><div><span className="live-dot" /><span data-en="Interactive calculator" data-ar="حاسبة تفاعلية">Interactive calculator</span></div><code>{formula}</code></div><div className="standalone-tool-body"><h2 data-en={title} data-ar={arabicUi(title)}>{title}</h2><p className="example-input-note" data-en="Example values are pre-filled. Results always reflect the values currently shown; replace them with your own measurements before using the result." data-ar="القيم الظاهرة أمثلة مبدئية. النتائج تعكس القيم المعروضة حاليًا؛ استبدلها بقياساتك قبل الاعتماد على النتيجة.">Example values are pre-filled. Results always reflect the values currently shown; replace them with your own measurements before using the result.</p>{children}</div></section>;
 }
 
 function ResultGrid({ items }: { items: Array<{ label: string; value: string; featured?: boolean }> }) {
@@ -281,7 +286,7 @@ function ResultGrid({ items }: { items: Array<{ label: string; value: string; fe
       const copyLabel = status === "copied" ? "Copied ✓" : status === "error" ? "Copy failed" : "Copy";
       return <div className={`result-card ${item.featured ? "featured" : ""}`} key={item.label}>
         <div className="result-card-heading"><small data-en={item.label} data-ar={arabicUi(item.label)}>{item.label}</small><span data-en={badge} data-ar={arabicUi(badge)}>{badge}</span></div>
-        <strong>{item.value}</strong>
+        <strong dir="ltr">{item.value}</strong>
         <button type="button" className="result-copy" aria-label={`Copy ${item.label}: ${item.value}`} onClick={() => copyResult(item.label, item.value)} data-en={copyLabel} data-ar={arabicUi(copyLabel)}>
           {copyLabel}
         </button>
