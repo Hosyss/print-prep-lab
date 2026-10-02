@@ -25,6 +25,10 @@ export function sites(): Plugin {
       root = config.root;
     },
     async closeBundle() {
+      // Bundle PDF.js support files locally: no CDN and no uploaded documents.
+      for (const directory of ["cmaps", "standard_fonts", "wasm", "iccs"]) {
+        await cp(resolve(root, "node_modules/pdfjs-dist", directory), resolve(root, "dist/client/pdf-support", directory), {recursive:true});
+      }
       const outputDirectory = resolve(root, "dist", ".openai");
       const hostingConfig = resolve(root, ".openai", "hosting.json");
       const drizzleSource = resolve(root, "drizzle");

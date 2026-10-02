@@ -1,4 +1,4 @@
-name: Print Prep Lab editorial content review
+name: Print Prep Lab product and editorial review
 
 on:
   pull_request:
@@ -28,7 +28,7 @@ jobs:
         run: |
           node node_modules/typescript/bin/tsc --noEmit
           npm run test:math
-          node --experimental-strip-types --test tests/editorial-example-math.test.mjs
+          node --experimental-strip-types --test tests/editorial-example-math.test.mjs tests/pdf-preflight-math.test.mjs
       - name: Build retained workspace and current public content
         run: |
           bash release-artifacts/v119.1/build-adsense-readiness.sh
@@ -65,6 +65,7 @@ jobs:
           node tests/pages-routing-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
           node tests/print-readiness-locale-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
           node tests/editorial-locale-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
+          node tests/pdf-preflight-browser-qa.mjs http://127.0.0.1:4182 work/editorial-browser-qa
       - name: Save review evidence
         if: always()
         uses: actions/upload-artifact@v4

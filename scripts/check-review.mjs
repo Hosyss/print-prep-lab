@@ -24,7 +24,7 @@ const env={ASSETS:{async fetch(request){const path=new URL(request.url).pathname
   try {const data=await readFile(resolve(root,'.'+assetPath));return new Response(request.method==='HEAD'?null:data,{headers:{'content-type':extname(assetPath)==='.html'?'text/html; charset=utf-8':'application/octet-stream'}})}catch{return new Response('Not found',{status:404})}}}};
 const ctx={waitUntil(){},passThroughOnException(){}};
 const guides=['dpi-vs-ppi','how-large-can-i-print-my-image','print-resolution-guide','bleed-trim-safe-area','aspect-ratio-cropping-print','print-file-preflight-checklist','export-images-for-large-format-printing','a4-vs-us-letter-printing','rgb-vs-cmyk-printing','prepare-pdf-for-print','low-resolution-images-for-print','business-card-bleed-and-safe-area'];
-const tools=['print-readiness-checker','pixels-to-print-size','print-size-to-pixels','dpi-ppi-calculator','paper-size-pixels-calculator','aspect-ratio-crop-preview','bleed-safe-area-calculator'];
+const tools=['pdf-print-preflight','print-readiness-checker','pixels-to-print-size','print-size-to-pixels','dpi-ppi-calculator','paper-size-pixels-calculator','aspect-ratio-crop-preview','bleed-safe-area-calculator'];
 const sizes=['a2','a3','a4','a5','us-letter','us-legal','4x6-photo','5x7-photo','8x10-photo','11x14-photo','12x18-photo','16x20-photo'];
 const routes=new Set(['/', '/tools','/guides','/sizes','/about','/methodology','/sources','/editorial-policy','/privacy','/terms','/contact','/glossary','/workspace','/jobs','/vault','/command-center','/operations','/job-costing','/supplier-intelligence','/release-center','/production-analytics',...guides.map(s=>'/guides/'+s),...tools.map(s=>'/tools/'+s),...sizes.map(s=>'/sizes/'+s)]);
 const htmls=new Map();

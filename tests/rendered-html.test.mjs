@@ -9,7 +9,7 @@ const EXPECTED_PATHS = [
   "/tools/print-readiness-checker", "/tools/pixels-to-print-size",
   "/tools/print-size-to-pixels", "/tools/dpi-ppi-calculator",
   "/tools/paper-size-pixels-calculator", "/tools/aspect-ratio-crop-preview",
-  "/tools/bleed-safe-area-calculator",
+  "/tools/bleed-safe-area-calculator", "/tools/pdf-print-preflight",
   "/sizes/a2", "/sizes/a3", "/sizes/a4", "/sizes/a5",
   "/sizes/us-letter", "/sizes/us-legal", "/sizes/4x6-photo",
   "/sizes/5x7-photo", "/sizes/8x10-photo", "/sizes/11x14-photo",
@@ -149,7 +149,7 @@ test("keeps the public Admin entry isolated from the Pages origin", async () => 
   }
 });
 
-test("renders all seven calculators with original use cases, examples, notes and FAQs", async () => {
+test("renders all eight tools with original use cases, examples, notes and FAQs", async () => {
   const worker = await loadWorker();
   const toolPaths = EXPECTED_PATHS.filter((path) => path.split("/").length === 3 && path.startsWith("/tools/"));
   const bodyFingerprints = new Set();
@@ -161,7 +161,7 @@ test("renders all seven calculators with original use cases, examples, notes and
     assert.match(html, /Technical notes/);
     assert.match(html, /Worked example/);
     assert.match(html, /FAQPage/);
-    if (path !== "/tools/print-readiness-checker") {
+    if (!["/tools/print-readiness-checker", "/tools/pdf-print-preflight"].includes(path)) {
       assert.match(html, /Calculated results/);
       assert.match(html, /class="result-copy"/);
     }
@@ -170,7 +170,7 @@ test("renders all seven calculators with original use cases, examples, notes and
     assert.ok(!bodyFingerprints.has(context), `${path} duplicates another tool context`);
     bodyFingerprints.add(context);
   }
-  assert.equal(bodyFingerprints.size, 7);
+  assert.equal(bodyFingerprints.size, 8);
 });
 
 test("loads retained pages through Pages pretty URLs and preserves noindex on HTTP and HEAD", async () => {

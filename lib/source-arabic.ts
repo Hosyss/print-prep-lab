@@ -1,3 +1,4 @@
+import { PDF_TOOL_ARABIC } from "./pdf-tool-content";
 export type ArabicToolCopy = {
   shortTitle: string;
   heading: string;
@@ -13,6 +14,7 @@ export type ArabicToolCopy = {
 };
 
 export const TOOL_ARABIC: Record<string, ArabicToolCopy> = {
+  "pdf-print-preflight": PDF_TOOL_ARABIC,
   "print-readiness-checker": {
     shortTitle: "فحص جاهزية الطباعة",
     heading: "هل صورتك جاهزة للطباعة؟",

@@ -1,3 +1,4 @@
+import { PDF_TOOL, PDF_TOOL_CONTEXT } from "./pdf-tool-content";
 import { EDITORIAL_GUIDES } from "@/lib/editorial-guides";
 import { ADDITIONAL_GUIDES } from "@/lib/additional-guides";
 
@@ -17,7 +18,7 @@ export type ToolPage = {
   shortTitle: string;
   description: string;
   intent: string;
-  mode: ToolMode | "print-readiness-checker";
+  mode: ToolMode | "print-readiness-checker" | "pdf-preflight";
   quickAnswer: string;
   formula: string;
   example: string;
@@ -28,6 +29,7 @@ export type ToolPage = {
 };
 
 export const TOOL_PAGES: ToolPage[] = [
+  PDF_TOOL,
   {
     slug: "print-readiness-checker",
     title: "Print Readiness Checker",
@@ -178,6 +180,7 @@ export const TOOL_PAGES: ToolPage[] = [
 ];
 
 export const TOOL_CONTEXT: Record<string, { useCases: string[]; technicalNotes: string[] }> = {
+  "pdf-print-preflight": PDF_TOOL_CONTEXT,
   "print-readiness-checker": {
     useCases: [
       "Use it after choosing the exact image file and before ordering a standard photo, paper or wall-print size.",
