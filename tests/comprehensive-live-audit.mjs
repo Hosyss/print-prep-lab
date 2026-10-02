@@ -52,7 +52,7 @@ await batch(['/audit-not-found-20261002','/guides/audit-not-found-20261002','/to
   const r=await get(p);check('True 404 '+p,r.status===404&&/noindex/.test(r.headers.get('x-robots-tag')||''));
 });
 const redirect=await fetch('http://printpreplab.pages.dev/',{redirect:'manual',signal:AbortSignal.timeout(20000)});
-check('HTTP redirects to HTTPS',[301,302,307,308].includes(redirect.status)&&redirect.headers.get('location')?.startsWith(origin));
+check('HTTP redirects to HTTPS',[301,302,307,308].includes(redirect.status)&&redirect.headers.get('location')?.startsWith(canonicalOrigin));
 await writeFile(join(out,'http-inventory.json'),JSON.stringify(records.map(({html,...r})=>r),null,2));
 await writeFile(join(out,'current-home.html'),records.find(r=>r.path==='/')?.html||'');
 const require=createRequire(import.meta.url),axe=await readFile(require.resolve('axe-core/axe.min.js'),'utf8');
