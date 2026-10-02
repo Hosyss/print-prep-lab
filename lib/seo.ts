@@ -7,6 +7,13 @@ export const SITE_DESCRIPTION =
 export const SOCIAL_IMAGE_PATH = "/og-image.png";
 export const SITE_UPDATED_AT = "2026-10-01";
 export const SITE_LAUNCHED_AT = "2026-08-09";
+// These four guides first reached the public production site in the Oct 2 release.
+export const GUIDE_FIRST_PUBLISHED: Record<string, string> = {
+  "rgb-vs-cmyk-printing": "2026-10-02",
+  "prepare-pdf-for-print": "2026-10-02",
+  "low-resolution-images-for-print": "2026-10-02",
+  "business-card-bleed-and-safe-area": "2026-10-02",
+};
 export const AUTHOR_NAME = "Hossam Eldeen";
 export const AUTHOR_PROFILE_PATH = "/about";
 export const ADSENSE_CLIENT_ID = "ca-pub-3369551572403499";

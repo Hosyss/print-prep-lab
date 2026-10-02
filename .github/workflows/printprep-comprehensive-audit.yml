@@ -1,0 +1,79 @@
+name: Print Prep Lab comprehensive live audit
+
+on:
+  push:
+    branches: ['audit/printprep-comprehensive-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Install isolated browser audit tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/printprep-audit-tools" --no-package-lock --ignore-scripts playwright@1.63.0 axe-core@4.10.3
+          ln -s "$RUNNER_TEMP/printprep-audit-tools/node_modules/playwright" node_modules/playwright
+          ln -s "$RUNNER_TEMP/printprep-audit-tools/node_modules/axe-core" node_modules/axe-core
+      - name: Crawl and audit current production
+        run: node tests/comprehensive-live-audit.mjs https://printpreplab.pages.dev work/comprehensive-audit
+      - name: Verify real images and PDFs on production
+        env:
+          PRINTPREP_BLOCK_REMOTE: '1'
+        run: |
+          node tests/tool-input-qa.mjs https://printpreplab.pages.dev work/comprehensive-audit
+          node tests/print-readiness-locale-qa.mjs https://printpreplab.pages.dev work/comprehensive-audit
+          node tests/pdf-preflight-browser-qa.mjs https://printpreplab.pages.dev work/comprehensive-audit
+      - name: Save audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: printprep-comprehensive-live-audit
+          path: work/comprehensive-audit/
+          retention-days: 14
+          if-no-files-found: error
+
+  performance:
+    needs: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [mobile, desktop]
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Lighthouse
+        run: npm install --prefix "$RUNNER_TEMP/printprep-lighthouse" --no-package-lock --ignore-scripts lighthouse@12.8.2
+      - name: Measure live homepage and PDF landing page
+        env:
+          AUDIT_DEVICE: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          mkdir -p work/performance
+          args=()
+          if [[ "$AUDIT_DEVICE" == desktop ]]; then args+=(--preset=desktop); fi
+          for page in home pdf; do
+            url=https://printpreplab.pages.dev/
+            if [[ "$page" == pdf ]]; then url=https://printpreplab.pages.dev/tools/pdf-print-preflight; fi
+            node "$RUNNER_TEMP/printprep-lighthouse/node_modules/lighthouse/cli/index.js" "$url" "${args[@]}" --chrome-flags="--headless --no-sandbox" --only-categories=performance,accessibility,best-practices,seo --output=json --output-path="work/performance/$AUDIT_DEVICE-$page.json" --quiet
+          done
+      - name: Save performance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: printprep-performance-${{ matrix.device }}
+          path: work/performance/
+          retention-days: 14
+          if-no-files-found: error

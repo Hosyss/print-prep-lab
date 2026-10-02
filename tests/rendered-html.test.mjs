@@ -110,7 +110,8 @@ test("serves a clean robots file, a complete sitemap and an authorized ads.txt",
   const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
   assert.deepEqual(new Set(locations), new Set(EXPECTED_PATHS.map((path) => `${SITE_URL}${path}`)));
   assert.equal(new Set(locations).size, EXPECTED_PATHS.length);
-  assert.equal((sitemap.match(/<lastmod>2026-10-01T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length);
+  assert.equal((sitemap.match(/<lastmod>2026-10-01T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length - 4);
+  assert.equal((sitemap.match(/<lastmod>2026-10-02T00:00:00\.000Z<\/lastmod>/g) ?? []).length, 4);
   assert.doesNotMatch(sitemap, /<priority>|<changefreq>/);
 
   const adsText = (await readFile(new URL("../public/ads.txt", import.meta.url), "utf8")).trim();
@@ -238,7 +239,9 @@ test("renders twelve original guides with authorship, review, sources and practi
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
     assert.match(html, /Written and maintained by/);
     assert.match(html, /Hossam Eldeen/);
-    assert.match(html, /Updated October 1, 2026/);
+    const newlyPublished = ["rgb-vs-cmyk-printing", "prepare-pdf-for-print", "low-resolution-images-for-print", "business-card-bleed-and-safe-area"].some(slug => path.endsWith("/" + slug));
+    assert.ok(html.includes(newlyPublished ? "Updated October 2, 2026" : "Updated October 1, 2026"));
+    if (newlyPublished) assert.match(html, /"datePublished":"2026-10-02","dateModified":"2026-10-02"/);
     assert.match(html, /Decision table/);
     assert.match(html, /Practical workflow/);
     assert.match(html, /Common mistakes/);

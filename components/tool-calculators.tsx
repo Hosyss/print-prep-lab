@@ -108,7 +108,7 @@ function PpiPicker({ value, onChange }: { value: number; onChange: (value: numbe
 }
 
 function ComparisonTable({ title, headings, rows }: { title: string; headings: string[]; rows: string[][] }) {
-  return <div className="comparison-table"><strong data-en={title} data-ar={arabicUi(title)}>{title}</strong><div className="data-table-wrap"><table className="data-table"><thead><tr>{headings.map((heading) => <th key={heading} data-en={heading} data-ar={arabicUi(heading)}>{heading}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.join("-")}>{row.map((cell, index) => <td key={`${cell}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div></div>;
+  return <div className="comparison-table"><strong data-en={title} data-ar={arabicUi(title)}>{title}</strong><div className="data-table-wrap" tabIndex={0}><table className="data-table"><thead><tr>{headings.map((heading) => <th key={heading} data-en={heading} data-ar={arabicUi(heading)}>{heading}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.join("-")}>{row.map((cell, index) => <td key={`${cell}-${index}`}>{cell}</td>)}</tr>)}</tbody></table></div></div>;
 }
 
 function mmInUnit(mm: number, unit: PhysicalUnit) {
@@ -249,7 +249,7 @@ function PresetControls({ presetSlug, setPresetSlug, landscape, setLandscape }: 
 }
 
 function CalculatorFrame({ title, formula, children }: { title: string; formula: string; children: React.ReactNode }) {
-  return <section className="standalone-tool"><div className="standalone-tool-head"><div><span className="live-dot" /><span data-en="Interactive calculator" data-ar="حاسبة تفاعلية">Interactive calculator</span></div><code>{formula}</code></div><div className="standalone-tool-body"><h2 data-en={title} data-ar={arabicUi(title)}>{title}</h2><p className="example-input-note" data-en="Example values are pre-filled. Results always reflect the values currently shown; replace them with your own measurements before using the result." data-ar="القيم الظاهرة أمثلة مبدئية. النتائج تعكس القيم المعروضة حاليًا؛ استبدلها بقياساتك قبل الاعتماد على النتيجة.">Example values are pre-filled. Results always reflect the values currently shown; replace them with your own measurements before using the result.</p>{children}</div></section>;
+  return <section className="standalone-tool"><div className="standalone-tool-head"><div><span className="live-dot" /><span data-en="Interactive calculator" data-ar="حاسبة تفاعلية">Interactive calculator</span></div><code>{formula}</code></div><div className="standalone-tool-body"><h2 data-en={title} data-ar={arabicUi(title)}>{title}</h2><p className="example-input-note" data-en="Example values are pre-filled. Results always reflect the values currently shown; replace them with your own measurements before using the result." data-ar="القيم الظاهرة أمثلة مبدئية. النتائج تعكس القيم المعروضة حاليًا؛ استبدلها بقياساتك قبل الاعتماد على النتيجة.">Example values are pre-filled. Results always reflect the values currently shown; replace them with your own measurements before using the result.</p><p className="invalid-results-notice" role="status" data-en="Results are hidden while an input is invalid. Correct the highlighted field to calculate again." data-ar="تُخفى النتائج أثناء وجود مدخل غير صالح. صحح الحقل المحدد لإعادة الحساب.">Results are hidden while an input is invalid. Correct the highlighted field to calculate again.</p>{children}</div></section>;
 }
 
 function ResultGrid({ items }: { items: Array<{ label: string; value: string; featured?: boolean }> }) {
