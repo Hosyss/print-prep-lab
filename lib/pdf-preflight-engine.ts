@@ -1,4 +1,3 @@
-import { PDFDocument } from "pdf-lib";
 import { bleedMargins, containsBox, displayedSize, IDENTITY, imageDensity, multiply, type Matrix, type PdfBox } from "./pdf-preflight-math";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 
@@ -50,6 +49,7 @@ async function inspectImages(page: PDFPageProxy, ops: Record<string, number>) {
 
 export async function inspectPdf(bytes: Uint8Array, onProgress: (page:number,total:number)=>void, cancelled: ()=>boolean): Promise<PdfInspection> {
   if(bytes.byteLength > PDF_MAX_BYTES) throw new Error("size");
+  const {PDFDocument} = await import("pdf-lib");
   const geometry = await PDFDocument.load(bytes, { updateMetadata: false });
   if(geometry.getPageCount() > PDF_MAX_PAGES) throw new Error("pages");
   const pdfjs = await import("pdfjs-dist");

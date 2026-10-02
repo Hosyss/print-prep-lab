@@ -24,7 +24,7 @@ try {for(const viewport of [{width:1365,height:900},{width:390,height:844}]){
     check(await lab.locator('[data-check=size]').getAttribute('data-state')==='true','trim target matches first page');
     await lab.locator('[data-pdf-target=bleed]').fill('4');check(await lab.locator('[data-check=bleed]').getAttribute('data-state')==='false','larger bleed requirement changes real result');await lab.locator('[data-pdf-target=bleed]').fill('3');
     await lab.locator('.pdf-page-control select').selectOption('1');await page.locator('[data-pdf-preview=ready]').waitFor();
-    check(await page.locator('[data-pdf-size]').innerText()==='279.4 × 215.9 mm','90 degree rotation swaps US Letter size');
+    check(await page.locator('[data-pdf-size]').innerText()==='279.4 × 215.9 mm','90 degree rotation swaps US Letter size: '+await page.locator('[data-pdf-size]').innerText());
     check((await page.locator('[data-pdf-images]').innerText()).includes('150 PPI'),'second-page larger placement measures 150 PPI');
     check(await lab.locator('[data-check=bleed]').getAttribute('data-state')==='null','missing explicit bleed remains unverified');
     check(await lab.locator('[data-check=size]').getAttribute('data-state')==='false','mixed page size flagged');
