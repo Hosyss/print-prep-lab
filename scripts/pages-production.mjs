@@ -30,7 +30,7 @@ async function existingCredential() {
 
 try {
   assert.ok(['preflight','deploy'].includes(mode),'Use preflight or deploy');
-  const {token,project}=await existingCredential();
+  let {token,project}=await existingCredential();
   console.log(JSON.stringify({project:project.name,origin,productionBranch:project.production_branch,access:'verified'}));
   if(mode==='deploy'){
     assert.equal(process.env.GITHUB_REF,'refs/heads/main','Production release must run from main');
@@ -38,11 +38,25 @@ try {
     assert.match(commit??'',/^[0-9a-f]{40}$/,'Release needs its exact source commit');
     const artifact=resolve(process.argv[3]);await access(resolve(artifact,'_worker.js'));await access(resolve(artifact,'_routes.json'));
     const wrangler=resolve('node_modules/wrangler/bin/wrangler.js');
-    const status=await new Promise((done,reject)=>{
-      const child=spawn(process.execPath,[wrangler,'pages','deploy',artifact,'--project-name',projectName,'--branch',project.production_branch,'--commit-hash',commit,'--commit-message','Print Prep Lab bilingual PDF preflight and public content release'],{cwd:artifact,env:{...process.env,CLOUDFLARE_API_TOKEN:token,WRANGLER_SEND_METRICS:'false'},stdio:'inherit'});
-      child.on('error',reject);child.on('exit',done);
-    });
-    assert.equal(status,0,'Wrangler production upload must succeed');
+    let uploaded=false;
+    const credentials=[...new Set([token,process.env.CLOUDFLARE_API_TOKEN,process.env.CF_API_TOKEN].filter(Boolean))];
+    for(const candidate of credentials){
+      if(candidate!==token){
+        try {const other=await getProject(candidate);assert.equal(other.production_branch,project.production_branch);}
+        catch {continue;}
+        console.log('Retrying with the other existing Pages credential after an authentication failure.');
+      }
+      const result=await new Promise((done,reject)=>{
+        let output='';
+        const child=spawn(process.execPath,[wrangler,'pages','deploy',artifact,'--project-name',projectName,'--branch',project.production_branch,'--commit-hash',commit,'--commit-message','Print Prep Lab bilingual PDF preflight and public content release'],{cwd:artifact,env:{...process.env,CLOUDFLARE_API_TOKEN:candidate,WRANGLER_SEND_METRICS:'false'},stdio:['ignore','pipe','pipe']});
+        child.stdout.on('data',data=>{output+=data;process.stdout.write(data);});
+        child.stderr.on('data',data=>{output+=data;process.stderr.write(data);});
+        child.on('error',reject);child.on('exit',status=>done({status,output}));
+      });
+      if(result.status===0){token=candidate;uploaded=true;break;}
+      if(!/code:\s*10000|authentication error/i.test(result.output))throw Error('Wrangler upload failed; an unrelated error will not be retried with another credential.');
+    }
+    assert.ok(uploaded,'Existing credentials need Pages Write permission for the configured account and project');
     let confirmed;
     for(let attempt=0;attempt<20;attempt++){
       const current=(await getProject(token)).canonical_deployment;
