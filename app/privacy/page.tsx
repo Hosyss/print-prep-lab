@@ -3,7 +3,7 @@ import { Breadcrumbs, PageHero } from "@/components/content-shell";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Privacy Policy",
+  title: "Privacy, Analytics & Local File Processing",
   description: "How Print Prep Lab handles images, calculator inputs, analytics, cookies and advertising services.",
   path: "/privacy",
 });

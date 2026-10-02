@@ -41,3 +41,39 @@ jobs:
           path: work/comprehensive-audit/
           retention-days: 14
           if-no-files-found: error
+
+  performance:
+    needs: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [mobile, desktop]
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Lighthouse
+        run: npm install --prefix "$RUNNER_TEMP/printprep-lighthouse" --no-package-lock --ignore-scripts lighthouse@12.8.2
+      - name: Measure live homepage and PDF landing page
+        env:
+          AUDIT_DEVICE: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          mkdir -p work/performance
+          args=()
+          if [[ "$AUDIT_DEVICE" == desktop ]]; then args+=(--preset=desktop); fi
+          for page in home pdf; do
+            url=https://printpreplab.pages.dev/
+            if [[ "$page" == pdf ]]; then url=https://printpreplab.pages.dev/tools/pdf-print-preflight; fi
+            node "$RUNNER_TEMP/printprep-lighthouse/node_modules/lighthouse/cli/index.js" "$url" "${args[@]}" --chrome-flags="--headless --no-sandbox" --only-categories=performance,accessibility,best-practices,seo --output=json --output-path="work/performance/$AUDIT_DEVICE-$page.json" --quiet
+          done
+      - name: Save performance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: printprep-performance-${{ matrix.device }}
+          path: work/performance/
+          retention-days: 14
+          if-no-files-found: error

@@ -3,7 +3,7 @@ import { Breadcrumbs, PageHero } from "@/components/content-shell";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Terms of Use",
+  title: "Terms for Calculators & Print Guidance",
   description: "Terms covering Print Prep Lab calculators, print guidance, external services and advertising.",
   path: "/terms",
 });
