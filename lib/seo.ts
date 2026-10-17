@@ -6,6 +6,11 @@ export const SITE_DESCRIPTION =
   "Free browser-based tools for checking image print size, effective PPI, paper dimensions, cropping, bleed and safe areas before printing.";
 export const SOCIAL_IMAGE_PATH = "/og-image.png";
 export const SITE_UPDATED_AT = "2026-10-01";
+const PAGE_UPDATED_AT: Record<string, string> = {
+  "/guides/prepare-pdf-for-print": "2026-10-17",
+  "/tools/pdf-print-preflight": "2026-10-17",
+};
+export const pageUpdatedAt = (path: string) => PAGE_UPDATED_AT[path] ?? SITE_UPDATED_AT;
 export const SITE_LAUNCHED_AT = "2026-08-09";
 export const AUTHOR_NAME = "Hossam Eldeen";
 export const AUTHOR_PROFILE_PATH = "/about";

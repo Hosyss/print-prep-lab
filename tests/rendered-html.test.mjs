@@ -110,7 +110,8 @@ test("serves a clean robots file, a complete sitemap and an authorized ads.txt",
   const locations = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
   assert.deepEqual(new Set(locations), new Set(EXPECTED_PATHS.map((path) => `${SITE_URL}${path}`)));
   assert.equal(new Set(locations).size, EXPECTED_PATHS.length);
-  assert.equal((sitemap.match(/<lastmod>2026-10-01T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length);
+  assert.equal((sitemap.match(/<lastmod>2026-10-01T00:00:00\.000Z<\/lastmod>/g) ?? []).length, EXPECTED_PATHS.length - 2);
+  assert.equal((sitemap.match(/<lastmod>2026-10-17T00:00:00\.000Z<\/lastmod>/g) ?? []).length, 2);
   assert.doesNotMatch(sitemap, /<priority>|<changefreq>/);
 
   const adsText = (await readFile(new URL("../public/ads.txt", import.meta.url), "utf8")).trim();
@@ -238,7 +239,7 @@ test("renders twelve original guides with authorship, review, sources and practi
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path} must have one H1`);
     assert.match(html, /Written and maintained by/);
     assert.match(html, /Hossam Eldeen/);
-    assert.match(html, /Updated October 1, 2026/);
+    assert.match(html, path === "/guides/prepare-pdf-for-print" ? /Updated October 17, 2026/ : /Updated October 1, 2026/);
     assert.match(html, /Decision table/);
     assert.match(html, /Practical workflow/);
     assert.match(html, /Common mistakes/);
@@ -302,6 +303,11 @@ test("audits every sitemap page for indexability, distinct metadata and valid in
       const href = match[1];
       if (!href.startsWith("/")) continue;
       const linkedPath = new URL(href, SITE_URL).pathname;
+      if (linkedPath.startsWith("/samples/") && linkedPath.endsWith(".pdf")) {
+        const bytes = await readFile(new URL(`../public${linkedPath}`, import.meta.url));
+        assert.equal(bytes.subarray(0, 5).toString(), "%PDF-", `${href} is a real downloadable PDF`);
+        continue;
+      }
       assert.ok(expectedPathSet.has(linkedPath) || linkedPath === "/workspace", `${path} links to a route missing from the sitemap: ${href}`);
     }
   }
@@ -323,4 +329,19 @@ test("returns a helpful non-indexable 404 and a valid web manifest", async () =>
   const manifest = await manifestResponse.json();
   assert.equal(manifest.name, "Print Prep Lab");
   assert.equal(manifest.start_url, "/");
+});
+
+
+test("PDF case studies and download links are available in server-rendered guide content", async () => {
+  const worker = await loadWorker();
+  const html = await renderPath(worker, "/guides/prepare-pdf-for-print");
+  assert.match(html, /id="pdf-examples"/);
+  assert.match(html, /three measurements, not a production approval/);
+  assert.match(html, /إضافة بيانات الإطارات وحدها/);
+  for (const id of ["a4-matched-geometry", "a4-short-bleed-low-ppi", "a4-unspecified-boxes"]) {
+    assert.ok(html.includes(`href="/samples/${id}.pdf"`), id + " is downloadable without JavaScript");
+    assert.ok(html.includes(`data-example-inspect="${id}"`), id + " opens the real parser");
+  }
+  const tool = await renderPath(worker, "/tools/pdf-print-preflight");
+  assert.equal((tool.match(/data-pdf-sample=/g) ?? []).length, 3);
 });

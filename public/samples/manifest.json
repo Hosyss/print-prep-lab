@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "generated": "2026-10-17",
+  "samples": [
+    {
+      "id": "a4-matched-geometry",
+      "file": "a4-matched-geometry.pdf",
+      "bytes": 7840,
+      "sha256": "f76c15c76d28272530e16bc90bde7bb49d39897e0fc17c2bb857dcd4d1053889",
+      "trimMm": [
+        210,
+        297
+      ],
+      "bleedMm": 3,
+      "imagePixels": [
+        600,
+        300
+      ],
+      "placementMm": [
+        50.8,
+        25.4
+      ],
+      "ppi": 300
+    },
+    {
+      "id": "a4-short-bleed-low-ppi",
+      "file": "a4-short-bleed-low-ppi.pdf",
+      "bytes": 7850,
+      "sha256": "88b25cb2e6a49db77cc4159d9f10a39a8f1b042e936bf2ef76fc3d46cfb257fc",
+      "trimMm": [
+        210,
+        297
+      ],
+      "bleedMm": 1,
+      "imagePixels": [
+        600,
+        300
+      ],
+      "placementMm": [
+        101.6,
+        50.8
+      ],
+      "ppi": 150
+    },
+    {
+      "id": "a4-unspecified-boxes",
+      "file": "a4-unspecified-boxes.pdf",
+      "bytes": 7819,
+      "sha256": "8eff9716bec08431237065369b0388b9ec2ef1ac3c29e059c20868316988ed12",
+      "trimMm": [
+        210,
+        297
+      ],
+      "bleedMm": null,
+      "imagePixels": [
+        600,
+        300
+      ],
+      "placementMm": [
+        50.8,
+        25.4
+      ],
+      "ppi": 300
+    }
+  ]
+}

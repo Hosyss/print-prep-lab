@@ -30,6 +30,7 @@ jobs:
           node node_modules/typescript/bin/tsc --noEmit
           npm run test:math
           node --experimental-strip-types --test tests/editorial-example-math.test.mjs tests/pdf-preflight-math.test.mjs
+          node --experimental-strip-types --test tests/pdf-samples.test.mjs
       - name: Build retained workspace and current public content
         run: |
           bash release-artifacts/v119.1/build-adsense-readiness.sh
