@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { inspectPdf, PDF_MAX_BYTES, type PdfInspection, type PdfPageResult } from "@/lib/pdf-preflight-engine";
 import { pointsToMm } from "@/lib/pdf-preflight-math";
+import { PDF_SAMPLES, PDF_SAMPLE_TARGETS, pdfSamplePath, type PdfSample } from "@/lib/pdf-samples";
 
 const fmt = (n: number) => String(Number(n.toFixed(2)));
 function useLanguage() {
@@ -25,7 +27,6 @@ function PdfPreview({document:pdf,pageNumber,boxes,t}:{document:PDFDocumentProxy
   const [error,setError]=useState(false);
   useEffect(()=>{
     let cancelled=false; let renderTask:ReturnType<Awaited<ReturnType<PDFDocumentProxy["getPage"]>>["render"]>|undefined;
-    setOverlay(null);setError(false);
     void (async()=>{
       const page=await pdf.getPage(pageNumber);if(cancelled||!canvas.current)return;
       const base=page.getViewport({scale:1}), viewport=page.getViewport({scale:Math.min(760/base.width,950/base.height)});
@@ -47,22 +48,46 @@ export function PdfPreflight() {
   const [busy,setBusy]=useState(false),[progress,setProgress]=useState(""),[error,setError]=useState("");
   const [selected,setSelected]=useState(0),[targets,setTargets]=useState<Targets>({bleed:3,ppi:300,width:0,height:0});
   const generation=useRef(0),current=useRef<PdfInspection|null>(null),input=useRef<HTMLInputElement>(null);
-  useEffect(()=>()=>{generation.current++;void current.current?.document.loadingTask.destroy();},[]);
-  async function choose(file:File) {
+  const pending=useRef<AbortController|null>(null);
+  useEffect(()=>()=>{generation.current++;pending.current?.abort();void current.current?.document.loadingTask.destroy();},[]);
+  const inspectInput=useCallback(async (name:string, read:(signal:AbortSignal)=>Promise<Uint8Array>, size?:number) => {
     const id=++generation.current;
-    setBusy(true);setError("");setProgress("");setInspection(null);setSelected(0);setFileName(file.name);
-    await current.current?.document.loadingTask.destroy();current.current=null;
+    pending.current?.abort();const controller=new AbortController();pending.current=controller;
+    setBusy(true);setError("");setProgress("");setInspection(null);setSelected(0);setFileName(name);
+    const previous=current.current;current.current=null;
     try {
-      if(file.size>PDF_MAX_BYTES)throw new Error("size");
-      const bytes=new Uint8Array(await file.arrayBuffer());
+      await previous?.document.loadingTask.destroy();
+      if(size!==undefined&&size>PDF_MAX_BYTES)throw new Error("size");
+      if(generation.current!==id)return;
+      const bytes=await read(controller.signal);
+      if(generation.current!==id)return;
+      if(bytes.byteLength>PDF_MAX_BYTES)throw new Error("size");
       // The parser validates the file content; filename and MIME are not proof.
       const result=await inspectPdf(bytes,(page,total)=>{if(generation.current===id)setProgress(`${page} / ${total}`);},()=>generation.current!==id);
       if(generation.current!==id){await result.document.loadingTask.destroy();return;}
       current.current=result;setInspection(result);
-    } catch(error) {if(generation.current===id)setError(error instanceof Error && ["size","pages"].includes(error.message)?error.message:"invalid");}
+    } catch(error) {if(generation.current===id)setError(error instanceof Error && ["size","pages","sample"].includes(error.message)?error.message:"invalid");}
     finally {if(generation.current===id)setBusy(false);}
-  }
-  function clear() {generation.current++;void current.current?.document.loadingTask.destroy();current.current=null;setInspection(null);setBusy(false);setError("");setFileName("");if(input.current)input.current.value="";}
+  },[]);
+  function choose(file:File) {return inspectInput(file.name,async()=>new Uint8Array(await file.arrayBuffer()),file.size);}
+  const chooseSample=useCallback((sample:PdfSample)=>{
+    setTargets({...PDF_SAMPLE_TARGETS});
+    return inspectInput(`${sample.id}.pdf`,async signal=>{
+      let response:Response;
+      try {response=await fetch(pdfSamplePath(sample),{signal});}catch{throw new Error("sample");}
+      if(!response.ok)throw new Error("sample");
+      return new Uint8Array(await response.arrayBuffer());
+    });
+  },[inspectInput]);
+  useEffect(()=>{
+    const id=new URLSearchParams(window.location.search).get("sample");
+    const sample=PDF_SAMPLES.find(item=>item.id===id);
+    // Loading the public asset is an external async operation, like choosing a file.
+    let active=true;
+    if(sample)void Promise.resolve().then(()=>{if(active)return chooseSample(sample);});
+    return()=>{active=false;};
+  },[chooseSample]);
+  function clear() {generation.current++;pending.current?.abort();void current.current?.document.loadingTask.destroy();current.current=null;setInspection(null);setBusy(false);setError("");setFileName("");if(input.current)input.current.value="";}
   function download() {
     if(!inspection)return;
     const lines=[t("Print Prep Lab - PDF inspection report","Print Prep Lab - تقرير فحص PDF"),fileName,new Date().toISOString(),`${t("Pages","الصفحات")}: ${inspection.pages.length}`,`${t("Targets","القيم المطلوبة")}: ${targets.bleed} mm bleed / ${targets.ppi} PPI / ${targets.width&&targets.height?`${targets.width} × ${targets.height} mm`:t("No trim-size target","لم يُحدد مقاس نهائي")}`,""];
@@ -74,15 +99,16 @@ export function PdfPreflight() {
   const page=inspection?.pages[selected],result=page?checks(page,targets):null;
   const status=(value:boolean|null)=>value===null?t("Needs review","تحتاج مراجعة"):value?t("Meets target","يحقق الهدف"):t("Check required","يلزم التحقق");
   function targetInput(key:keyof Targets,en:string,ar:string) {return <label>{t(en,ar)}<input type="number" min={key==="ppi"?1:0} max={key==="ppi"?2400:2000} step={key==="ppi"?1:0.1} value={targets[key]||""} onChange={event=>{const n=Number(event.target.value);setTargets(v=>({...v,[key]:Math.max(key==="ppi"?1:0,Math.min(key==="ppi"?2400:2000,Number.isFinite(n)?n:0))}));}} data-pdf-target={key} dir="ltr"/></label>;}
-  return <div className="pdf-lab" data-pdf-language={language} data-clarity-mask="true">
+  return <div id="pdf-inspection" className="pdf-lab" data-pdf-language={language} data-clarity-mask="true">
     <div className="pdf-upload"><div><span className="section-kicker">{t("FILE INSPECTION","فحص الملف")}</span><h2>{t("Check the PDF you will send to print.","افحص PDF الذي سترسله للطباعة.")}</h2><p>{t("Choose a PDF to inspect its real pages and image placements. Everything stays in this browser.","اختر PDF لفحص صفحاته الحقيقية ومواضع الصور بداخله. يبقى الملف داخل هذا المتصفح.")}</p><small>{t("PDF · up to 40 MB · up to 100 pages · no password-protected files","PDF · حتى 40 ميجابايت · حتى 100 صفحة · بدون ملفات محمية بكلمة مرور")}</small></div><label className="pdf-file-button"><span>{t("Choose PDF","اختر PDF")}</span><input ref={input} type="file" accept="application/pdf,.pdf" aria-label={t("Choose PDF","اختر PDF")} onChange={event=>{const file=event.target.files?.[0];if(file)void choose(file);event.target.value="";}}/></label></div>
+    <section className="pdf-sample-picker" aria-labelledby="pdf-sample-title"><h3 id="pdf-sample-title">{t("No file handy? Inspect an original example.","ليس لديك ملف؟ افحص مثالًا أصليًا.")}</h3><p>{t("These one-page examples load A4, 3 mm bleed and 300 PPI targets. Your own PDF stays local; only the public example is downloaded.","تحمّل الأمثلة ذات الصفحة الواحدة أهداف A4 ونزف 3 مم ودقة 300 PPI. يبقى ملفك داخل المتصفح؛ ويُنزّل المثال العام فقط.")}</p><div>{PDF_SAMPLES.map((sample,index)=><button key={sample.id} type="button" className="button secondary" data-pdf-sample={sample.id} disabled={busy} onClick={()=>void chooseSample(sample)}>{index+1}. {t(sample.title[0],sample.title[1])}</button>)}</div><Link className="text-link" href="/guides/prepare-pdf-for-print#pdf-examples">{t("Read the expected findings and fixes →","اقرأ النتائج المتوقعة وطرق التصحيح ←")}</Link></section>
     {(fileName||busy||error)&&<div className="pdf-file-state"><bdi>{fileName}</bdi><span role="status" aria-live="polite">{busy?`${t("Inspecting page","فحص الصفحة")} ${progress}`:""}</span><button type="button" className="button secondary" onClick={clear}>{busy?t("Cancel","إلغاء"):t("Clear file","إزالة الملف")}</button></div>}
-    {error&&<p role="alert" className="pdf-error">{error==="size"?t("This file is larger than 40 MB. Export a smaller copy and try again.","الملف أكبر من 40 ميجابايت. صدّر نسخة أصغر وأعد المحاولة."):error==="pages"?t("This PDF has more than 100 pages. Split it into smaller documents.","الملف يحتوي على أكثر من 100 صفحة. قسّمه إلى ملفات أصغر."):t("This PDF could not be inspected. It may be damaged or password-protected. Export an unlocked PDF and try again.","تعذر فحص PDF. قد يكون تالفًا أو محميًا بكلمة مرور. صدّر PDF غير محمي وأعد المحاولة.")}</p>}
+    {error&&<p role="alert" className="pdf-error">{error==="sample"?t("The example could not be loaded. Try again, or download it from the worked examples guide.","تعذر تحميل المثال. أعد المحاولة أو نزّله من دليل الأمثلة العملية."):error==="size"?t("This file is larger than 40 MB. Export a smaller copy and try again.","الملف أكبر من 40 ميجابايت. صدّر نسخة أصغر وأعد المحاولة."):error==="pages"?t("This PDF has more than 100 pages. Split it into smaller documents.","الملف يحتوي على أكثر من 100 صفحة. قسّمه إلى ملفات أصغر."):t("This PDF could not be inspected. It may be damaged or password-protected. Export an unlocked PDF and try again.","تعذر فحص PDF. قد يكون تالفًا أو محميًا بكلمة مرور. صدّر PDF غير محمي وأعد المحاولة.")}</p>}
     {inspection&&page&&result&&<>
       <div className="pdf-results-header"><div><span>{t("PAGES INSPECTED","الصفحات المفحوصة")}</span><strong data-pdf-count>{inspection.pages.length}</strong></div><p>{t("These checks compare your PDF with the targets below. Meeting them does not certify a print-ready file.","تقارن هذه الفحوص PDF بالقيم المطلوبة أدناه. تحقيقها لا يُعد اعتمادًا لجاهزية الطباعة.")}</p><button type="button" className="button primary" onClick={download} data-pdf-download>{t("Download report","تنزيل التقرير")}</button></div>
       <fieldset className="pdf-targets"><legend>{t("Printer requirements","متطلبات المطبعة")}</legend>{targetInput("bleed","Bleed per edge (mm)","النزف لكل حافة (مم)")}{targetInput("ppi","Minimum image PPI","أقل PPI للصور")}{targetInput("width","Trim width (mm, optional)","عرض التشذيب (مم، اختياري)")}{targetInput("height","Trim height (mm, optional)","ارتفاع التشذيب (مم، اختياري)")}<p>{t("Enter both trim dimensions to check size (±0.5 mm). Dimensions follow the page rotation. The PPI check uses the lower axis for each measured image placement.","أدخل بُعدَي التشذيب للتحقق من المقاس (بسماحية ±0.5 مم). يتبع المقاس دوران الصفحة. يستخدم فحص PPI المحور الأقل لكل موضع صورة مقاس.")}</p></fieldset>
       <div className="pdf-page-control"><label>{t("Page","الصفحة")} <select dir="ltr" value={selected} onChange={e=>setSelected(Number(e.target.value))}>{inspection.pages.map((p,i)=><option key={p.number} value={i}>{p.number} · {fmt(p.size.width)} × {fmt(p.size.height)} mm</option>)}</select></label><span dir="ltr">{page.rotation}° · UserUnit {page.userUnit}</span></div>
-      <div className="pdf-workbench"><PdfPreview key={page.number} document={inspection.document} pageNumber={page.number} boxes={page} t={t}/><div className="pdf-page-results">
+      <div className="pdf-workbench"><PdfPreview key={`${inspection.document.loadingTask.docId}-${page.number}`} document={inspection.document} pageNumber={page.number} boxes={page} t={t}/><div className="pdf-page-results">
         <h3>{t("Finished page size","المقاس النهائي للصفحة")}</h3><strong className="pdf-size" dir="ltr" data-pdf-size>{fmt(page.size.width)} × {fmt(page.size.height)} mm</strong><p>{page.explicitTrim?t("Read from the explicit TrimBox, after rotation.","مقروء من TrimBox الصريح بعد الدوران."):t("No explicit TrimBox. The PDF fallback uses CropBox; the intended finished size needs confirmation.","لا يوجد TrimBox صريح. يستخدم PDF إطار CropBox بديلًا؛ يجب تأكيد المقاس النهائي المقصود.")}</p>
         <dl className="pdf-checks"><div data-check="size" data-state={String(result.size)}><dt>{t("Trim size","مقاس التشذيب")}</dt><dd>{status(result.size)}</dd></div><div data-check="bleed" data-state={String(result.bleed)}><dt>{t("Bleed geometry","هندسة النزف")}</dt><dd>{status(result.bleed)}</dd></div><div data-check="images" data-state={String(result.images)}><dt>{t("Image PPI","PPI الصور")}</dt><dd>{status(result.images)}</dd></div></dl>
         <p>{page.explicitTrim&&page.explicitBleed?`${t("Bleed margins: left / bottom / right / top","هوامش النزف: يسار / أسفل / يمين / أعلى")}: ${page.margins.map(fmt).join(" / ")} mm`:t("Explicit TrimBox and BleedBox are needed to verify bleed. Default boxes are not evidence of intentional bleed.","يلزم TrimBox وBleedBox صريحان للتحقق من النزف. الإطارات الافتراضية لا تثبت وجود نزف مقصود.")}</p>{!page.boxesValid&&<p className="pdf-error">{t("The page boxes overlap incorrectly or extend beyond MediaBox. Check the PDF export.","تتداخل إطارات الصفحة بصورة غير صحيحة أو تتجاوز MediaBox. راجع تصدير PDF.")}</p>}

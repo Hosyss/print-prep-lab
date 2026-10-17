@@ -1,0 +1,27 @@
+/* Original PDF learning cases: readable in either language and at narrow widths. */
+.pdf-sample-picker { padding: 1.25rem; margin-block: 1rem; border: 1px solid #cfddd8; border-radius: 14px; background: #f3f7f4; }
+.pdf-sample-picker h3 { margin: 0 0 .5rem; font-size: 1.1rem; }
+.pdf-sample-picker p { margin: 0 0 1rem; }
+.pdf-sample-picker > div { display: flex; gap: .6rem; flex-wrap: wrap; margin-block-end: 1rem; }
+.pdf-sample-picker .button { min-height: 44px; white-space: normal; text-align: start; }
+.pdf-sample-picker button:disabled { opacity: .6; cursor: wait; }
+.pdf-example-library { padding-block: 3rem; scroll-margin-top: 6rem; }
+.pdf-example-library > h2 { max-width: 25ch; font-size: clamp(1.8rem, 3vw, 2.7rem); line-height: 1.2; }
+.pdf-example-library > p { max-width: 80ch; line-height: 1.8; }
+.pdf-example-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; margin-block: 1.5rem; }
+.pdf-example-cards > article { min-width: 0; padding: 1.5rem; border: 1px solid #cfddd8; border-radius: 16px; background: #f8faf7; display: flex; flex-direction: column; scroll-margin-top: 6rem; }
+.pdf-example-heading > span { color: #2b707f; font-size: .85rem; font-weight: 700; }
+.pdf-example-heading h3 { font-size: 1.35rem; margin-block: .4rem .6rem; }
+.pdf-example-cards p, .pdf-example-note p { font-size: 1rem; line-height: 1.8; overflow-wrap: anywhere; }
+.pdf-example-cards h4 { margin-block: 1rem 0; font-size: 1.05rem; }
+.pdf-example-facts { margin: .6rem 0; padding-block: .4rem; border-block: 1px solid #cfddd8; }
+.pdf-example-facts > div { display: flex; justify-content: space-between; gap: .75rem; padding-block: .45rem; }
+.pdf-example-facts dt { font-size: .9rem; }
+.pdf-example-facts dd { margin: 0; font-weight: 650; text-align: end; font-size: .9rem; }
+.pdf-example-actions { margin-block-start: auto; padding-block-start: 1rem; display: flex; align-items: center; flex-wrap: wrap; gap: .8rem; }
+.pdf-example-actions .button { min-height: 44px; white-space: normal; }
+.pdf-example-note { padding: 1.5rem; background: #ecf2ed; border-inline-start: 4px solid #2b707f; }
+.pdf-example-note h3 { margin-block-start: 0; }
+.pdf-example-note a { text-decoration: underline; text-underline-offset: .2em; }
+@media (max-width: 1000px) { .pdf-example-cards { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .pdf-example-cards > article { padding: 1.1rem; } .pdf-sample-picker .button { width: 100%; } }

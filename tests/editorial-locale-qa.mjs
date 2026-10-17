@@ -9,7 +9,7 @@ const guides=['dpi-vs-ppi','how-large-can-i-print-my-image','print-resolution-gu
 const sizes=['a2','a3','a4','a5','us-letter','us-legal','4x6-photo','5x7-photo','8x10-photo','11x14-photo','12x18-photo','16x20-photo'];
 const policyRoutes=['/about','/methodology','/sources','/editorial-policy','/privacy','/terms','/contact'];
 const routes=['/',...guides.map(g=>'/guides/'+g),...sizes.map(s=>'/sizes/'+s),...policyRoutes];
-const scope='.home-opening,.article-main,.guide-comparison,.guide-summary-grid,.size-use-case,.size-insights,.size-detail-grid,.inner-hero,.breadcrumbs,.policy-layout,.page-cta';
+const scope='.home-opening,.pdf-example-library,.article-main,.guide-comparison,.guide-summary-grid,.size-use-case,.size-insights,.size-detail-grid,.inner-hero,.breadcrumbs,.policy-layout,.page-cta';
 const results=[];
 const browser=await chromium.launch({headless:true,channel:'chrome'});
 try{
@@ -43,7 +43,7 @@ try{
           }
           results.push({path,language:lang,viewport:viewport.width,status:'passed'});
         }
-        if(['/','/guides/dpi-vs-ppi','/sizes/a4','/methodology','/privacy'].includes(path)){
+        if(['/','/guides/dpi-vs-ppi','/guides/prepare-pdf-for-print','/sizes/a4','/methodology','/privacy'].includes(path)){
           await language.selectOption('ar');
           await page.waitForFunction(()=>document.documentElement.dir==='rtl');
           await page.screenshot({path:join(output,`editorial-${viewport.width}-${path.replaceAll('/','_')||'home'}.png`),fullPage:true});

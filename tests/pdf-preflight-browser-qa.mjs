@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import {mixedPdf,tooManyPagesPdf} from './pdf-preflight-fixtures.mjs';
 const base=process.argv[2]||'http://127.0.0.1:4182',out=process.argv[3]||'work/pdf-browser-qa';await fs.mkdir(out,{recursive:true});
+const samples=JSON.parse(await fs.readFile(new URL('../public/samples/manifest.json',import.meta.url),'utf8')).samples;
 const pdf=await mixedPdf();await fs.writeFile(path.join(out,'mixed-print-check.pdf'),pdf);
 const browser=await chromium.launch({headless:true,channel:'chrome'});let assertions=0;
 const check=(ok,message)=>{assert.ok(ok,message);assertions++;console.log('PASS',message);};
@@ -45,6 +47,36 @@ try {for(const viewport of [{width:1365,height:900},{width:390,height:844}]){
     await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:path.join(out,`pdf-${viewport.width}-en.png`),fullPage:true});
     check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no viewport horizontal overflow');
+    await page.goto(base+'/guides/prepare-pdf-for-print#pdf-examples',{waitUntil:'networkidle'});
+    check(await page.locator('[data-example-download]').count()===3,'three original PDFs linked in the guide');
+    await page.screenshot({path:path.join(out,`pdf-guide-${viewport.width}-en.png`),fullPage:true});
+    await page.locator('select[data-source-lang]').selectOption('ar');
+    await page.waitForFunction(()=>document.querySelector('#pdf-examples h2')?.textContent.includes('ثلاثة ملفات'));
+    check((await page.locator('#pdf-examples').innerText()).includes('إضافة بيانات الإطارات وحدها'),'Arabic case interpretations render');
+    await page.screenshot({path:path.join(out,`pdf-guide-${viewport.width}-ar.png`),fullPage:true});
+    const sampleDownload=page.waitForEvent('download');
+    await page.locator('[data-example-download]').first().click();
+    const downloaded=await sampleDownload,downloadPath=path.join(out,`sample-download-${viewport.width}.pdf`);
+    await downloaded.saveAs(downloadPath);
+    check(createHash('sha256').update(await fs.readFile(downloadPath)).digest('hex')===samples[0].sha256,'downloaded PDF matches the verified original');
+    await page.goto(base+'/tools/pdf-print-preflight?sample='+samples[0].id+'#pdf-inspection',{waitUntil:'networkidle'});
+    await page.locator('[data-pdf-count]').waitFor({timeout:60000});
+    check(await lab.locator('[data-pdf-target=width]').inputValue()==='210'&&await lab.locator('[data-pdf-target=height]').inputValue()==='297','guide link loads the real example and A4 targets');
+    for(const sample of samples){
+      await lab.locator(`[data-pdf-sample="${sample.id}"]`).click();
+      await page.locator('[data-pdf-count]').waitFor({timeout:60000});
+      await page.locator('[data-pdf-preview=ready]').waitFor({timeout:30000});
+      check(await page.locator('[data-pdf-count]').innerText()==='1',sample.id+' reads one actual PDF page');
+      check(await page.locator('[data-pdf-size]').innerText()==='210 × 297 mm',sample.id+' A4 dimensions');
+      check((await page.locator('[data-pdf-images]').innerText()).includes(sample.ppi+' PPI'),sample.id+' measured image PPI');
+      check(await lab.locator('[data-check=size]').getAttribute('data-state')==='true',sample.id+' matches A4 target');
+      const expectedBleed=sample.bleedMm===null?'null':String(sample.bleedMm>=3);
+      check(await lab.locator('[data-check=bleed]').getAttribute('data-state')===expectedBleed,sample.id+' correct bleed decision');
+      check(await lab.locator('[data-check=images]').getAttribute('data-state')===String(sample.ppi>=300),sample.id+' correct image decision');
+      await page.screenshot({path:path.join(out,`sample-${sample.id}-${viewport.width}.png`),fullPage:true});
+    }
+    await locale.selectOption('en');
+    await page.waitForFunction(()=>document.querySelector('.pdf-lab')?.dataset.pdfLanguage==='en');
     await file.setInputFiles({name:'broken.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.7 broken')});await lab.locator('[role=alert]').waitFor();check((await lab.locator('[role=alert]').innerText()).includes('could not be inspected'),'malformed PDF actionable error');check(await lab.locator('[data-pdf-count]').count()===0,'failed file clears stale result');
     await file.setInputFiles({name:'101-pages.pdf',mimeType:'application/pdf',buffer:await tooManyPagesPdf()});await lab.locator('[role=alert]').waitFor();check((await lab.locator('[role=alert]').innerText()).includes('more than 100'),'page limit handled');
     check(uploads.length===0,'PDF never uploaded');check(errors.length===0,'no uncaught browser errors: '+errors.join('; '));

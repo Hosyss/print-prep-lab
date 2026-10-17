@@ -13,6 +13,7 @@ import {
   socialImage,
 } from "@/lib/seo";
 import "./globals.css";
+import "./pdf-learning.css";
 import "./v119-source.css";
 import "./v119-source-nav.css";
 import "./v119-source-polish.css";
