@@ -53,6 +53,8 @@ try {for(const viewport of [{width:1365,height:900},{width:390,height:844}]){
     await page.locator('select[data-source-lang]').selectOption('ar');
     await page.waitForFunction(()=>document.querySelector('#pdf-examples h2')?.textContent.includes('ثلاثة ملفات'));
     check((await page.locator('#pdf-examples').innerText()).includes('إضافة بيانات الإطارات وحدها'),'Arabic case interpretations render');
+    check(await page.locator('[data-example-inspect] span').first().evaluate(el=>getComputedStyle(el).transform)==='none','Arabic example action text is not mirrored');
+    check(await page.locator('#a4-matched-geometry p span[data-ar]').evaluateAll(elements=>elements.some(el=>el.textContent.includes('\u2066(216 − 210) ÷ 2 = 3\u2069'))),'Arabic arithmetic preserves the left-to-right subtraction');
     await page.screenshot({path:path.join(out,`pdf-guide-${viewport.width}-ar.png`),fullPage:true});
     const sampleDownload=page.waitForEvent('download');
     await page.locator('[data-example-download]').first().click();

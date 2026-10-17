@@ -20,6 +20,9 @@
 .pdf-example-facts dd { margin: 0; font-weight: 650; text-align: end; font-size: .9rem; }
 .pdf-example-actions { margin-block-start: auto; padding-block-start: 1rem; display: flex; align-items: center; flex-wrap: wrap; gap: .8rem; }
 .pdf-example-actions .button { min-height: 44px; white-space: normal; }
+/* The legacy locale stylesheet mirrors icon spans; these spans contain text. */
+html[dir="rtl"] .ppl-source-v119 .pdf-example-actions .button span,
+html[dir="rtl"] .ppl-source-v119 .pdf-example-actions .text-link span { transform: none; }
 .pdf-example-note { padding: 1.5rem; background: #ecf2ed; border-inline-start: 4px solid #2b707f; }
 .pdf-example-note h3 { margin-block-start: 0; }
 .pdf-example-note a { text-decoration: underline; text-underline-offset: .2em; }

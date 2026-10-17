@@ -2,7 +2,9 @@ import Link from "next/link";
 import { PDF_SAMPLES, pdfSamplePath } from "@/lib/pdf-samples";
 
 function Copy({ en, ar }: { en: string; ar: string }) {
-  return <span data-en={en} data-ar={ar}>{en}</span>;
+  // Keep arithmetic and width × height in reading order inside Arabic prose.
+  const arabic = ar.replace(/A4|PDF(?:\/X)?|TrimBox|BleedBox|MediaBox|RGB|ICC|\(?\d+(?:\.\d+)?(?:\s*[×÷−=+]\s*\(?\d+(?:\.\d+)?\)?)*\)?(?:\s*PPI)?/g, value => `\u2066${value}\u2069`);
+  return <span data-en={en} data-ar={arabic}>{en}</span>;
 }
 
 export function PdfExampleLibrary() {
